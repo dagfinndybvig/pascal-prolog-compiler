@@ -1,24 +1,20 @@
 # Build outputs (pascal_compiler.pl -- build-asm)
+# All compiled Pascal executables
 /comprehensive_test
-/benchmark_primes
-/division_test
-/simple_overflow_test
-/primes_fast
-/primes_slow
-/primes_simple_fast
+/primes_less_than_200
+/primes_less_than_200_simple
 /primes_simple_slow
-/primes_no_division
+/primes_simple_fast
+/primes_fast_full
+/primes_slow_full
 /primes_sqrt_optimized
-/primes_sqrt_no_div
-/primes_mult_sub
 /primes_with_summary
-/primes_optimized
-/primes_screen
-/primes_max_test
-/primes_less_than_200_1
-/primes_less_than_200_2
-/primes_mult_sub_optimized
-/test_output
+/primes_no_division
+/primes_mult_sub
+/primes_sqrt_no_div
+
+# Generic executable patterns (catch-all for any future builds)
+/*.pas~
 
 # Tool/intermediate artifacts
 *.s
