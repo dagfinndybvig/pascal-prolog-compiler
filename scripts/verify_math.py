@@ -1,0 +1,346 @@
+#!/usr/bin/env python3
+import json
+import math
+import re
+import subprocess
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+BIN_DIR = ROOT / ".verify_bin"
+
+
+def run(cmd, *, input_text=None, timeout=240):
+    return subprocess.run(
+        cmd,
+        cwd=ROOT,
+        text=True,
+        input=input_text,
+        capture_output=True,
+        timeout=timeout,
+    )
+
+
+def primes_upto(n):
+    if n < 2:
+        return []
+    sieve = [True] * (n + 1)
+    sieve[0] = False
+    sieve[1] = False
+    for i in range(2, int(n ** 0.5) + 1):
+        if sieve[i]:
+            for j in range(i * i, n + 1, i):
+                sieve[j] = False
+    return [i for i, is_p in enumerate(sieve) if is_p]
+
+
+def parse_ints(text):
+    return [int(x) for x in re.findall(r"\b\d+\b", text)]
+
+
+def verify_prime_sequence(output, limit, stop_marker=None):
+    segment = output.split(stop_marker)[0] if stop_marker else output
+    values = [n for n in parse_ints(segment) if n <= limit]
+    if 2 in values:
+        values = values[values.index(2) :]
+    expected = primes_upto(limit)
+    return {
+        "count": len(values),
+        "matches": values == expected,
+        "first10": values[:10],
+        "last5": values[-5:],
+    }
+
+
+def verify_prime_sequence_allow_duplicate_banner_two(output, limit):
+    values = [n for n in parse_ints(output) if n <= limit]
+    if len(values) >= 2 and values[0] == 2 and values[1] == 2:
+        values = values[1:]
+    if 2 in values:
+        values = values[values.index(2) :]
+    expected = primes_upto(limit)
+    return {
+        "count": len(values),
+        "matches": values == expected,
+        "first10": values[:10],
+        "last5": values[-5:],
+    }
+
+
+def build_example(pas_path):
+    out_bin = BIN_DIR / pas_path.stem
+    proc = run(
+        [
+            "swipl",
+            "-q",
+            "-s",
+            "pascal_compiler.pl",
+            "--",
+            "build-asm",
+            str(pas_path),
+            str(out_bin),
+        ]
+    )
+    return proc.returncode == 0, out_bin, proc.stderr.strip()
+
+
+def build_and_run_source(source_text, name, *, input_text=None, timeout=120):
+    pas_path = BIN_DIR / f"{name}.pas"
+    out_bin = BIN_DIR / name
+    pas_path.write_text(source_text)
+    proc_build = run(
+        [
+            "swipl",
+            "-q",
+            "-s",
+            "pascal_compiler.pl",
+            "--",
+            "build-asm",
+            str(pas_path.relative_to(ROOT)),
+            str(out_bin),
+        ]
+    )
+    if proc_build.returncode != 0:
+        return {
+            "build_ok": False,
+            "build_returncode": proc_build.returncode,
+            "build_stderr": proc_build.stderr.strip(),
+            "run": None,
+        }
+
+    proc_run = run([str(out_bin)], input_text=input_text, timeout=timeout)
+    return {
+        "build_ok": True,
+        "build_returncode": proc_build.returncode,
+        "build_stderr": proc_build.stderr.strip(),
+        "run": {
+            "returncode": proc_run.returncode,
+            "stdout": proc_run.stdout,
+            "stderr": proc_run.stderr,
+        },
+    }
+
+
+def check_expected_stdout_lines(result, expected_lines):
+    if not result["build_ok"]:
+        return {
+            "build_ok": False,
+            "build_returncode": result["build_returncode"],
+            "build_stderr": result["build_stderr"],
+            "pass": False,
+        }
+
+    run_result = result["run"]
+    stdout_lines = [line.strip() for line in run_result["stdout"].splitlines() if line.strip()]
+    return {
+        "build_ok": True,
+        "returncode": run_result["returncode"],
+        "stdout_lines": stdout_lines,
+        "expected_stdout_lines": expected_lines,
+        "pass": run_result["returncode"] == 0 and stdout_lines == expected_lines,
+    }
+
+
+def main():
+    BIN_DIR.mkdir(exist_ok=True)
+    examples = sorted((ROOT / "examples").rglob("*.pas"))
+    build_results = {}
+    for pas in examples:
+        ok, out_bin, stderr = build_example(pas.relative_to(ROOT))
+        build_results[str(pas.relative_to(ROOT))] = {
+            "ok": ok,
+            "binary": str(out_bin),
+            "stderr": stderr,
+        }
+
+    checks = {}
+    small_prime_programs = [
+        "primes_less_than_200_simple",
+        "primes_no_division",
+        "primes_mult_sub",
+        "primes_sqrt_optimized",
+        "primes_sqrt_no_div",
+    ]
+    for name in small_prime_programs:
+        proc = run([str(BIN_DIR / name)])
+        checks[name] = verify_prime_sequence(proc.stdout, 199)
+        checks[name]["returncode"] = proc.returncode
+
+    less200_v2 = run([str(BIN_DIR / "primes_less_than_200")])
+    checks["primes_less_than_200"] = verify_prime_sequence_allow_duplicate_banner_two(
+        less200_v2.stdout, 199
+    )
+    checks["primes_less_than_200"]["returncode"] = less200_v2.returncode
+
+    for name in ["primes_simple_slow", "primes_simple_fast"]:
+        proc = run([str(BIN_DIR / name)], timeout=300)
+        m = re.search(r"Number of primes:\s*(\d+)", proc.stdout)
+        checks[name] = {
+            "returncode": proc.returncode,
+            "reported_count": int(m.group(1)) if m else None,
+            "expected_count": len(primes_upto(46000)),
+        }
+
+    summary_proc = run([str(BIN_DIR / "primes_with_summary")], timeout=300)
+    checks["primes_with_summary"] = verify_prime_sequence(
+        summary_proc.stdout, 46000, "Found these primes between"
+    )
+    checks["primes_with_summary"]["returncode"] = summary_proc.returncode
+
+    comp_proc = run([str(BIN_DIR / "comprehensive_test")], input_text="7\n")
+    checks["comprehensive_test"] = {
+        "returncode": comp_proc.returncode,
+        "tail": comp_proc.stdout.splitlines()[-4:],
+    }
+
+    div_zero_source = """program div_zero_check;
+var
+  a, b, c: integer;
+begin
+  a := 5;
+  b := 0;
+  c := a / b;
+  writeln(c)
+end.
+"""
+    div_zero_result = build_and_run_source(div_zero_source, "regression_div_zero")
+    if div_zero_result["build_ok"]:
+        div_zero_run = div_zero_result["run"]
+        stderr = div_zero_run["stderr"]
+        rc = div_zero_run["returncode"]
+        checks["division_by_zero_guard"] = {
+            "build_ok": True,
+            "returncode": rc,
+            "stderr": stderr,
+            "expected_non_signal_exit": rc > 0,
+            "expected_runtime_message": (
+                "runtime error 2" in stderr
+                or "Division by zero" in stderr
+                or "division by zero" in stderr
+            ),
+            "pass": rc > 0
+            and (
+                "runtime error 2" in stderr
+                or "Division by zero" in stderr
+                or "division by zero" in stderr
+            ),
+        }
+    else:
+        checks["division_by_zero_guard"] = {
+            "build_ok": False,
+            "build_returncode": div_zero_result["build_returncode"],
+            "build_stderr": div_zero_result["build_stderr"],
+            "pass": False,
+        }
+
+    mangle_collision_source = """program mangle_collision;
+var
+  x__0, y: integer;
+begin
+  x__0 := 1;
+  begin
+    var x: integer;
+    x := 2;
+    writeln(x__0)
+  end
+end.
+"""
+    mangle_result = build_and_run_source(mangle_collision_source, "regression_mangle_collision")
+    checks["mangling_collision_scope"] = check_expected_stdout_lines(mangle_result, ["1"])
+
+    expression_stress_source = """program expression_stress;
+var
+  a, b, c, d, e, r: integer;
+begin
+  a := 7;
+  b := 3;
+  c := 2;
+  d := 5;
+  e := 11;
+  r := (((a + b) * (c + d)) - (e * (a - c))) / b;
+  writeln(r);
+  r := -(-(-a));
+  writeln(r);
+  r := (a * b) + (c * d) + (e / c);
+  writeln(r);
+  if (a + b) > (e - c) then
+    writeln(1)
+  else
+    writeln(0)
+end.
+"""
+    expr_stress_result = build_and_run_source(
+        expression_stress_source,
+        "regression_expression_stress",
+    )
+    checks["expression_stress"] = check_expected_stdout_lines(
+        expr_stress_result,
+        ["5", "-7", "36", "1"],
+    )
+
+    division_sign_source = """program division_signs;
+var
+  a, b: integer;
+begin
+  a := -7;
+  b := 2;
+  writeln(a / b);
+  a := 7;
+  b := -2;
+  writeln(a / b);
+  a := -7;
+  b := -2;
+  writeln(a / b)
+end.
+"""
+    division_sign_result = build_and_run_source(
+        division_sign_source,
+        "regression_division_signs",
+    )
+    checks["division_sign_semantics"] = check_expected_stdout_lines(
+        division_sign_result,
+        ["-3", "-3", "3"],
+    )
+
+    nested_control_source = """program nested_control_flow;
+var
+  i, sum: integer;
+begin
+  i := 1;
+  sum := 0;
+  while i <= 10 do
+  begin
+    if i < 5 then
+      sum := sum + i
+    else
+      sum := sum + (i * 2);
+    i := i + 1
+  end;
+  writeln(sum);
+
+  begin
+    var sum: integer;
+    sum := 999;
+    writeln(sum)
+  end;
+
+  writeln(sum)
+end.
+"""
+    nested_control_result = build_and_run_source(
+        nested_control_source,
+        "regression_nested_control",
+    )
+    checks["nested_control_flow_scope"] = check_expected_stdout_lines(
+        nested_control_result,
+        ["100", "999", "100"],
+    )
+
+    result = {
+        "build_results": build_results,
+        "checks": checks,
+    }
+    print(json.dumps(result, indent=2))
+
+
+if __name__ == "__main__":
+    main()

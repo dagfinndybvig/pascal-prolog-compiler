@@ -1,0 +1,218 @@
+:- module(parser, [parse_file/2, parse_tokens/2]).
+
+:- use_module(lexer).
+
+parse_file(Path, Program) :-
+    lex_file(Path, Tokens),
+    parse_tokens(Tokens, Program).
+
+parse_tokens(Tokens, Program) :-
+    (   phrase(program(Program), Tokens)
+    ->  true
+    ;   throw(error(syntax_error(invalid_pascal_program), _))
+    ).
+
+program(program(Name, Vars, Block)) -->
+    keyword(program),
+    identifier(Name),
+    symbol(';'),
+    declarations(Vars),
+    block(Block),
+    symbol('.'),
+    [tok(eof, _, _)].
+
+declarations(Vars) -->
+    keyword(var),
+    !,
+    var_decls(Vars).
+declarations([]) -->
+    [].
+
+var_decls(Vars) -->
+    var_decl(Names),
+    symbol(';'),
+    !,
+    var_decls(Rest),
+    { append(Names, Rest, Vars) }.
+var_decls([]) -->
+    [].
+
+var_decl(Names) -->
+    ident_list(Names),
+    symbol(':'),
+    keyword(integer).
+
+ident_list([Name|Rest]) -->
+    identifier(Name),
+    ident_list_tail(Rest).
+
+ident_list_tail([Name|Rest]) -->
+    symbol(','),
+    !,
+    identifier(Name),
+    ident_list_tail(Rest).
+ident_list_tail([]) -->
+    [].
+
+block(block(LocalVars, Stmts)) -->
+    keyword(begin),
+    block_declarations(LocalVars),
+    stmt_list(Stmts),
+    keyword(end).
+
+block_declarations(Vars) -->
+    keyword(var),
+    !,
+    var_decls(Vars).
+block_declarations([]) -->
+    [].
+
+stmt_list([]) -->
+    peek_keyword(end),
+    !.
+stmt_list([Stmt|Rest]) -->
+    statement(Stmt),
+    stmt_tail(Rest).
+
+stmt_tail(Rest) -->
+    symbol(';'),
+    !,
+    stmt_list(Rest).
+stmt_tail([]) -->
+    [].
+
+statement(Stmt) -->
+    block(Stmt),
+    !.
+statement(if(Cond, Then, Else)) -->
+    keyword(if),
+    expression(Cond),
+    keyword(then),
+    statement(Then),
+    optional_else(Else),
+    !.
+statement(while(Cond, Body)) -->
+    keyword(while),
+    expression(Cond),
+    keyword(do),
+    statement(Body),
+    !.
+statement(writeln(Arg)) -->
+    keyword(writeln),
+    symbol('('),
+    writeln_arg(Arg),
+    symbol(')'),
+    !.
+statement(write(Arg)) -->
+    keyword(write),
+    symbol('('),
+    writeln_arg(Arg),
+    symbol(')'),
+    !.
+statement(readln(Name)) -->
+    keyword(readln),
+    symbol('('),
+    identifier(Name),
+    symbol(')'),
+    !.
+statement(assign(Name, Expr)) -->
+    identifier(Name),
+    symbol(':='),
+    expression(Expr),
+    !.
+
+optional_else(Else) -->
+    keyword(else),
+    !,
+    statement(Else).
+optional_else(block([], [])) -->
+    [].
+
+expression(Expr) -->
+    additive(Left),
+    relational_tail(Left, Expr).
+
+relational_tail(Left, Expr) -->
+    rel_op(Op),
+    !,
+    additive(Right),
+    { Expr = bin(Op, Left, Right) }.
+relational_tail(Expr, Expr) -->
+    [].
+
+rel_op('=') --> symbol('=').
+rel_op('<>') --> symbol('<>').
+rel_op('<') --> symbol('<').
+rel_op('<=') --> symbol('<=').
+rel_op('>') --> symbol('>').
+rel_op('>=') --> symbol('>=').
+
+additive(Expr) -->
+    multiplicative(Left),
+    additive_tail(Left, Expr).
+
+additive_tail(Acc, Expr) -->
+    add_op(Op),
+    !,
+    multiplicative(Right),
+    { Next = bin(Op, Acc, Right) },
+    additive_tail(Next, Expr).
+additive_tail(Expr, Expr) -->
+    [].
+
+add_op('+') --> symbol('+').
+add_op('-') --> symbol('-').
+
+multiplicative(Expr) -->
+    unary(Left),
+    multiplicative_tail(Left, Expr).
+
+multiplicative_tail(Acc, Expr) -->
+    mul_op(Op),
+    !,
+    unary(Right),
+    { Next = bin(Op, Acc, Right) },
+    multiplicative_tail(Next, Expr).
+multiplicative_tail(Expr, Expr) -->
+    [].
+
+mul_op('*') --> symbol('*').
+mul_op('/') --> symbol('/').
+
+unary(unary('-', Expr)) -->
+    symbol('-'),
+    !,
+    unary(Expr).
+unary(Expr) -->
+    primary(Expr).
+
+primary(int(N)) -->
+    [tok(int(N), _, _)],
+    !.
+primary(var(Name)) -->
+    identifier(Name),
+    !.
+primary(Expr) -->
+    symbol('('),
+    expression(Expr),
+    symbol(')').
+
+writeln_arg(str(Text)) -->
+    string_literal(Text),
+    !.
+writeln_arg(expr(Expr)) -->
+    expression(Expr).
+
+keyword(K) -->
+    [tok(kw(K), _, _)].
+
+identifier(Name) -->
+    [tok(ident(Name), _, _)].
+
+symbol(S) -->
+    [tok(sym(S), _, _)].
+
+string_literal(Text) -->
+    [tok(str(Text), _, _)].
+
+peek_keyword(K, [tok(kw(K), _, _)|Tokens], [tok(kw(K), _, _)|Tokens]).

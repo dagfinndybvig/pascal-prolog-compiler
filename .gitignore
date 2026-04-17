@@ -1,0 +1,34 @@
+# Build outputs (pascal_compiler.pl -- build-asm)
+/comprehensive_test
+/benchmark_primes
+/division_test
+/simple_overflow_test
+/primes_fast
+/primes_slow
+/primes_simple_fast
+/primes_simple_slow
+/primes_no_division
+/primes_sqrt_optimized
+/primes_sqrt_no_div
+/primes_mult_sub
+/primes_with_summary
+/primes_optimized
+/primes_screen
+/primes_max_test
+/primes_less_than_200_1
+/primes_less_than_200_2
+/primes_mult_sub_optimized
+/test_output
+
+# Tool/intermediate artifacts
+*.s
+*.o
+*.tmp
+*.temp
+*~
+*.swp
+*.swo
+/.verify_bin/
+
+# Windows downloaded-file metadata
+*:Zone.Identifier

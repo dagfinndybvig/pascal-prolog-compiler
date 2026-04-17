@@ -1,0 +1,18 @@
+#ifndef PASCAL_PROLOG_RUNTIME_H
+#define PASCAL_PROLOG_RUNTIME_H
+
+int rt_readln_int(void);
+void rt_writeln_int(int value);
+void rt_writeln_str(const char *value);
+void rt_write_int(int value);
+void rt_write_str(const char *value);
+void rt_error(int code, const char *message);
+
+/* Error codes */
+#define RT_ERROR_STACK_OVERFLOW 1
+#define RT_ERROR_DIVISION_BY_ZERO 2
+#define RT_ERROR_ARRAY_BOUNDS 3
+#define RT_ERROR_NULL_POINTER 4
+#define RT_ERROR_INVALID_OPERATION 5
+
+#endif
