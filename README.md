@@ -460,13 +460,12 @@ This software is released under the **Unlicense** (public domain dedication). Se
 
 ## 🎉 Enjoy!
 
-This project provides a complete Pascal compiler with assembly backend. It's perfect for:
+This project provides a minimalist Pascal compiler with assembly backend. It's perfect for:
 
 - Learning compiler construction
 - Experimenting with Pascal programming
 - Understanding how compilers work
 - Teaching programming concepts
-- Small projects and prototypes
 
 **Happy coding!** 🚀
 
