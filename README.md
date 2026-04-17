@@ -428,8 +428,7 @@ Implementing compilers in Prolog is a **long-standing tradition** in computer sc
 
 - **"Programming in Prolog"** by Clocksin & Mellish (Springer)
   - The classic Prolog textbook (since 1981, 6th edition 2003)
-  - **Chapter 11: Definite Clause Grammars** - Standard reference for DCGs
-  - **Chapter 12: Writing a Prolog Interpreter** - Compiler construction fundamentals
+  - Covers DCGs and compiler construction fundamentals
   - Often called the "bible" of Prolog programming
   
 - **"The Power of Prolog"** - [Metalevel Systems](https://www.metalevel.at/prolog) by Markus Triska
