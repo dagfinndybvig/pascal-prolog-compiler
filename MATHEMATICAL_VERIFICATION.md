@@ -3,7 +3,7 @@
 ## Status
 **Result:** PASS  
 **Date:** 2026-04-17  
-**Version:** v1.2.1
+**Version:** v1.3
 
 This verification is reproducible from files in this release package.
 

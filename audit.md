@@ -1,7 +1,7 @@
 # Project Audit Report
 
 Date: 2026-04-17
-Project: pascal-prolog-v1.2.2
+Project: pascal-prolog-v1.3
 Auditor: GitHub Copilot (GPT-5.3-Codex)
 
 ## Scope
