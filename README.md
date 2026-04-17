@@ -2,6 +2,11 @@
 
 # Pascal-Prolog Assembly Backend - Release Version 1.3
 
+> [!WARNING]
+> This project implements only a **fragment of Pascal**. It supports **integer-only arithmetic** and a focused feature subset that is just enough to do interesting work with prime-number programs.
+>
+> It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
+
 ## 📦 Pascal-Prolog Assembly Backend Release
 
 **Version**: 1.3

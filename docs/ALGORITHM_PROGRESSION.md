@@ -1,5 +1,10 @@
 # Prime Number Algorithm Progression
 
+> [!WARNING]
+> This project implements only a **fragment of Pascal**. It supports **integer-only arithmetic** and a focused feature subset that is just enough to do interesting work with prime-number programs.
+>
+> It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
+
 This document summarizes the evolutionary path of prime number algorithms in this project, from least to most efficient.
 
 ## The Progression

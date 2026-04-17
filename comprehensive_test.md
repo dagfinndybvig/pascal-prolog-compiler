@@ -1,5 +1,10 @@
 # Comprehensive Test Documentation
 
+> [!WARNING]
+> This project implements only a **fragment of Pascal**. It supports **integer-only arithmetic** and a focused feature subset that is just enough to do interesting work with prime-number programs.
+>
+> It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
+
 This document describes the comprehensive test program that demonstrates all currently implemented features of the Pascal-Prolog compiler's assembly backend.
 
 ## Test Program: `comprehensive_test.pas`

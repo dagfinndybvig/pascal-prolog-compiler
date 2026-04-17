@@ -1,5 +1,10 @@
 # Prime Number Algorithms: From Basic to Optimized
 
+> [!WARNING]
+> This project implements only a **fragment of Pascal**. It supports **integer-only arithmetic** and a focused feature subset that is just enough to do interesting work with prime-number programs.
+>
+> It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
+
 This document explores various approaches to prime number generation, from the most basic to highly optimized, all implemented within the constraints of our integer-only Pascal compiler.
 
 ## Table of Contents
