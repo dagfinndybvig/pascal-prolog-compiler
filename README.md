@@ -428,16 +428,11 @@ Implementing compilers in Prolog is a **long-standing tradition** in computer sc
 
 - **"The Power of Prolog"** - [Metalevel Systems](https://www.metalevel.at/prolog) by Markus Triska
   - Comprehensive Prolog resource with compiler/grammar examples
+  - Includes detailed DCG (Definite Clause Grammars) tutorials
   
-- **[Parsec in Prolog](https://www.swi-prolog.org/pldoc/doc_for?object=library(parsing/parsec))** - SWI-Prolog parsing library
-  
-- **"Compiler Construction using Logic Programming"** - Classic papers on using Prolog for language implementation
-  
-- **[SWI-Prolog Documentation](https://www.swi-prolog.org/)** - Excellent resources for DCGs (Definite Clause Grammars) used in parsing
-  
-- **DCG (Definite Clause Grammars)** - Prolog's built-in grammar system, perfect for implementing parsers:
-  - [DCG Basics](https://www.swi-prolog.org/pldoc/doc_for?object=section(section(2.6,book('SWI-Prolog'))) )
-  - [Advanced DCGs](https://www.metalevel.at/prolog/dcg) by Markus Triska
+- **DCG (Definite Clause Grammars)** - Prolog's built-in grammar system for parsing:
+  - [Prolog DCG Primer](https://www.metalevel.at/prolog/dcg) by Markus Triska
+  - Standard approach for implementing parsers in Prolog
 
 ## 🤝 Contributing
 
