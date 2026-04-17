@@ -426,8 +426,14 @@ swipl -q -s pascal_compiler.pl -- build-asm <source.pas> <output>
 
 Implementing compilers in Prolog is a **long-standing tradition** in computer science education. Prolog's pattern matching, recursion, and logic programming features make it ideal for parsing and language processing:
 
+- **"Programming in Prolog"** by Clocksin & Mellish (Springer)
+  - The classic Prolog textbook (since 1981, 6th edition 2003)
+  - **Chapter 11: Definite Clause Grammars** - Standard reference for DCGs
+  - **Chapter 12: Writing a Prolog Interpreter** - Compiler construction fundamentals
+  - Often called the "bible" of Prolog programming
+  
 - **"The Power of Prolog"** - [Metalevel Systems](https://www.metalevel.at/prolog) by Markus Triska
-  - Comprehensive Prolog resource with compiler/grammar examples
+  - Comprehensive modern Prolog resource with compiler/grammar examples
   - Includes detailed DCG (Definite Clause Grammars) tutorials
   
 - **DCG (Definite Clause Grammars)** - Prolog's built-in grammar system for parsing:
