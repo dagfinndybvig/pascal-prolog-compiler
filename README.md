@@ -20,6 +20,26 @@ This is now a **complete standalone release** of the Pascal-Prolog compiler with
 - ✅ Full documentation
 - ✅ Minimal, clean distribution
 
+## 🆕 What's New In v1.3
+
+This release includes a post-audit hardening pass with verified fixes and expanded regression coverage.
+
+### Key improvements
+- ✅ Fixed division-by-zero fallback behavior to use controlled runtime error handling.
+- ✅ Removed IR local-symbol collision risk by using collision-proof internal local identifiers.
+- ✅ Fixed register allocator initialization consistency and temp register emission behavior.
+- ✅ Fixed nested-expression temporary register clobbering in code generation.
+- ✅ Fixed relational comparison operand ordering in allocated-register compare paths.
+
+### Verification improvements
+- ✅ Added targeted backend regression checks in `scripts/verify_math.py`:
+   - `division_by_zero_guard`
+   - `mangling_collision_scope`
+   - `expression_stress`
+   - `division_sign_semantics`
+   - `nested_control_flow_scope`
+- ✅ Baseline example builds and all new hardening checks pass.
+
 ## 🚀 Quick Start
 
 ### Requirements
