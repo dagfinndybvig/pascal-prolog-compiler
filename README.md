@@ -422,12 +422,29 @@ swipl -q -s pascal_compiler.pl -- build-asm <source.pas> <output>
 - [Free Pascal Compiler](https://www.freepascal.org/) (for comparison)
 - [GNU Pascal](https://www.gnu-pascal.de/) (another open-source Pascal)
 
+### Prolog for Compiler Construction
+
+Implementing compilers in Prolog is a **long-standing tradition** in computer science education. Prolog's pattern matching, recursion, and logic programming features make it ideal for parsing and language processing:
+
+- **"The Power of Prolog"** - [Metalevel Systems](https://www.metalevel.at/prolog) by Markus Triska
+  - Comprehensive Prolog resource with compiler/grammar examples
+  
+- **[Parsec in Prolog](https://www.swi-prolog.org/pldoc/doc_for?object=library(parsing/parsec))** - SWI-Prolog parsing library
+  
+- **"Compiler Construction using Logic Programming"** - Classic papers on using Prolog for language implementation
+  
+- **[SWI-Prolog Documentation](https://www.swi-prolog.org/)** - Excellent resources for DCGs (Definite Clause Grammars) used in parsing
+  
+- **DCG (Definite Clause Grammars)** - Prolog's built-in grammar system, perfect for implementing parsers:
+  - [DCG Basics](https://www.swi-prolog.org/pldoc/doc_for?object=section(section(2.6,book('SWI-Prolog'))) )
+  - [Advanced DCGs](https://www.metalevel.at/prolog/dcg) by Markus Triska
+
 ## 🤝 Contributing
 
-This is a **release package** intended for users, not developers. If you'd like to contribute to the project:
+We welcome contributions! This is an active development repository.
 
-1. **Get the Full Source**: Check out the main repository for development
-2. **Report Issues**: Use the issue tracker in the main repository
+1. **Fork the Repository**: Create your own fork for development
+2. **Report Issues**: Use the issue tracker to report bugs or suggest features
 3. **Submit Pull Requests**: Contribute to the main development branch
 
 ## 📜 License
@@ -443,7 +460,7 @@ This software is released under the **Unlicense** (public domain dedication). Se
 
 ## 🎉 Enjoy!
 
-This release provides a complete, self-contained Pascal compiler with assembly backend. It's perfect for:
+This project provides a complete Pascal compiler with assembly backend. It's perfect for:
 
 - Learning compiler construction
 - Experimenting with Pascal programming
