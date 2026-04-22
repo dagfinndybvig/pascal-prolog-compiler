@@ -87,6 +87,20 @@ get_temp_register(Register) :-
     Regs = [Register|_],
     allocate_register(Register).
 
+% Get a register with preference for less frequently used ones
+get_preferred_temp_register(Register) :-
+    available_registers(Regs),
+    Regs \= [],
+    % Prefer r12-r15 over rbx as they're less likely to be used by system libraries
+    (   member(r12, Regs) -> Register = r12
+    ;   member(r13, Regs) -> Register = r13
+    ;   member(r14, Regs) -> Register = r14
+    ;   member(r15, Regs) -> Register = r15
+    ;   member(rbx, Regs) -> Register = rbx
+    ;   Regs = [Register|_]  % Fallback to first available
+    ),
+    allocate_register(Register).
+
 % Initialize variable offsets and flags
 init_var_offsets(Vars) :-
     retractall(var_offset(_, _)),
@@ -353,7 +367,7 @@ asm_expr(ir_unary('-', Expr), Assembly) :-
     format(atom(Assembly), "~w\tnegq %rax\n", [ExprCode]).
 asm_expr(ir_bin('+', Left, Right), Assembly) :-
     asm_expr(Left, LeftCode),
-    (   get_temp_register(TempReg)
+    (   get_preferred_temp_register(TempReg)
     ->  asm_expr(Right, RightCode),
         format(atom(Assembly), "~w\tmovq %rax, %~w\n~w\taddq %~w, %rax\n", [LeftCode, TempReg, RightCode, TempReg]),
         free_register(TempReg)
@@ -363,7 +377,7 @@ asm_expr(ir_bin('+', Left, Right), Assembly) :-
     ).
 asm_expr(ir_bin('-', Left, Right), Assembly) :-
     asm_expr(Left, LeftCode),
-    (   get_temp_register(TempReg)
+    (   get_preferred_temp_register(TempReg)
     ->  asm_expr(Right, RightCode),
         format(atom(Assembly), "~w\tmovq %rax, %~w\n~w\tsubq %rax, %~w\n\tmovq %~w, %rax\n", [LeftCode, TempReg, RightCode, TempReg, TempReg]),
         free_register(TempReg)
@@ -373,7 +387,7 @@ asm_expr(ir_bin('-', Left, Right), Assembly) :-
     ).
 asm_expr(ir_bin('*', Left, Right), Assembly) :-
     asm_expr(Left, LeftCode),
-    (   get_temp_register(TempReg)
+    (   get_preferred_temp_register(TempReg)
     ->  asm_expr(Right, RightCode),
         format(atom(Assembly), "~w\tmovq %rax, %~w\n~w\timulq %~w, %rax\n", [LeftCode, TempReg, RightCode, TempReg]),
         free_register(TempReg)
@@ -383,7 +397,7 @@ asm_expr(ir_bin('*', Left, Right), Assembly) :-
     ).
 asm_expr(ir_bin('/', Left, Right), Assembly) :-
     asm_expr(Left, LeftCode),
-    (   get_temp_register(TempReg)
+    (   get_preferred_temp_register(TempReg)
     ->  asm_expr(Right, RightCode),
         format(
             atom(Assembly),
@@ -443,7 +457,7 @@ arg_register(6, '%r9').
 
 asm_compare_expr(Left, Right, SetInstr, Assembly) :-
     asm_expr(Left, LeftCode),
-    (   get_temp_register(TempReg)
+    (   get_preferred_temp_register(TempReg)
     ->  asm_expr(Right, RightCode),
         format(
             atom(Assembly),
@@ -619,7 +633,7 @@ asm_expr_func(ir_unary('-', Expr), FuncName, Params, Locals, Assembly) :-
     format(atom(Assembly), "~w\tnegq %rax\n", [ExprCode]).
 asm_expr_func(ir_bin('+', Left, Right), FuncName, Params, Locals, Assembly) :-
     asm_expr_func(Left, FuncName, Params, Locals, LeftCode),
-    (   get_temp_register(TempReg)
+    (   get_preferred_temp_register(TempReg)
     ->  asm_expr_func(Right, FuncName, Params, Locals, RightCode),
         format(atom(Assembly), "~w\tmovq %rax, %~w\n~w\taddq %~w, %rax\n", [LeftCode, TempReg, RightCode, TempReg]),
         free_register(TempReg)
@@ -628,7 +642,7 @@ asm_expr_func(ir_bin('+', Left, Right), FuncName, Params, Locals, Assembly) :-
     ).
 asm_expr_func(ir_bin('-', Left, Right), FuncName, Params, Locals, Assembly) :-
     asm_expr_func(Left, FuncName, Params, Locals, LeftCode),
-    (   get_temp_register(TempReg)
+    (   get_preferred_temp_register(TempReg)
     ->  asm_expr_func(Right, FuncName, Params, Locals, RightCode),
         format(atom(Assembly), "~w\tmovq %rax, %~w\n~w\tsubq %rax, %~w\n\tmovq %~w, %rax\n", [LeftCode, TempReg, RightCode, TempReg, TempReg]),
         free_register(TempReg)
@@ -637,7 +651,7 @@ asm_expr_func(ir_bin('-', Left, Right), FuncName, Params, Locals, Assembly) :-
     ).
 asm_expr_func(ir_bin('*', Left, Right), FuncName, Params, Locals, Assembly) :-
     asm_expr_func(Left, FuncName, Params, Locals, LeftCode),
-    (   get_temp_register(TempReg)
+    (   get_preferred_temp_register(TempReg)
     ->  asm_expr_func(Right, FuncName, Params, Locals, RightCode),
         format(atom(Assembly), "~w\tmovq %rax, %~w\n~w\timulq %~w, %rax\n", [LeftCode, TempReg, RightCode, TempReg]),
         free_register(TempReg)
@@ -646,7 +660,7 @@ asm_expr_func(ir_bin('*', Left, Right), FuncName, Params, Locals, Assembly) :-
     ).
 asm_expr_func(ir_bin('/', Left, Right), FuncName, Params, Locals, Assembly) :-
     asm_expr_func(Left, FuncName, Params, Locals, LeftCode),
-    (   get_temp_register(TempReg)
+    (   get_preferred_temp_register(TempReg)
     ->  asm_expr_func(Right, FuncName, Params, Locals, RightCode),
         format(
             atom(Assembly),
@@ -674,7 +688,7 @@ comparison_op('>=', "setge").
 
 asm_compare_expr_func(Left, Right, FuncName, Params, Locals, SetInstr, Assembly) :-
     asm_expr_func(Left, FuncName, Params, Locals, LeftCode),
-    (   get_temp_register(TempReg)
+    (   get_preferred_temp_register(TempReg)
     ->  asm_expr_func(Right, FuncName, Params, Locals, RightCode),
         format(
             atom(Assembly),

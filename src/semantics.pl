@@ -8,7 +8,7 @@ check_program(program(_, Funcs, Vars, Block)) :-
 ensure_no_duplicates(Vars) :-
     msort(Vars, Sorted),
     (   has_duplicate(Sorted, Dup)
-    ->  throw(error(duplicate_declaration(Dup), _))
+    ->  throw(error(duplicate_declaration(Dup), context(semantics/ensure_no_duplicates, 'Variable or parameter declared multiple times')))
     ;   true
     ).
 
@@ -65,7 +65,7 @@ check_expr(call(Name, Args), Vars, FuncSigs) :-
     length(Args, ActualArity),
     (   ActualArity = ExpectedArity
     ->  true
-    ;   throw(error(wrong_arity(Name, ExpectedArity, ActualArity), _))
+    ;   throw(error(wrong_arity(Name, ExpectedArity, ActualArity), context(semantics/check_expr, 'Function called with incorrect number of arguments')))
     ),
     check_exprs(Args, Vars, FuncSigs).
 check_expr(unary('-', Expr), Vars, FuncSigs) :-
@@ -82,13 +82,13 @@ check_exprs([Expr|Rest], Vars, FuncSigs) :-
 ensure_declared(Name, Vars) :-
     (   memberchk(Name, Vars)
     ->  true
-    ;   throw(error(undeclared_variable(Name), _))
+    ;   throw(error(undeclared_variable(Name), context(semantics/ensure_declared, 'Variable not declared in current scope')))
     ).
 
 ensure_function_declared(Name, FuncSigs, Arity) :-
     (   memberchk((Name, Arity), FuncSigs)
     ->  true
-    ;   throw(error(undeclared_function(Name), _))
+    ;   throw(error(undeclared_function(Name), context(semantics/ensure_function_declared, 'Function not declared or wrong arity')))
     ).
 
 check_block(block(LocalVars, Stmts), VarsInScope, FuncSigs) :-
