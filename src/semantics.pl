@@ -16,13 +16,20 @@ has_duplicate([X, X|_], X) :- !.
 has_duplicate([_|Rest], Dup) :-
     has_duplicate(Rest, Dup).
 
-check_funcs([], _, []).
-check_funcs([func(Name, Params, Body)|Rest], GlobalVars, [(Name, ParamCount)|FuncSigsRest]) :-
+check_funcs(Funcs, GlobalVars, FuncSigs) :-
+    collect_func_sigs(Funcs, FuncSigs),
+    check_all_func_bodies(Funcs, GlobalVars, FuncSigs).
+
+collect_func_sigs([], []).
+collect_func_sigs([func(Name, Params, _)|Rest], [(Name, ParamCount)|RestSigs]) :-
     length(Params, ParamCount),
-    ensure_no_duplicates([Name|Params]),  % Function name is also a variable for return
-    % Include function name in scope for return value assignment
-    check_block(Body, [Name|Params], [(Name, ParamCount)|FuncSigsRest]),
-    check_funcs(Rest, GlobalVars, FuncSigsRest).
+    ensure_no_duplicates([Name|Params]),
+    collect_func_sigs(Rest, RestSigs).
+
+check_all_func_bodies([], _, _).
+check_all_func_bodies([func(Name, Params, Body)|Rest], GlobalVars, FuncSigs) :-
+    check_block(Body, [Name|Params], FuncSigs),
+    check_all_func_bodies(Rest, GlobalVars, FuncSigs).
 
 check_stmts([], _, _).
 check_stmts([Stmt|Rest], Vars, FuncSigs) :-
