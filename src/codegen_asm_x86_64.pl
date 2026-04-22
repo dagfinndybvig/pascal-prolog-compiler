@@ -201,29 +201,33 @@ asm_header(".data\n"):- !.
 
 asm_footer(".text\n\t.global main\nmain:\n\tpushq %rbp\n\tmovq %rsp, %rbp\n"):- !.
 
-% Generate stack frame with overflow protection
+asm_call_instruction(FuncName, Assembly) :-
+    % Preserve the original stack pointer, align for call, then restore it.
+    format(
+        atom(Assembly),
+        "\tmovq %rsp, %r11\n\tandq $-16, %rsp\n\tsubq $16, %rsp\n\tmovq %r11, 8(%rsp)\n\tcall ~w\n\tmovq 8(%rsp), %rsp\n",
+        [FuncName]
+    ).
+
+% Generate stack frame
 asm_stack_frame(TotalSize, Assembly) :-
     (   TotalSize =:= 0
-    ->  SafeSize = 16,  % Minimal stack frame for alignment
-        StackCheck = ""
-    ;   SafeSize = TotalSize,  % Only allocate what we need for variables
-        % Check if we've used more than the allocated space
-        % After alignment, %rsp should be >= %rbp - TotalSize - 16
-        format(atom(StackCheck), "\tmovq %rbp, %r10\n\tsubq $~d, %r10\n\tcmpq %rsp, %r10\n\tjb stack_overflow\n", [TotalSize])
+    ->  SafeSize = 16  % Minimal stack frame for alignment
+    ;   SafeSize = TotalSize
     ),
     % Ensure 16-byte stack alignment for function calls
-    format(atom(Assembly), "\tsubq $~d, %rsp\n\tandq $-16, %rsp\n~w", [SafeSize, StackCheck]).
+    format(atom(Assembly), "\tsubq $~d, %rsp\n\tandq $-16, %rsp\n", [SafeSize]).
 
 % Stack overflow handler
 asm_stack_overflow_handler(
-    "stack_overflow:\n\tmovq $1, %rdi\n\tleaq overflow_msg(%rip), %rsi\n\tcall rt_error\n\tint $3\n\tud2\n"):- !.
+    "stack_overflow:\n\tmovq $1, %rdi\n\tleaq overflow_msg(%rip), %rsi\n\tmovq %rsp, %r11\n\tandq $-16, %rsp\n\tsubq $16, %rsp\n\tmovq %r11, 8(%rsp)\n\tcall rt_error\n\tmovq 8(%rsp), %rsp\n\tint $3\n\tud2\n"):- !.
 
 % Stack overflow message
 asm_overflow_message("overflow_msg:\n\t.asciz \"Stack overflow detected\\n\"\n"):- !.
 
 % Division by zero error handler
 asm_division_by_zero_handler(
-    "division_by_zero:\n\tmovq $2, %rdi\n\tleaq div_zero_msg(%rip), %rsi\n\tcall rt_error\n\tint $3\n\tud2\n"):- !.
+    "division_by_zero:\n\tmovq $2, %rdi\n\tleaq div_zero_msg(%rip), %rsi\n\tmovq %rsp, %r11\n\tandq $-16, %rsp\n\tsubq $16, %rsp\n\tmovq %r11, 8(%rsp)\n\tcall rt_error\n\tmovq 8(%rsp), %rsp\n\tint $3\n\tud2\n"):- !.
 
 % Division by zero message
 asm_div_by_zero_message("div_zero_msg:\n\t.asciz \"Division by zero error\\n\"\n"):- !.
@@ -243,26 +247,29 @@ asm_write_str_text(String, TextSection) :-
 
 asm_writeln_int_text(Expr, TextSection) :-
     asm_expr(Expr, ExprCode),
+    asm_call_instruction(rt_writeln_int, CallCode),
     format(
         atom(TextSection),
-        "~w\tmovl %eax, %edi\n\tcall rt_writeln_int\n",
-        [ExprCode]
+        "~w\tmovl %eax, %edi\n~w",
+        [ExprCode, CallCode]
     ).
 
 asm_write_int_text(Expr, TextSection) :-
     asm_expr(Expr, ExprCode),
+    asm_call_instruction(rt_write_int, CallCode),
     format(
         atom(TextSection),
-        "~w\tmovl %eax, %edi\n\tcall rt_write_int\n",
-        [ExprCode]
+        "~w\tmovl %eax, %edi\n~w",
+        [ExprCode, CallCode]
     ).
 
 asm_readln_text(VarName, Assembly) :-
     var_offset(VarName, Offset),
+    asm_call_instruction(rt_readln_int, CallCode),
     format(
         atom(Assembly),
-        "\tcall rt_readln_int\n\tmovslq %eax, %rax\n\tmovq %rax, -~d(%rbp)\n",
-        [Offset]
+        "~w\tmovslq %eax, %rax\n\tmovq %rax, -~d(%rbp)\n",
+        [CallCode, Offset]
     ).
 
 asm_assign(VarName, Expr, Assembly) :-
@@ -280,7 +287,8 @@ asm_string_data(String, DataSection) :-
 
 asm_string_call_text(String, FuncName, TextSection) :-
     (   string_label(String, Label)
-    ->  format(atom(TextSection), "\tleaq ~w(%rip), %rdi\n\tcall ~w\n", [Label, FuncName])
+    ->  asm_call_instruction(FuncName, CallCode),
+        format(atom(TextSection), "\tleaq ~w(%rip), %rdi\n~w", [Label, CallCode])
     ;   throw(error(missing_string_label(String), _))
     ).
 
@@ -338,7 +346,8 @@ asm_expr(ir_call(Name, Args), Assembly) :-
     ),
     % Evaluate arguments and move to registers
     asm_call_args(Args, ArgCode),
-    format(atom(Assembly), "~w\tcall ~w\n", [ArgCode, Name]).
+    asm_call_instruction(Name, CallCode),
+    format(atom(Assembly), "~w~w", [ArgCode, CallCode]).
 asm_expr(ir_unary('-', Expr), Assembly) :-
     asm_expr(Expr, ExprCode),
     format(atom(Assembly), "~w\tnegq %rax\n", [ExprCode]).
@@ -403,42 +412,34 @@ asm_expr(ir_bin('>', Left, Right), Assembly) :-
 asm_expr(ir_bin('>=', Left, Right), Assembly) :-
     asm_compare_expr(Left, Right, "setge", Assembly).
 
-% Generate argument setup for function calls
-% x86-64 calling convention: %rdi, %rsi, %rdx, %rcx, %r8, %r9
-asm_call_args([], "").
-asm_call_args([Arg], Assembly) :-
+% Generate argument setup for function calls.
+% Arguments are evaluated left-to-right, pushed to preserve values, then popped to ABI registers.
+asm_call_args(Args, Assembly) :-
+    asm_push_call_args(Args, PushCode),
+    length(Args, ArgCount),
+    asm_pop_call_args(ArgCount, PopCode),
+    format(atom(Assembly), "~w~w", [PushCode, PopCode]).
+
+asm_push_call_args([], "").
+asm_push_call_args([Arg|Rest], Assembly) :-
     asm_expr(Arg, ArgCode),
-    format(atom(Assembly), "~w\tmovq %rax, %rdi\n", [ArgCode]).
-asm_call_args([Arg1, Arg2], Assembly) :-
-    asm_expr(Arg1, Code1),
-    asm_expr(Arg2, Code2),
-    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w\tmovq %rax, %rsi\n", [Code1, Code2]).
-asm_call_args([Arg1, Arg2, Arg3], Assembly) :-
-    asm_expr(Arg1, Code1),
-    asm_expr(Arg2, Code2),
-    asm_expr(Arg3, Code3),
-    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w\tmovq %rax, %rsi\n~w\tmovq %rax, %rdx\n", [Code1, Code2, Code3]).
-asm_call_args([Arg1, Arg2, Arg3, Arg4], Assembly) :-
-    asm_expr(Arg1, Code1),
-    asm_expr(Arg2, Code2),
-    asm_expr(Arg3, Code3),
-    asm_expr(Arg4, Code4),
-    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w\tmovq %rax, %rsi\n~w\tmovq %rax, %rdx\n~w\tmovq %rax, %rcx\n", [Code1, Code2, Code3, Code4]).
-asm_call_args([Arg1, Arg2, Arg3, Arg4, Arg5], Assembly) :-
-    asm_expr(Arg1, Code1),
-    asm_expr(Arg2, Code2),
-    asm_expr(Arg3, Code3),
-    asm_expr(Arg4, Code4),
-    asm_expr(Arg5, Code5),
-    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w\tmovq %rax, %rsi\n~w\tmovq %rax, %rdx\n~w\tmovq %rax, %rcx\n~w\tmovq %rax, %r8\n", [Code1, Code2, Code3, Code4, Code5]).
-asm_call_args([Arg1, Arg2, Arg3, Arg4, Arg5, Arg6], Assembly) :-
-    asm_expr(Arg1, Code1),
-    asm_expr(Arg2, Code2),
-    asm_expr(Arg3, Code3),
-    asm_expr(Arg4, Code4),
-    asm_expr(Arg5, Code5),
-    asm_expr(Arg6, Code6),
-    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w\tmovq %rax, %rsi\n~w\tmovq %rax, %rdx\n~w\tmovq %rax, %rcx\n~w\tmovq %rax, %r8\n~w\tmovq %rax, %r9\n", [Code1, Code2, Code3, Code4, Code5, Code6]).
+    asm_push_call_args(Rest, RestCode),
+    format(atom(Assembly), "~w\tpushq %rax\n~w", [ArgCode, RestCode]).
+
+asm_pop_call_args(0, "").
+asm_pop_call_args(N, Assembly) :-
+    N > 0,
+    arg_register(N, Reg),
+    N1 is N - 1,
+    asm_pop_call_args(N1, Rest),
+    format(atom(Assembly), "\tpopq ~w\n~w", [Reg, Rest]).
+
+arg_register(1, '%rdi').
+arg_register(2, '%rsi').
+arg_register(3, '%rdx').
+arg_register(4, '%rcx').
+arg_register(5, '%r8').
+arg_register(6, '%r9').
 
 asm_compare_expr(Left, Right, SetInstr, Assembly) :-
     asm_expr(Left, LeftCode),
@@ -460,22 +461,24 @@ asm_compare_expr(Left, Right, SetInstr, Assembly) :-
     ).
 
 % Generate assembly for a function
-generate_func_asm(ir_func(Name, Params, Stmts), Stream) :-
+generate_func_asm(ir_func(Name, Params, Locals, Stmts), Stream) :-
     format(Stream, "\n# Function: ~w\n", [Name]),
     format(Stream, "\t.globl ~w\n", [Name]),
     format(Stream, "~w:\n", [Name]),
     format(Stream, "\tpushq %rbp\n", []),
     format(Stream, "\tmovq %rsp, %rbp\n", []),
-    % Allocate stack space for parameters, return value, and callee-saved registers
+    % Allocate stack space for parameters, locals, return value, and callee-saved registers
     length(Params, ParamCount),
-    TotalVars is ParamCount + 1,  % +1 for return value (function name)
+    length(Locals, LocalCount),
+    TotalVars is ParamCount + LocalCount + 1,  % +1 for return value (function name)
     % Layout at negative offsets from %rbp:
     % -8 to -40: saved callee-saved registers (5 * 8 = 40 bytes)
     % -48: return value (function name)
     % -56 onwards: parameters
     LocalVarSize is TotalVars * 8,
     CalleeSavedSize is 40,  % 5 registers * 8 bytes
-    StackSize is CalleeSavedSize + LocalVarSize,
+    RawStackSize is CalleeSavedSize + LocalVarSize,
+    align_16(RawStackSize, StackSize),
     format(Stream, "\tsubq $~d, %rsp\n", [StackSize]),
     % Save callee-saved registers to stack
     format(Stream, "\tmovq %rbx, -8(%rbp)\n", []),
@@ -488,7 +491,7 @@ generate_func_asm(ir_func(Name, Params, Stmts), Stream) :-
     save_params_to_stack(Params, 1, Stream),
     % Generate function body
     (   member(IR, Stmts),
-        once(generate_func_asm_text(IR, Name, Params, AsmCode)),
+        once(generate_func_asm_text(IR, Name, Params, Locals, AsmCode)),
         write(Stream, AsmCode),
         fail
     ;   true
@@ -521,131 +524,146 @@ param_reg(4, '%rcx').
 param_reg(5, '%r8').
 param_reg(6, '%r9').
 
+align_16(N, N) :-
+    0 is N mod 16,
+    !.
+align_16(N, Aligned) :-
+    Aligned is N + (16 - (N mod 16)).
+
 % Generate assembly for statements within a function (with proper variable mapping)
-generate_func_asm_text(ir_assign(VarName, Expr), FuncName, Params, Assembly) :-
-    asm_expr_func(Expr, FuncName, Params, ExprCode),
-    func_var_offset(VarName, FuncName, Params, Offset),
+generate_func_asm_text(ir_assign(VarName, Expr), FuncName, Params, Locals, Assembly) :-
+    asm_expr_func(Expr, FuncName, Params, Locals, ExprCode),
+    func_var_offset(VarName, FuncName, Params, Locals, Offset),
     format(atom(Assembly), "~w\tmovq %rax, ~d(%rbp)\n", [ExprCode, Offset]).
-generate_func_asm_text(ir_writeln_int(Expr), FuncName, Params, Assembly) :-
-    asm_expr_func(Expr, FuncName, Params, ExprCode),
-    format(atom(Assembly), "~w\tmovl %eax, %edi\n\tcall rt_writeln_int\n", [ExprCode]).
-generate_func_asm_text(ir_write_int(Expr), FuncName, Params, Assembly) :-
-    asm_expr_func(Expr, FuncName, Params, ExprCode),
-    format(atom(Assembly), "~w\tmovl %eax, %edi\n\tcall rt_write_int\n", [ExprCode]).
-generate_func_asm_text(ir_writeln_str(Text), _, _, Assembly) :-
+generate_func_asm_text(ir_writeln_int(Expr), FuncName, Params, Locals, Assembly) :-
+    asm_expr_func(Expr, FuncName, Params, Locals, ExprCode),
+    asm_call_instruction(rt_writeln_int, CallCode),
+    format(atom(Assembly), "~w\tmovl %eax, %edi\n~w", [ExprCode, CallCode]).
+generate_func_asm_text(ir_write_int(Expr), FuncName, Params, Locals, Assembly) :-
+    asm_expr_func(Expr, FuncName, Params, Locals, ExprCode),
+    asm_call_instruction(rt_write_int, CallCode),
+    format(atom(Assembly), "~w\tmovl %eax, %edi\n~w", [ExprCode, CallCode]).
+generate_func_asm_text(ir_writeln_str(Text), _, _, _, Assembly) :-
     asm_writeln_str_text(Text, Assembly).
-generate_func_asm_text(ir_write_str(Text), _, _, Assembly) :-
+generate_func_asm_text(ir_write_str(Text), _, _, _, Assembly) :-
     asm_write_str_text(Text, Assembly).
-generate_func_asm_text(ir_readln(Name), FuncName, Params, Assembly) :-
-    func_var_offset(Name, FuncName, Params, Offset),
-    format(atom(Assembly), "\tcall rt_readln_int\n\tmovslq %eax, %rax\n\tmovq %rax, ~d(%rbp)\n", [Offset]).
-generate_func_asm_text(ir_if(Cond, ThenStmt, ElseStmt), FuncName, Params, Assembly) :-
+generate_func_asm_text(ir_readln(Name), FuncName, Params, Locals, Assembly) :-
+    func_var_offset(Name, FuncName, Params, Locals, Offset),
+    asm_call_instruction(rt_readln_int, CallCode),
+    format(atom(Assembly), "~w\tmovslq %eax, %rax\n\tmovq %rax, ~d(%rbp)\n", [CallCode, Offset]).
+generate_func_asm_text(ir_if(Cond, ThenStmt, ElseStmt), FuncName, Params, Locals, Assembly) :-
     next_label(if_else, ElseLabel),
     next_label(if_end, EndLabel),
-    asm_expr_func(Cond, FuncName, Params, CondCode),
-    generate_func_asm_text(ThenStmt, FuncName, Params, ThenCode),
-    generate_func_asm_text(ElseStmt, FuncName, Params, ElseCode),
+    asm_expr_func(Cond, FuncName, Params, Locals, CondCode),
+    generate_func_asm_text(ThenStmt, FuncName, Params, Locals, ThenCode),
+    generate_func_asm_text(ElseStmt, FuncName, Params, Locals, ElseCode),
     format(
         atom(Assembly),
         "~w\tcmpq $0, %rax\n\tje ~w\n~w\tjmp ~w\n~w:\n~w~w:\n",
         [CondCode, ElseLabel, ThenCode, EndLabel, ElseLabel, ElseCode, EndLabel]
     ).
-generate_func_asm_text(ir_while(Cond, BodyStmt), FuncName, Params, Assembly) :-
+generate_func_asm_text(ir_while(Cond, BodyStmt), FuncName, Params, Locals, Assembly) :-
     next_label(while_start, StartLabel),
     next_label(while_end, EndLabel),
-    asm_expr_func(Cond, FuncName, Params, CondCode),
-    generate_func_asm_text(BodyStmt, FuncName, Params, BodyCode),
+    asm_expr_func(Cond, FuncName, Params, Locals, CondCode),
+    generate_func_asm_text(BodyStmt, FuncName, Params, Locals, BodyCode),
     format(
         atom(Assembly),
         "~w:\n~w\tcmpq $0, %rax\n\tje ~w\n~w\tjmp ~w\n~w:\n",
         [StartLabel, CondCode, EndLabel, BodyCode, StartLabel, EndLabel]
     ).
-generate_func_asm_text(ir_block(Stmts), FuncName, Params, Assembly) :-
-    func_stmt_list(Stmts, FuncName, Params, StmtCode),
+generate_func_asm_text(ir_block(Stmts), FuncName, Params, Locals, Assembly) :-
+    func_stmt_list(Stmts, FuncName, Params, Locals, StmtCode),
     format(atom(Assembly), "~w", [StmtCode]).
 
-func_stmt_list([], _, _, "").
-func_stmt_list([Stmt|Rest], FuncName, Params, Assembly) :-
-    generate_func_asm_text(Stmt, FuncName, Params, FirstCode),
-    func_stmt_list(Rest, FuncName, Params, RestCode),
+func_stmt_list([], _, _, _, "").
+func_stmt_list([Stmt|Rest], FuncName, Params, Locals, Assembly) :-
+    generate_func_asm_text(Stmt, FuncName, Params, Locals, FirstCode),
+    func_stmt_list(Rest, FuncName, Params, Locals, RestCode),
     format(atom(Assembly), "~w~w", [FirstCode, RestCode]).
 
 % Get offset for a variable within a function
 % Callee-saved regs at -8 to -40, return value at -48, params at -56, -64, etc.
-func_var_offset(Name, FuncName, _, -48) :-
+func_var_offset(Name, FuncName, _, _, -48) :-
     Name == FuncName,  % Return value
     !.
-func_var_offset(Name, _, Params, Offset) :-
+func_var_offset(Name, _, Params, _, Offset) :-
     nth1(Index, Params, Name),
     !,
     Offset is -48 - (Index * 8).
-func_var_offset(Name, _, _, _) :-
+func_var_offset(Name, _, Params, Locals, Offset) :-
+    nth1(Index, Locals, Name),
+    !,
+    length(Params, ParamCount),
+    Offset is -48 - ((ParamCount + Index) * 8).
+func_var_offset(Name, _, _, _, _) :-
     throw(error(unknown_function_variable(Name), _)).
 
 % Expression evaluation within function context
-asm_expr_func(ir_int(N), _, _, Assembly) :-
+asm_expr_func(ir_int(N), _, _, _, Assembly) :-
     format(atom(Assembly), "\tmovq $~d, %rax\n", [N]).
-asm_expr_func(ir_var(Name), FuncName, Params, Assembly) :-
-    func_var_offset(Name, FuncName, Params, Offset),
+asm_expr_func(ir_var(Name), FuncName, Params, Locals, Assembly) :-
+    func_var_offset(Name, FuncName, Params, Locals, Offset),
     format(atom(Assembly), "\tmovq ~d(%rbp), %rax\n", [Offset]).
-asm_expr_func(ir_call(Name, Args), FuncName, Params, Assembly) :-
+asm_expr_func(ir_call(Name, Args), FuncName, Params, Locals, Assembly) :-
     length(Args, ArgCount),
     (   ArgCount > 6
     ->  throw(error(too_many_arguments(Name, ArgCount), _))
     ;   true
     ),
-    asm_call_args_func(Args, FuncName, Params, ArgCode),
-    format(atom(Assembly), "~w\tcall ~w\n", [ArgCode, Name]).
-asm_expr_func(ir_unary('-', Expr), FuncName, Params, Assembly) :-
-    asm_expr_func(Expr, FuncName, Params, ExprCode),
+    asm_call_args_func(Args, FuncName, Params, Locals, ArgCode),
+    asm_call_instruction(Name, CallCode),
+    format(atom(Assembly), "~w~w", [ArgCode, CallCode]).
+asm_expr_func(ir_unary('-', Expr), FuncName, Params, Locals, Assembly) :-
+    asm_expr_func(Expr, FuncName, Params, Locals, ExprCode),
     format(atom(Assembly), "~w\tnegq %rax\n", [ExprCode]).
-asm_expr_func(ir_bin('+', Left, Right), FuncName, Params, Assembly) :-
-    asm_expr_func(Left, FuncName, Params, LeftCode),
+asm_expr_func(ir_bin('+', Left, Right), FuncName, Params, Locals, Assembly) :-
+    asm_expr_func(Left, FuncName, Params, Locals, LeftCode),
     (   get_temp_register(TempReg)
-    ->  asm_expr_func(Right, FuncName, Params, RightCode),
+    ->  asm_expr_func(Right, FuncName, Params, Locals, RightCode),
         format(atom(Assembly), "~w\tmovq %rax, %~w\n~w\taddq %~w, %rax\n", [LeftCode, TempReg, RightCode, TempReg]),
         free_register(TempReg)
-    ;   asm_expr_func(Right, FuncName, Params, RightCode),
+    ;   asm_expr_func(Right, FuncName, Params, Locals, RightCode),
         format(atom(Assembly), "~w\tpushq %rax\n~w\tpopq %r10\n\taddq %r10, %rax\n", [LeftCode, RightCode])
     ).
-asm_expr_func(ir_bin('-', Left, Right), FuncName, Params, Assembly) :-
-    asm_expr_func(Left, FuncName, Params, LeftCode),
+asm_expr_func(ir_bin('-', Left, Right), FuncName, Params, Locals, Assembly) :-
+    asm_expr_func(Left, FuncName, Params, Locals, LeftCode),
     (   get_temp_register(TempReg)
-    ->  asm_expr_func(Right, FuncName, Params, RightCode),
+    ->  asm_expr_func(Right, FuncName, Params, Locals, RightCode),
         format(atom(Assembly), "~w\tmovq %rax, %~w\n~w\tsubq %rax, %~w\n\tmovq %~w, %rax\n", [LeftCode, TempReg, RightCode, TempReg, TempReg]),
         free_register(TempReg)
-    ;   asm_expr_func(Right, FuncName, Params, RightCode),
+    ;   asm_expr_func(Right, FuncName, Params, Locals, RightCode),
         format(atom(Assembly), "~w\tpushq %rax\n~w\tpopq %r10\n\tsubq %rax, %r10\n\tmovq %r10, %rax\n", [LeftCode, RightCode])
     ).
-asm_expr_func(ir_bin('*', Left, Right), FuncName, Params, Assembly) :-
-    asm_expr_func(Left, FuncName, Params, LeftCode),
+asm_expr_func(ir_bin('*', Left, Right), FuncName, Params, Locals, Assembly) :-
+    asm_expr_func(Left, FuncName, Params, Locals, LeftCode),
     (   get_temp_register(TempReg)
-    ->  asm_expr_func(Right, FuncName, Params, RightCode),
+    ->  asm_expr_func(Right, FuncName, Params, Locals, RightCode),
         format(atom(Assembly), "~w\tmovq %rax, %~w\n~w\timulq %~w, %rax\n", [LeftCode, TempReg, RightCode, TempReg]),
         free_register(TempReg)
-    ;   asm_expr_func(Right, FuncName, Params, RightCode),
+    ;   asm_expr_func(Right, FuncName, Params, Locals, RightCode),
         format(atom(Assembly), "~w\tpushq %rax\n~w\tpopq %r10\n\timulq %r10, %rax\n", [LeftCode, RightCode])
     ).
-asm_expr_func(ir_bin('/', Left, Right), FuncName, Params, Assembly) :-
-    asm_expr_func(Left, FuncName, Params, LeftCode),
+asm_expr_func(ir_bin('/', Left, Right), FuncName, Params, Locals, Assembly) :-
+    asm_expr_func(Left, FuncName, Params, Locals, LeftCode),
     (   get_temp_register(TempReg)
-    ->  asm_expr_func(Right, FuncName, Params, RightCode),
+    ->  asm_expr_func(Right, FuncName, Params, Locals, RightCode),
         format(
             atom(Assembly),
             "~w\tmovq %rax, %~w\n~w\tmovq %rax, %r11\n\tcmpq $0, %r11\n\tje division_by_zero\n\tmovq %~w, %rax\n\tcqo\n\tidivq %r11\n",
             [LeftCode, TempReg, RightCode, TempReg]
         ),
         free_register(TempReg)
-    ;   asm_expr_func(Right, FuncName, Params, RightCode),
+    ;   asm_expr_func(Right, FuncName, Params, Locals, RightCode),
         format(
             atom(Assembly),
             "~w\tpushq %rax\n~w\tpopq %r10\n\tmovq %rax, %r11\n\tcmpq $0, %r11\n\tje division_by_zero\n\tmovq %r10, %rax\n\tcqo\n\tidivq %r11\n",
             [LeftCode, RightCode]
         )
     ).
-asm_expr_func(ir_bin(Comp, Left, Right), FuncName, Params, Assembly) :-
+asm_expr_func(ir_bin(Comp, Left, Right), FuncName, Params, Locals, Assembly) :-
     comparison_op(Comp, SetInstr),
-    asm_compare_expr_func(Left, Right, FuncName, Params, SetInstr, Assembly).
+    asm_compare_expr_func(Left, Right, FuncName, Params, Locals, SetInstr, Assembly).
 
 comparison_op('=', "sete").
 comparison_op('<>', "setne").
@@ -654,17 +672,17 @@ comparison_op('<=', "setle").
 comparison_op('>', "setg").
 comparison_op('>=', "setge").
 
-asm_compare_expr_func(Left, Right, FuncName, Params, SetInstr, Assembly) :-
-    asm_expr_func(Left, FuncName, Params, LeftCode),
+asm_compare_expr_func(Left, Right, FuncName, Params, Locals, SetInstr, Assembly) :-
+    asm_expr_func(Left, FuncName, Params, Locals, LeftCode),
     (   get_temp_register(TempReg)
-    ->  asm_expr_func(Right, FuncName, Params, RightCode),
+    ->  asm_expr_func(Right, FuncName, Params, Locals, RightCode),
         format(
             atom(Assembly),
             "~w\tmovq %rax, %~w\n~w\tcmpq %rax, %~w\n\t~w %al\n\tmovzbq %al, %rax\n",
             [LeftCode, TempReg, RightCode, TempReg, SetInstr]
         ),
         free_register(TempReg)
-    ;   asm_expr_func(Right, FuncName, Params, RightCode),
+    ;   asm_expr_func(Right, FuncName, Params, Locals, RightCode),
         format(
             atom(Assembly),
             "~w\tpushq %rax\n~w\tpopq %r10\n\tcmpq %rax, %r10\n\t~w %al\n\tmovzbq %al, %rax\n",
@@ -672,37 +690,14 @@ asm_compare_expr_func(Left, Right, FuncName, Params, SetInstr, Assembly) :-
         )
     ).
 
-asm_call_args_func([], _, _, "").
-asm_call_args_func([Arg], FuncName, Params, Assembly) :-
-    asm_expr_func(Arg, FuncName, Params, ArgCode),
-    format(atom(Assembly), "~w\tmovq %rax, %rdi\n", [ArgCode]).
-asm_call_args_func([Arg1, Arg2], FuncName, Params, Assembly) :-
-    asm_expr_func(Arg1, FuncName, Params, Code1),
-    asm_expr_func(Arg2, FuncName, Params, Code2),
-    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w\tmovq %rax, %rsi\n", [Code1, Code2]).
-asm_call_args_func([Arg1, Arg2, Arg3], FuncName, Params, Assembly) :-
-    asm_expr_func(Arg1, FuncName, Params, Code1),
-    asm_expr_func(Arg2, FuncName, Params, Code2),
-    asm_expr_func(Arg3, FuncName, Params, Code3),
-    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w\tmovq %rax, %rsi\n~w\tmovq %rax, %rdx\n", [Code1, Code2, Code3]).
-asm_call_args_func([Arg1, Arg2, Arg3, Arg4], FuncName, Params, Assembly) :-
-    asm_expr_func(Arg1, FuncName, Params, Code1),
-    asm_expr_func(Arg2, FuncName, Params, Code2),
-    asm_expr_func(Arg3, FuncName, Params, Code3),
-    asm_expr_func(Arg4, FuncName, Params, Code4),
-    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w\tmovq %rax, %rsi\n~w\tmovq %rax, %rdx\n~w\tmovq %rax, %rcx\n", [Code1, Code2, Code3, Code4]).
-asm_call_args_func([Arg1, Arg2, Arg3, Arg4, Arg5], FuncName, Params, Assembly) :-
-    asm_expr_func(Arg1, FuncName, Params, Code1),
-    asm_expr_func(Arg2, FuncName, Params, Code2),
-    asm_expr_func(Arg3, FuncName, Params, Code3),
-    asm_expr_func(Arg4, FuncName, Params, Code4),
-    asm_expr_func(Arg5, FuncName, Params, Code5),
-    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w\tmovq %rax, %rsi\n~w\tmovq %rax, %rdx\n~w\tmovq %rax, %rcx\n~w\tmovq %rax, %r8\n", [Code1, Code2, Code3, Code4, Code5]).
-asm_call_args_func([Arg1, Arg2, Arg3, Arg4, Arg5, Arg6], FuncName, Params, Assembly) :-
-    asm_expr_func(Arg1, FuncName, Params, Code1),
-    asm_expr_func(Arg2, FuncName, Params, Code2),
-    asm_expr_func(Arg3, FuncName, Params, Code3),
-    asm_expr_func(Arg4, FuncName, Params, Code4),
-    asm_expr_func(Arg5, FuncName, Params, Code5),
-    asm_expr_func(Arg6, FuncName, Params, Code6),
-    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w\tmovq %rax, %rsi\n~w\tmovq %rax, %rdx\n~w\tmovq %rax, %rcx\n~w\tmovq %rax, %r8\n~w\tmovq %rax, %r9\n", [Code1, Code2, Code3, Code4, Code5, Code6]).
+asm_call_args_func(Args, FuncName, Params, Locals, Assembly) :-
+    asm_push_call_args_func(Args, FuncName, Params, Locals, PushCode),
+    length(Args, ArgCount),
+    asm_pop_call_args(ArgCount, PopCode),
+    format(atom(Assembly), "~w~w", [PushCode, PopCode]).
+
+asm_push_call_args_func([], _, _, _, "").
+asm_push_call_args_func([Arg|Rest], FuncName, Params, Locals, Assembly) :-
+    asm_expr_func(Arg, FuncName, Params, Locals, ArgCode),
+    asm_push_call_args_func(Rest, FuncName, Params, Locals, RestCode),
+    format(atom(Assembly), "~w\tpushq %rax\n~w", [ArgCode, RestCode]).

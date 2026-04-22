@@ -102,7 +102,7 @@ write_asm_file(AsmPath, ir_program(_, Funcs, Vars, IRStmts)) :-
     ;   true
     ),
     % Generate data section for functions
-    (   member(ir_func(_, _, FuncStmts), Funcs),
+    (   member(ir_func(_, _, _, FuncStmts), Funcs),
         member(IR, FuncStmts),
         once(generate_asm(IR, AsmCode)),
         write(Stream, AsmCode),

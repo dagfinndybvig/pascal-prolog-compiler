@@ -13,7 +13,7 @@ This is a **Pascal compiler written in SWI-Prolog** that compiles a subset of Pa
 - **Functions supported**: Integer functions with up to 6 parameters, recursion
 - Prime number algorithms are the primary test cases
 
-**Version**: 1.4.1 (2026-04-22) - Fixed function semantic checking bug
+**Version**: 1.4.2 (2026-04-22) - Fixed function call/codegen reliability issues
 
 ## Quick Start
 
@@ -117,7 +117,8 @@ cat test.s
 ### Assembly Output
 - Stack frame: 16 + 8*N bytes (16-byte aligned)
 - Variables stored at negative offsets from `%rbp`
-- Runtime error handlers included: `division_by_zero`, `stack_overflow`
+- Runtime error handlers included: `division_by_zero`
+- Generated calls use ABI-safe `%rsp` alignment wrappers
 
 ## Testing Procedures
 
@@ -190,6 +191,7 @@ Test completed successfully!
 
 ## Version History
 
+- **v1.4.2** (2026-04-22): Fixed nested call argument clobbering, function-local variable codegen support, and call-site stack alignment
 - **v1.4.1** (2026-04-22): Fixed function semantic checking bug - separated signature collection from body checking to enable mutual recursion
 - **v1.4.0** (2026-04-22): Added function support - integer functions with up to 6 parameters, recursion, proper callee-saved register handling
 - **v1.3** (2026-04-17): Post-audit hardening, fixed division-by-zero handling, register allocation fixes

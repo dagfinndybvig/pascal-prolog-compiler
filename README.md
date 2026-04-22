@@ -1,6 +1,6 @@
 <img width="1880" height="515" alt="image" src="https://github.com/user-attachments/assets/0c40b246-bb09-4c59-80ee-e9eafc54bde0" />
 
-# Pascal-Prolog Assembly Backend - Release Version 1.4
+# Pascal-Prolog Assembly Backend - Release Version 1.4.2
 
 > [!WARNING]
 > This project implements only a **fragment of Pascal**. It supports **integer-only arithmetic** and a feature subset that is just enough to have som fun with prime-number programs and the like.
@@ -9,7 +9,7 @@
 
 ## 📦 Pascal-Prolog Assembly Backend Release
 
-**Version**: 1.4.1
+**Version**: 1.4.2
 **Release Date**: 2026-04-22
 **License**: Unlicense (Public Domain)
 
@@ -25,7 +25,20 @@ This is now a **complete standalone release** of the Pascal-Prolog compiler with
 - ✅ Full documentation
 - ✅ Minimal, clean distribution
 
-## 🆕 What's New In v1.4.1
+## 🆕 What's New In v1.4.2
+
+### Backend Reliability Fixes
+
+Fixed multiple backend issues affecting function calls and function-scope variables.
+
+- ✅ Fixed function-call argument clobbering in nested calls
+- ✅ Added codegen support for function-local variables
+- ✅ Hardened call-site stack alignment for generated calls (runtime + user functions)
+- ✅ Kept all existing verification checks passing (15/15)
+
+---
+
+## 🆕 Previous: v1.4.1
 
 ### Bug Fix: Function Semantic Checking
 
@@ -316,9 +329,9 @@ end.
    - Efficient expression evaluation
 
 2. **Runtime Safety Checks**
-   - Stack frame bounds check in generated assembly
+   - ABI-safe stack alignment at generated call sites
    - Division by zero runtime detection
-   - Explicit error handlers and termination
+   - Explicit runtime error handlers and termination
 
 3. **Robust and Tested**
     - Comprehensive test suite (10+ test cases)
@@ -404,9 +417,9 @@ swipl -q -s pascal_compiler.pl -- build-asm examples/comprehensive_test.pas comp
 
 ### Assembly Backend Features
 
-1. **Stack Frame Bounds Check**
-   - Runtime stack pointer validation against generated frame bounds
-   - Automatic error handling path on violation
+1. **ABI-Safe Call Alignment**
+   - Generated calls align `%rsp` to System V ABI expectations
+   - Stack pointer is restored after each generated call
 
 2. **Dynamic Stack Sizing**
    - Calculates exact stack needs: `16 + 8*N` bytes
@@ -420,7 +433,7 @@ swipl -q -s pascal_compiler.pl -- build-asm examples/comprehensive_test.pas comp
 
 4. **Error Handling**
    - Division by zero detection
-   - Stack overflow protection
+   - Explicit runtime error handlers
    - Clear error messages and proper termination
 
 ### CLI Commands
@@ -461,7 +474,7 @@ swipl -q -s pascal_compiler.pl -- build-asm <source.pas> <output>
 
 ### Security Considerations
 
-- **Stack Overflow**: Generated code includes a stack frame bounds check, but this is not OS-level guard-page protection
+- **Stack Overflow**: Generated code does not include OS-level guard-page stack overflow protection
 - **Division by Zero**: Detected and handled through a validated runtime error path
 - **Memory Safety**: No bounds checking on variables or stack usage
 - **Input Validation**: Limited to integer input validation
