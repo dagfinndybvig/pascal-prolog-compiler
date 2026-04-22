@@ -216,6 +216,7 @@ multiplicative_tail(Expr, Expr) -->
 
 mul_op('*') --> symbol('*').
 mul_op('/') --> symbol('/').
+mul_op(mod) --> keyword(mod).
 
 unary(unary('-', Expr)) -->
     symbol('-'),

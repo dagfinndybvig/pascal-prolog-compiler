@@ -413,6 +413,24 @@ asm_expr(ir_bin('/', Left, Right), Assembly) :-
             [LeftCode, RightCode]
         )
     ).
+asm_expr(ir_bin(mod, Left, Right), Assembly) :-
+    asm_expr(Left, LeftCode),
+    (   get_preferred_temp_register(TempReg)
+    ->  asm_expr(Right, RightCode),
+        format(
+            atom(Assembly),
+            "~w\tmovq %rax, %~w\n~w\tmovq %rax, %r11\n\tcmpq $0, %r11\n\tje division_by_zero\n\tmovq %~w, %rax\n\tcqo\n\tidivq %r11\n\tmovq %rdx, %rax\n",
+            [LeftCode, TempReg, RightCode, TempReg]
+        ),
+        free_register(TempReg)
+    ;   % Fallback to stack-based approach
+        asm_expr(Right, RightCode),
+        format(
+            atom(Assembly),
+            "~w\tpushq %rax\n~w\tpopq %r10\n\tmovq %rax, %r11\n\tcmpq $0, %r11\n\tje division_by_zero\n\tmovq %r10, %rax\n\tcqo\n\tidivq %r11\n\tmovq %rdx, %rax\n",
+            [LeftCode, RightCode]
+        )
+    ).
 asm_expr(ir_bin('=', Left, Right), Assembly) :-
     asm_compare_expr(Left, Right, "sete", Assembly).
 asm_expr(ir_bin('<>', Left, Right), Assembly) :-
@@ -503,6 +521,8 @@ generate_func_asm(ir_func(Name, Params, Locals, Stmts), Stream) :-
     % Save parameter registers to stack
     % Return value (function name) is at -48, params start at -56
     save_params_to_stack(Params, 1, Stream),
+    % Initialize return value to 0 (default if function doesn't assign to its name)
+    format(Stream, "\tmovq $0, -48(%rbp)\n", []),
     % Generate function body
     (   member(IR, Stmts),
         once(generate_func_asm_text(IR, Name, Params, Locals, AsmCode)),
@@ -672,6 +692,23 @@ asm_expr_func(ir_bin('/', Left, Right), FuncName, Params, Locals, Assembly) :-
         format(
             atom(Assembly),
             "~w\tpushq %rax\n~w\tpopq %r10\n\tmovq %rax, %r11\n\tcmpq $0, %r11\n\tje division_by_zero\n\tmovq %r10, %rax\n\tcqo\n\tidivq %r11\n",
+            [LeftCode, RightCode]
+        )
+    ).
+asm_expr_func(ir_bin(mod, Left, Right), FuncName, Params, Locals, Assembly) :-
+    asm_expr_func(Left, FuncName, Params, Locals, LeftCode),
+    (   get_preferred_temp_register(TempReg)
+    ->  asm_expr_func(Right, FuncName, Params, Locals, RightCode),
+        format(
+            atom(Assembly),
+            "~w\tmovq %rax, %~w\n~w\tmovq %rax, %r11\n\tcmpq $0, %r11\n\tje division_by_zero\n\tmovq %~w, %rax\n\tcqo\n\tidivq %r11\n\tmovq %rdx, %rax\n",
+            [LeftCode, TempReg, RightCode, TempReg]
+        ),
+        free_register(TempReg)
+    ;   asm_expr_func(Right, FuncName, Params, Locals, RightCode),
+        format(
+            atom(Assembly),
+            "~w\tpushq %rax\n~w\tpopq %r10\n\tmovq %rax, %r11\n\tcmpq $0, %r11\n\tje division_by_zero\n\tmovq %r10, %rax\n\tcqo\n\tidivq %r11\n\tmovq %rdx, %rax\n",
             [LeftCode, RightCode]
         )
     ).

@@ -8,12 +8,13 @@ This is a **Pascal compiler written in SWI-Prolog** that compiles a subset of Pa
 
 **Key characteristics:**
 - Integer-only arithmetic (32-bit signed)
+- Operators: `+`, `-`, `*`, `/`, `mod`, comparisons (`=`, `<>`, `<`, `<=`, `>`, `>=`)
 - Compiles to x86-64 assembly via GCC
 - Uses Prolog DCGs for parsing
 - **Functions supported**: Integer functions with up to 6 parameters, recursion
 - Prime number algorithms are the primary test cases
 
-**Version**: 1.4.2 (2026-04-22) - Fixed function call/codegen reliability issues
+**Version**: 1.4.3 (2026-04-22) - Added `mod` operator, fixed uninitialized function return values
 
 ## Quick Start
 
@@ -191,6 +192,7 @@ Test completed successfully!
 
 ## Version History
 
+- **v1.4.3** (2026-04-22): Added `mod` operator support, fixed uninitialized function return values (now default to 0)
 - **v1.4.2** (2026-04-22): Fixed nested call argument clobbering, function-local variable codegen support, and call-site stack alignment
 - **v1.4.1** (2026-04-22): Fixed function semantic checking bug - separated signature collection from body checking to enable mutual recursion
 - **v1.4.0** (2026-04-22): Added function support - integer functions with up to 6 parameters, recursion, proper callee-saved register handling

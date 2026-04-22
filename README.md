@@ -1,6 +1,6 @@
 <img width="1880" height="515" alt="image" src="https://github.com/user-attachments/assets/0c40b246-bb09-4c59-80ee-e9eafc54bde0" />
 
-# Pascal-Prolog Assembly Backend - Release Version 1.4.2
+# Pascal-Prolog Assembly Backend - Release Version 1.4.3
 
 > [!WARNING]
 > This project implements only a **fragment of Pascal**. It supports **integer-only arithmetic** and a feature subset that is just enough to have som fun with prime-number programs and the like.
@@ -9,7 +9,7 @@
 
 ## 📦 Pascal-Prolog Assembly Backend Release
 
-**Version**: 1.4.2
+**Version**: 1.4.3
 **Release Date**: 2026-04-22
 **License**: Unlicense (Public Domain)
 
@@ -25,7 +25,34 @@ This is now a **complete standalone release** of the Pascal-Prolog compiler with
 - ✅ Full documentation
 - ✅ Minimal, clean distribution
 
-## 🆕 What's New In v1.4.2
+## 🆕 What's New In v1.4.3
+
+### New Features & Bug Fixes
+
+- ✅ **Added `mod` operator**: Integer modulo operation now supported (`a mod b`)
+- ✅ **Fixed uninitialized function returns**: Functions without explicit return now return 0 instead of garbage values
+
+### Example: Using the `mod` operator
+```pascal
+program mod_demo;
+
+function is_even(n: integer): integer;
+begin
+  if (n mod 2) = 0 then
+    is_even := 1
+  else
+    is_even := 0
+end;
+
+begin
+  writeln(17 mod 5);    { Outputs: 2 }
+  writeln(is_even(42))  { Outputs: 1 }
+end.
+```
+
+---
+
+## 🆕 Previous: v1.4.2
 
 ### Backend Reliability Fixes
 
@@ -226,8 +253,9 @@ This release supports a **practical subset** of Pascal focused on core programmi
 
 #### ✅ Supported Features
 - **Variables**: Integer variables only (32-bit signed integers)
-- **Arithmetic**: Integer arithmetic only (`+`, `-`, `*`, `/`)
+- **Arithmetic**: Integer arithmetic only (`+`, `-`, `*`, `/`, `mod`)
   - **Division**: Integer division (truncates toward zero, e.g., `7/2 = 3`)
+  - **Modulo**: Remainder of integer division (e.g., `17 mod 5 = 2`)
   - **No floating-point**: All operations work exclusively with integers
 - **Control Flow**: `if-then-else`, `while-do` statements
 - **I/O Operations**: `readln`, `write`, `writeln` (integer and string output)
