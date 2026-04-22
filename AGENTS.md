@@ -13,7 +13,7 @@ This is a **Pascal compiler written in SWI-Prolog** that compiles a subset of Pa
 - **Functions supported**: Integer functions with up to 6 parameters, recursion
 - Prime number algorithms are the primary test cases
 
-**Version**: 1.4 (2026-04-22) - Added function support
+**Version**: 1.4.1 (2026-04-22) - Fixed function semantic checking bug
 
 ## Quick Start
 
@@ -190,7 +190,8 @@ Test completed successfully!
 
 ## Version History
 
-- **v1.4** (2026-04-22): Added function support - integer functions with up to 6 parameters, recursion, proper callee-saved register handling
+- **v1.4.1** (2026-04-22): Fixed function semantic checking bug - separated signature collection from body checking to enable mutual recursion
+- **v1.4.0** (2026-04-22): Added function support - integer functions with up to 6 parameters, recursion, proper callee-saved register handling
 - **v1.3** (2026-04-17): Post-audit hardening, fixed division-by-zero handling, register allocation fixes
 
 ---

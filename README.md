@@ -9,7 +9,7 @@
 
 ## 📦 Pascal-Prolog Assembly Backend Release
 
-**Version**: 1.4
+**Version**: 1.4.1
 **Release Date**: 2026-04-22
 **License**: Unlicense (Public Domain)
 
@@ -25,7 +25,20 @@ This is now a **complete standalone release** of the Pascal-Prolog compiler with
 - ✅ Full documentation
 - ✅ Minimal, clean distribution
 
-## 🆕 What's New In v1.4
+## 🆕 What's New In v1.4.1
+
+### Bug Fix: Function Semantic Checking
+
+Fixed critical bug in function semantic checking that caused infinite loops when checking programs with multiple functions. The fix separates function signature collection from body checking, enabling proper mutual recursion support.
+
+- ✅ Fixed `check_funcs` infinite loop bug
+- ✅ Added two-pass semantic checking (signatures first, then bodies)
+- ✅ All functions now visible to all other functions during checking
+- ✅ 15/15 verification tests pass
+
+---
+
+## 🆕 Previous: v1.4
 
 ### Major Feature: Functions
 
@@ -71,6 +84,12 @@ end.
 - Return value in `%rax`
 - Callee-saved registers (`rbx`, `r12`-`r15`) preserved across calls
 - Maximum 6 parameters (hardware register limit)
+
+---
+
+## 🆕 Previous: v1.4.0
+
+Initial function support release with multi-parameter functions, recursion, and callee-saved register handling.
 
 ---
 
