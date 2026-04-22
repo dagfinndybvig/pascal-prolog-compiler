@@ -1,8 +1,9 @@
 :- module(semantics, [check_program/1]).
 
-check_program(program(_, Vars, Block)) :-
+check_program(program(_, Funcs, Vars, Block)) :-
     ensure_no_duplicates(Vars),
-    check_block(Block, Vars).
+    check_funcs(Funcs, Vars, FuncSigs),
+    check_block(Block, Vars, FuncSigs).
 
 ensure_no_duplicates(Vars) :-
     msort(Vars, Sorted),
@@ -15,47 +16,75 @@ has_duplicate([X, X|_], X) :- !.
 has_duplicate([_|Rest], Dup) :-
     has_duplicate(Rest, Dup).
 
-check_stmts([], _).
-check_stmts([Stmt|Rest], Vars) :-
-    check_stmt(Stmt, Vars),
-    check_stmts(Rest, Vars).
+check_funcs([], _, []).
+check_funcs([func(Name, Params, Body)|Rest], GlobalVars, [(Name, ParamCount)|FuncSigsRest]) :-
+    length(Params, ParamCount),
+    ensure_no_duplicates([Name|Params]),  % Function name is also a variable for return
+    % Include function name in scope for return value assignment
+    check_block(Body, [Name|Params], [(Name, ParamCount)|FuncSigsRest]),
+    check_funcs(Rest, GlobalVars, FuncSigsRest).
 
-check_stmt(assign(Name, Expr), Vars) :-
+check_stmts([], _, _).
+check_stmts([Stmt|Rest], Vars, FuncSigs) :-
+    check_stmt(Stmt, Vars, FuncSigs),
+    check_stmts(Rest, Vars, FuncSigs).
+
+check_stmt(assign(Name, Expr), Vars, FuncSigs) :-
     ensure_declared(Name, Vars),
-    check_expr(Expr, Vars).
-check_stmt(if(Cond, Then, Else), Vars) :-
-    check_expr(Cond, Vars),
-    check_stmt(Then, Vars),
-    check_stmt(Else, Vars).
-check_stmt(while(Cond, Body), Vars) :-
-    check_expr(Cond, Vars),
-    check_stmt(Body, Vars).
-check_stmt(writeln(expr(Expr)), Vars) :-
-    check_expr(Expr, Vars).
-check_stmt(writeln(str(_)), _).
-check_stmt(write(expr(Expr)), Vars) :-
-    check_expr(Expr, Vars).
-check_stmt(write(str(_)), _).
-check_stmt(readln(Name), Vars) :-
+    check_expr(Expr, Vars, FuncSigs).
+check_stmt(if(Cond, Then, Else), Vars, FuncSigs) :-
+    check_expr(Cond, Vars, FuncSigs),
+    check_stmt(Then, Vars, FuncSigs),
+    check_stmt(Else, Vars, FuncSigs).
+check_stmt(while(Cond, Body), Vars, FuncSigs) :-
+    check_expr(Cond, Vars, FuncSigs),
+    check_stmt(Body, Vars, FuncSigs).
+check_stmt(writeln(expr(Expr)), Vars, FuncSigs) :-
+    check_expr(Expr, Vars, FuncSigs).
+check_stmt(writeln(str(_)), _, _).
+check_stmt(write(expr(Expr)), Vars, FuncSigs) :-
+    check_expr(Expr, Vars, FuncSigs).
+check_stmt(write(str(_)), _, _).
+check_stmt(readln(Name), Vars, _) :-
     ensure_declared(Name, Vars).
-check_stmt(block(LocalVars, Stmts), Vars) :-
-    check_block(block(LocalVars, Stmts), Vars).
+check_stmt(block(LocalVars, Stmts), Vars, FuncSigs) :-
+    check_block(block(LocalVars, Stmts), Vars, FuncSigs).
 
-check_expr(int(_), _).
-check_expr(var(Name), Vars) :-
+check_expr(int(_), _, _).
+check_expr(var(Name), Vars, _) :-
     ensure_declared(Name, Vars).
-check_expr(unary('-', Expr), Vars) :-
-    check_expr(Expr, Vars).
-check_expr(bin(_, Left, Right), Vars) :-
-    check_expr(Left, Vars),
-    check_expr(Right, Vars).
+check_expr(call(Name, Args), Vars, FuncSigs) :-
+    ensure_function_declared(Name, FuncSigs, ExpectedArity),
+    length(Args, ActualArity),
+    (   ActualArity = ExpectedArity
+    ->  true
+    ;   throw(error(wrong_arity(Name, ExpectedArity, ActualArity), _))
+    ),
+    check_exprs(Args, Vars, FuncSigs).
+check_expr(unary('-', Expr), Vars, FuncSigs) :-
+    check_expr(Expr, Vars, FuncSigs).
+check_expr(bin(_, Left, Right), Vars, FuncSigs) :-
+    check_expr(Left, Vars, FuncSigs),
+    check_expr(Right, Vars, FuncSigs).
+
+check_exprs([], _, _).
+check_exprs([Expr|Rest], Vars, FuncSigs) :-
+    check_expr(Expr, Vars, FuncSigs),
+    check_exprs(Rest, Vars, FuncSigs).
 
 ensure_declared(Name, Vars) :-
     (   memberchk(Name, Vars)
     ->  true
     ;   throw(error(undeclared_variable(Name), _))
     ).
-check_block(block(LocalVars, Stmts), VarsInScope) :-
+
+ensure_function_declared(Name, FuncSigs, Arity) :-
+    (   memberchk((Name, Arity), FuncSigs)
+    ->  true
+    ;   throw(error(undeclared_function(Name), _))
+    ).
+
+check_block(block(LocalVars, Stmts), VarsInScope, FuncSigs) :-
     ensure_no_duplicates(LocalVars),
     append(LocalVars, VarsInScope, ScopeVars),
-    check_stmts(Stmts, ScopeVars).
+    check_stmts(Stmts, ScopeVars, FuncSigs).

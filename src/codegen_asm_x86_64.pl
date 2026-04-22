@@ -4,6 +4,7 @@
 :- module(codegen_asm_x86_64, [
     generate_asm/2,  % generate_asm(+IR, -Assembly)
     generate_asm_text/2,  % generate_asm_text(+IR, -Assembly)
+    generate_func_asm/2,  % generate_func_asm(+IRFunc, +Stream)
     asm_header/1,    % asm_header(-Header)
     asm_footer/1,    % asm_footer(-Footer)
     asm_writeln_str/2, % asm_writeln_str(+String, -Assembly)
@@ -50,11 +51,11 @@ stack_guard_size(4096).  % Reserved size constant for stack safety checks
 init_register_allocator :-
     retractall(available_registers(_)),
     retractall(register_usage(_, _)),
-    % System V ABI: %rbx, %r12-%r15 are callee-saved; %rcx is caller-saved
-    assert(available_registers([rcx, rbx, r12, r13, r14, r15])),
-    % %rax is always used for results, %rcx for temporary
+    % Use callee-saved registers (rbx, r12-r15) for temporaries.
+    % These need to be saved/restored in function prologue/epilogue.
+    assert(available_registers([rbx, r12, r13, r14, r15])),
+    % %rax is always used for results
     assert(register_usage(rax, used)),
-    assert(register_usage(rcx, available)),
     assert(register_usage(rbx, available)),
     assert(register_usage(r12, available)),
     assert(register_usage(r13, available)),
@@ -79,18 +80,12 @@ free_register(Register) :-
     retract(available_registers(Regs)),
     assert(available_registers([Register|Regs])).
 
-% Get any available register, preferring rcx first
+% Get any available callee-saved register
 get_temp_register(Register) :-
-    (   register_usage(rcx, available)
-    ->  allocate_register(rcx),
-        Register = rcx
-    ;   available_registers(Regs),
-        Regs \= [],
-        Regs = [Register|_]
-    ->  allocate_register(Register)
-    ;   % Fallback to rcx if no others available (always works)
-        Register = rcx
-    ).
+    available_registers(Regs),
+    Regs \= [],
+    Regs = [Register|_],
+    allocate_register(Register).
 
 % Initialize variable offsets and flags
 init_var_offsets(Vars) :-
@@ -335,6 +330,15 @@ asm_expr(ir_int(N), Assembly) :-
 asm_expr(ir_var(Name), Assembly) :-
     var_offset(Name, Offset),
     format(atom(Assembly), "\tmovq -~d(%rbp), %rax\n", [Offset]).
+asm_expr(ir_call(Name, Args), Assembly) :-
+    length(Args, ArgCount),
+    (   ArgCount > 6
+    ->  throw(error(too_many_arguments(Name, ArgCount), _))
+    ;   true
+    ),
+    % Evaluate arguments and move to registers
+    asm_call_args(Args, ArgCode),
+    format(atom(Assembly), "~w\tcall ~w\n", [ArgCode, Name]).
 asm_expr(ir_unary('-', Expr), Assembly) :-
     asm_expr(Expr, ExprCode),
     format(atom(Assembly), "~w\tnegq %rax\n", [ExprCode]).
@@ -399,6 +403,43 @@ asm_expr(ir_bin('>', Left, Right), Assembly) :-
 asm_expr(ir_bin('>=', Left, Right), Assembly) :-
     asm_compare_expr(Left, Right, "setge", Assembly).
 
+% Generate argument setup for function calls
+% x86-64 calling convention: %rdi, %rsi, %rdx, %rcx, %r8, %r9
+asm_call_args([], "").
+asm_call_args([Arg], Assembly) :-
+    asm_expr(Arg, ArgCode),
+    format(atom(Assembly), "~w\tmovq %rax, %rdi\n", [ArgCode]).
+asm_call_args([Arg1, Arg2], Assembly) :-
+    asm_expr(Arg1, Code1),
+    asm_expr(Arg2, Code2),
+    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w\tmovq %rax, %rsi\n", [Code1, Code2]).
+asm_call_args([Arg1, Arg2, Arg3], Assembly) :-
+    asm_expr(Arg1, Code1),
+    asm_expr(Arg2, Code2),
+    asm_expr(Arg3, Code3),
+    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w\tmovq %rax, %rsi\n~w\tmovq %rax, %rdx\n", [Code1, Code2, Code3]).
+asm_call_args([Arg1, Arg2, Arg3, Arg4], Assembly) :-
+    asm_expr(Arg1, Code1),
+    asm_expr(Arg2, Code2),
+    asm_expr(Arg3, Code3),
+    asm_expr(Arg4, Code4),
+    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w\tmovq %rax, %rsi\n~w\tmovq %rax, %rdx\n~w\tmovq %rax, %rcx\n", [Code1, Code2, Code3, Code4]).
+asm_call_args([Arg1, Arg2, Arg3, Arg4, Arg5], Assembly) :-
+    asm_expr(Arg1, Code1),
+    asm_expr(Arg2, Code2),
+    asm_expr(Arg3, Code3),
+    asm_expr(Arg4, Code4),
+    asm_expr(Arg5, Code5),
+    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w\tmovq %rax, %rsi\n~w\tmovq %rax, %rdx\n~w\tmovq %rax, %rcx\n~w\tmovq %rax, %r8\n", [Code1, Code2, Code3, Code4, Code5]).
+asm_call_args([Arg1, Arg2, Arg3, Arg4, Arg5, Arg6], Assembly) :-
+    asm_expr(Arg1, Code1),
+    asm_expr(Arg2, Code2),
+    asm_expr(Arg3, Code3),
+    asm_expr(Arg4, Code4),
+    asm_expr(Arg5, Code5),
+    asm_expr(Arg6, Code6),
+    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w\tmovq %rax, %rsi\n~w\tmovq %rax, %rdx\n~w\tmovq %rax, %rcx\n~w\tmovq %rax, %r8\n~w\tmovq %rax, %r9\n", [Code1, Code2, Code3, Code4, Code5, Code6]).
+
 asm_compare_expr(Left, Right, SetInstr, Assembly) :-
     asm_expr(Left, LeftCode),
     (   get_temp_register(TempReg)
@@ -417,3 +458,251 @@ asm_compare_expr(Left, Right, SetInstr, Assembly) :-
             [LeftCode, RightCode, SetInstr]
         )
     ).
+
+% Generate assembly for a function
+generate_func_asm(ir_func(Name, Params, Stmts), Stream) :-
+    format(Stream, "\n# Function: ~w\n", [Name]),
+    format(Stream, "\t.globl ~w\n", [Name]),
+    format(Stream, "~w:\n", [Name]),
+    format(Stream, "\tpushq %rbp\n", []),
+    format(Stream, "\tmovq %rsp, %rbp\n", []),
+    % Allocate stack space for parameters, return value, and callee-saved registers
+    length(Params, ParamCount),
+    TotalVars is ParamCount + 1,  % +1 for return value (function name)
+    % Layout at negative offsets from %rbp:
+    % -8 to -40: saved callee-saved registers (5 * 8 = 40 bytes)
+    % -48: return value (function name)
+    % -56 onwards: parameters
+    LocalVarSize is TotalVars * 8,
+    CalleeSavedSize is 40,  % 5 registers * 8 bytes
+    StackSize is CalleeSavedSize + LocalVarSize,
+    format(Stream, "\tsubq $~d, %rsp\n", [StackSize]),
+    % Save callee-saved registers to stack
+    format(Stream, "\tmovq %rbx, -8(%rbp)\n", []),
+    format(Stream, "\tmovq %r12, -16(%rbp)\n", []),
+    format(Stream, "\tmovq %r13, -24(%rbp)\n", []),
+    format(Stream, "\tmovq %r14, -32(%rbp)\n", []),
+    format(Stream, "\tmovq %r15, -40(%rbp)\n", []),
+    % Save parameter registers to stack
+    % Return value (function name) is at -48, params start at -56
+    save_params_to_stack(Params, 1, Stream),
+    % Generate function body
+    (   member(IR, Stmts),
+        once(generate_func_asm_text(IR, Name, Params, AsmCode)),
+        write(Stream, AsmCode),
+        fail
+    ;   true
+    ),
+    % Load return value into %rax
+    format(Stream, "\tmovq -48(%rbp), %rax\n", []),
+    % Restore callee-saved registers
+    format(Stream, "\tmovq -8(%rbp), %rbx\n", []),
+    format(Stream, "\tmovq -16(%rbp), %r12\n", []),
+    format(Stream, "\tmovq -24(%rbp), %r13\n", []),
+    format(Stream, "\tmovq -32(%rbp), %r14\n", []),
+    format(Stream, "\tmovq -40(%rbp), %r15\n", []),
+    format(Stream, "\tleave\n", []),
+    format(Stream, "\tret\n", []).
+
+% Save parameter registers to stack offsets
+% Return value is at -48, params start at -56 (after 5 callee-saved regs)
+save_params_to_stack([], _, _).
+save_params_to_stack([_|Rest], N, Stream) :-
+    Offset is -48 - (N * 8),
+    param_reg(N, Reg),
+    format(Stream, "\tmovq ~w, ~d(%rbp)\n", [Reg, Offset]),
+    N1 is N + 1,
+    save_params_to_stack(Rest, N1, Stream).
+
+param_reg(1, '%rdi').
+param_reg(2, '%rsi').
+param_reg(3, '%rdx').
+param_reg(4, '%rcx').
+param_reg(5, '%r8').
+param_reg(6, '%r9').
+
+% Generate assembly for statements within a function (with proper variable mapping)
+generate_func_asm_text(ir_assign(VarName, Expr), FuncName, Params, Assembly) :-
+    asm_expr_func(Expr, FuncName, Params, ExprCode),
+    func_var_offset(VarName, FuncName, Params, Offset),
+    format(atom(Assembly), "~w\tmovq %rax, ~d(%rbp)\n", [ExprCode, Offset]).
+generate_func_asm_text(ir_writeln_int(Expr), FuncName, Params, Assembly) :-
+    asm_expr_func(Expr, FuncName, Params, ExprCode),
+    format(atom(Assembly), "~w\tmovl %eax, %edi\n\tcall rt_writeln_int\n", [ExprCode]).
+generate_func_asm_text(ir_write_int(Expr), FuncName, Params, Assembly) :-
+    asm_expr_func(Expr, FuncName, Params, ExprCode),
+    format(atom(Assembly), "~w\tmovl %eax, %edi\n\tcall rt_write_int\n", [ExprCode]).
+generate_func_asm_text(ir_writeln_str(Text), _, _, Assembly) :-
+    asm_writeln_str_text(Text, Assembly).
+generate_func_asm_text(ir_write_str(Text), _, _, Assembly) :-
+    asm_write_str_text(Text, Assembly).
+generate_func_asm_text(ir_readln(Name), FuncName, Params, Assembly) :-
+    func_var_offset(Name, FuncName, Params, Offset),
+    format(atom(Assembly), "\tcall rt_readln_int\n\tmovslq %eax, %rax\n\tmovq %rax, ~d(%rbp)\n", [Offset]).
+generate_func_asm_text(ir_if(Cond, ThenStmt, ElseStmt), FuncName, Params, Assembly) :-
+    next_label(if_else, ElseLabel),
+    next_label(if_end, EndLabel),
+    asm_expr_func(Cond, FuncName, Params, CondCode),
+    generate_func_asm_text(ThenStmt, FuncName, Params, ThenCode),
+    generate_func_asm_text(ElseStmt, FuncName, Params, ElseCode),
+    format(
+        atom(Assembly),
+        "~w\tcmpq $0, %rax\n\tje ~w\n~w\tjmp ~w\n~w:\n~w~w:\n",
+        [CondCode, ElseLabel, ThenCode, EndLabel, ElseLabel, ElseCode, EndLabel]
+    ).
+generate_func_asm_text(ir_while(Cond, BodyStmt), FuncName, Params, Assembly) :-
+    next_label(while_start, StartLabel),
+    next_label(while_end, EndLabel),
+    asm_expr_func(Cond, FuncName, Params, CondCode),
+    generate_func_asm_text(BodyStmt, FuncName, Params, BodyCode),
+    format(
+        atom(Assembly),
+        "~w:\n~w\tcmpq $0, %rax\n\tje ~w\n~w\tjmp ~w\n~w:\n",
+        [StartLabel, CondCode, EndLabel, BodyCode, StartLabel, EndLabel]
+    ).
+generate_func_asm_text(ir_block(Stmts), FuncName, Params, Assembly) :-
+    func_stmt_list(Stmts, FuncName, Params, StmtCode),
+    format(atom(Assembly), "~w", [StmtCode]).
+
+func_stmt_list([], _, _, "").
+func_stmt_list([Stmt|Rest], FuncName, Params, Assembly) :-
+    generate_func_asm_text(Stmt, FuncName, Params, FirstCode),
+    func_stmt_list(Rest, FuncName, Params, RestCode),
+    format(atom(Assembly), "~w~w", [FirstCode, RestCode]).
+
+% Get offset for a variable within a function
+% Callee-saved regs at -8 to -40, return value at -48, params at -56, -64, etc.
+func_var_offset(Name, FuncName, _, -48) :-
+    Name == FuncName,  % Return value
+    !.
+func_var_offset(Name, _, Params, Offset) :-
+    nth1(Index, Params, Name),
+    !,
+    Offset is -48 - (Index * 8).
+func_var_offset(Name, _, _, _) :-
+    throw(error(unknown_function_variable(Name), _)).
+
+% Expression evaluation within function context
+asm_expr_func(ir_int(N), _, _, Assembly) :-
+    format(atom(Assembly), "\tmovq $~d, %rax\n", [N]).
+asm_expr_func(ir_var(Name), FuncName, Params, Assembly) :-
+    func_var_offset(Name, FuncName, Params, Offset),
+    format(atom(Assembly), "\tmovq ~d(%rbp), %rax\n", [Offset]).
+asm_expr_func(ir_call(Name, Args), FuncName, Params, Assembly) :-
+    length(Args, ArgCount),
+    (   ArgCount > 6
+    ->  throw(error(too_many_arguments(Name, ArgCount), _))
+    ;   true
+    ),
+    asm_call_args_func(Args, FuncName, Params, ArgCode),
+    format(atom(Assembly), "~w\tcall ~w\n", [ArgCode, Name]).
+asm_expr_func(ir_unary('-', Expr), FuncName, Params, Assembly) :-
+    asm_expr_func(Expr, FuncName, Params, ExprCode),
+    format(atom(Assembly), "~w\tnegq %rax\n", [ExprCode]).
+asm_expr_func(ir_bin('+', Left, Right), FuncName, Params, Assembly) :-
+    asm_expr_func(Left, FuncName, Params, LeftCode),
+    (   get_temp_register(TempReg)
+    ->  asm_expr_func(Right, FuncName, Params, RightCode),
+        format(atom(Assembly), "~w\tmovq %rax, %~w\n~w\taddq %~w, %rax\n", [LeftCode, TempReg, RightCode, TempReg]),
+        free_register(TempReg)
+    ;   asm_expr_func(Right, FuncName, Params, RightCode),
+        format(atom(Assembly), "~w\tpushq %rax\n~w\tpopq %r10\n\taddq %r10, %rax\n", [LeftCode, RightCode])
+    ).
+asm_expr_func(ir_bin('-', Left, Right), FuncName, Params, Assembly) :-
+    asm_expr_func(Left, FuncName, Params, LeftCode),
+    (   get_temp_register(TempReg)
+    ->  asm_expr_func(Right, FuncName, Params, RightCode),
+        format(atom(Assembly), "~w\tmovq %rax, %~w\n~w\tsubq %rax, %~w\n\tmovq %~w, %rax\n", [LeftCode, TempReg, RightCode, TempReg, TempReg]),
+        free_register(TempReg)
+    ;   asm_expr_func(Right, FuncName, Params, RightCode),
+        format(atom(Assembly), "~w\tpushq %rax\n~w\tpopq %r10\n\tsubq %rax, %r10\n\tmovq %r10, %rax\n", [LeftCode, RightCode])
+    ).
+asm_expr_func(ir_bin('*', Left, Right), FuncName, Params, Assembly) :-
+    asm_expr_func(Left, FuncName, Params, LeftCode),
+    (   get_temp_register(TempReg)
+    ->  asm_expr_func(Right, FuncName, Params, RightCode),
+        format(atom(Assembly), "~w\tmovq %rax, %~w\n~w\timulq %~w, %rax\n", [LeftCode, TempReg, RightCode, TempReg]),
+        free_register(TempReg)
+    ;   asm_expr_func(Right, FuncName, Params, RightCode),
+        format(atom(Assembly), "~w\tpushq %rax\n~w\tpopq %r10\n\timulq %r10, %rax\n", [LeftCode, RightCode])
+    ).
+asm_expr_func(ir_bin('/', Left, Right), FuncName, Params, Assembly) :-
+    asm_expr_func(Left, FuncName, Params, LeftCode),
+    (   get_temp_register(TempReg)
+    ->  asm_expr_func(Right, FuncName, Params, RightCode),
+        format(
+            atom(Assembly),
+            "~w\tmovq %rax, %~w\n~w\tmovq %rax, %r11\n\tcmpq $0, %r11\n\tje division_by_zero\n\tmovq %~w, %rax\n\tcqo\n\tidivq %r11\n",
+            [LeftCode, TempReg, RightCode, TempReg]
+        ),
+        free_register(TempReg)
+    ;   asm_expr_func(Right, FuncName, Params, RightCode),
+        format(
+            atom(Assembly),
+            "~w\tpushq %rax\n~w\tpopq %r10\n\tmovq %rax, %r11\n\tcmpq $0, %r11\n\tje division_by_zero\n\tmovq %r10, %rax\n\tcqo\n\tidivq %r11\n",
+            [LeftCode, RightCode]
+        )
+    ).
+asm_expr_func(ir_bin(Comp, Left, Right), FuncName, Params, Assembly) :-
+    comparison_op(Comp, SetInstr),
+    asm_compare_expr_func(Left, Right, FuncName, Params, SetInstr, Assembly).
+
+comparison_op('=', "sete").
+comparison_op('<>', "setne").
+comparison_op('<', "setl").
+comparison_op('<=', "setle").
+comparison_op('>', "setg").
+comparison_op('>=', "setge").
+
+asm_compare_expr_func(Left, Right, FuncName, Params, SetInstr, Assembly) :-
+    asm_expr_func(Left, FuncName, Params, LeftCode),
+    (   get_temp_register(TempReg)
+    ->  asm_expr_func(Right, FuncName, Params, RightCode),
+        format(
+            atom(Assembly),
+            "~w\tmovq %rax, %~w\n~w\tcmpq %rax, %~w\n\t~w %al\n\tmovzbq %al, %rax\n",
+            [LeftCode, TempReg, RightCode, TempReg, SetInstr]
+        ),
+        free_register(TempReg)
+    ;   asm_expr_func(Right, FuncName, Params, RightCode),
+        format(
+            atom(Assembly),
+            "~w\tpushq %rax\n~w\tpopq %r10\n\tcmpq %rax, %r10\n\t~w %al\n\tmovzbq %al, %rax\n",
+            [LeftCode, RightCode, SetInstr]
+        )
+    ).
+
+asm_call_args_func([], _, _, "").
+asm_call_args_func([Arg], FuncName, Params, Assembly) :-
+    asm_expr_func(Arg, FuncName, Params, ArgCode),
+    format(atom(Assembly), "~w\tmovq %rax, %rdi\n", [ArgCode]).
+asm_call_args_func([Arg1, Arg2], FuncName, Params, Assembly) :-
+    asm_expr_func(Arg1, FuncName, Params, Code1),
+    asm_expr_func(Arg2, FuncName, Params, Code2),
+    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w\tmovq %rax, %rsi\n", [Code1, Code2]).
+asm_call_args_func([Arg1, Arg2, Arg3], FuncName, Params, Assembly) :-
+    asm_expr_func(Arg1, FuncName, Params, Code1),
+    asm_expr_func(Arg2, FuncName, Params, Code2),
+    asm_expr_func(Arg3, FuncName, Params, Code3),
+    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w\tmovq %rax, %rsi\n~w\tmovq %rax, %rdx\n", [Code1, Code2, Code3]).
+asm_call_args_func([Arg1, Arg2, Arg3, Arg4], FuncName, Params, Assembly) :-
+    asm_expr_func(Arg1, FuncName, Params, Code1),
+    asm_expr_func(Arg2, FuncName, Params, Code2),
+    asm_expr_func(Arg3, FuncName, Params, Code3),
+    asm_expr_func(Arg4, FuncName, Params, Code4),
+    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w\tmovq %rax, %rsi\n~w\tmovq %rax, %rdx\n~w\tmovq %rax, %rcx\n", [Code1, Code2, Code3, Code4]).
+asm_call_args_func([Arg1, Arg2, Arg3, Arg4, Arg5], FuncName, Params, Assembly) :-
+    asm_expr_func(Arg1, FuncName, Params, Code1),
+    asm_expr_func(Arg2, FuncName, Params, Code2),
+    asm_expr_func(Arg3, FuncName, Params, Code3),
+    asm_expr_func(Arg4, FuncName, Params, Code4),
+    asm_expr_func(Arg5, FuncName, Params, Code5),
+    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w\tmovq %rax, %rsi\n~w\tmovq %rax, %rdx\n~w\tmovq %rax, %rcx\n~w\tmovq %rax, %r8\n", [Code1, Code2, Code3, Code4, Code5]).
+asm_call_args_func([Arg1, Arg2, Arg3, Arg4, Arg5, Arg6], FuncName, Params, Assembly) :-
+    asm_expr_func(Arg1, FuncName, Params, Code1),
+    asm_expr_func(Arg2, FuncName, Params, Code2),
+    asm_expr_func(Arg3, FuncName, Params, Code3),
+    asm_expr_func(Arg4, FuncName, Params, Code4),
+    asm_expr_func(Arg5, FuncName, Params, Code5),
+    asm_expr_func(Arg6, FuncName, Params, Code6),
+    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w\tmovq %rax, %rsi\n~w\tmovq %rax, %rdx\n~w\tmovq %rax, %rcx\n~w\tmovq %rax, %r8\n~w\tmovq %rax, %r9\n", [Code1, Code2, Code3, Code4, Code5, Code6]).

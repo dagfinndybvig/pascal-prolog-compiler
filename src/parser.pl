@@ -12,14 +12,52 @@ parse_tokens(Tokens, Program) :-
     ;   throw(error(syntax_error(invalid_pascal_program), _))
     ).
 
-program(program(Name, Vars, Block)) -->
+program(program(Name, Funcs, Vars, Block)) -->
     keyword(program),
     identifier(Name),
     symbol(';'),
+    func_declarations(Funcs),
     declarations(Vars),
     block(Block),
     symbol('.'),
     [tok(eof, _, _)].
+
+func_declarations(Funcs) -->
+    keyword(function),
+    !,
+    func_decl(First),
+    func_decls_rest(Rest),
+    { append([First], Rest, Funcs) }.
+func_declarations([]) -->
+    [].
+
+func_decls_rest(Funcs) -->
+    keyword(function),
+    !,
+    func_decl(First),
+    func_decls_rest(Rest),
+    { append([First], Rest, Funcs) }.
+func_decls_rest([]) -->
+    [].
+
+func_decl(func(Name, Params, Body)) -->
+    identifier(Name),
+    symbol('('),
+    params(Params),
+    symbol(')'),
+    symbol(':'),
+    keyword(integer),
+    symbol(';'),
+    block(Body),
+    symbol(';').
+
+params(Params) -->
+    ident_list(Params),
+    symbol(':'),
+    keyword(integer),
+    !.
+params([]) -->
+    [].
 
 declarations(Vars) -->
     keyword(var),
@@ -189,6 +227,12 @@ unary(Expr) -->
 primary(int(N)) -->
     [tok(int(N), _, _)],
     !.
+primary(call(Name, Args)) -->
+    identifier(Name),
+    symbol('('),
+    expr_list(Args),
+    symbol(')'),
+    !.
 primary(var(Name)) -->
     identifier(Name),
     !.
@@ -196,6 +240,20 @@ primary(Expr) -->
     symbol('('),
     expression(Expr),
     symbol(')').
+
+expr_list([Expr|Rest]) -->
+    expression(Expr),
+    expr_list_tail(Rest).
+expr_list([]) -->
+    [].
+
+expr_list_tail([Expr|Rest]) -->
+    symbol(','),
+    !,
+    expression(Expr),
+    expr_list_tail(Rest).
+expr_list_tail([]) -->
+    [].
 
 writeln_arg(str(Text)) -->
     string_literal(Text),

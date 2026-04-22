@@ -1,6 +1,6 @@
 <img width="1880" height="515" alt="image" src="https://github.com/user-attachments/assets/0c40b246-bb09-4c59-80ee-e9eafc54bde0" />
 
-# Pascal-Prolog Assembly Backend - Release Version 1.3
+# Pascal-Prolog Assembly Backend - Release Version 1.4
 
 > [!WARNING]
 > This project implements only a **fragment of Pascal**. It supports **integer-only arithmetic** and a feature subset that is just enough to have som fun with prime-number programs and the like.
@@ -9,8 +9,8 @@
 
 ## 📦 Pascal-Prolog Assembly Backend Release
 
-**Version**: 1.3
-**Release Date**: 2026-04-17
+**Version**: 1.4
+**Release Date**: 2026-04-22
 **License**: Unlicense (Public Domain)
 
 ## 🎯 About This Release
@@ -25,9 +25,58 @@ This is now a **complete standalone release** of the Pascal-Prolog compiler with
 - ✅ Full documentation
 - ✅ Minimal, clean distribution
 
-## 🆕 What's New In v1.3
+## 🆕 What's New In v1.4
 
-This release includes a post-audit hardening pass with verified fixes and expanded regression coverage.
+### Major Feature: Functions
+
+This release adds **function support** to the Pascal subset:
+
+- ✅ Function declarations with multiple integer parameters
+- ✅ Integer return values via Pascal-style assignment (`funcname := value`)
+- ✅ Recursive function calls (e.g., factorial)
+- ✅ Function calls within expressions (e.g., `add(multiply(2, 3), 10)`)
+- ✅ Proper callee-saved register handling for reliable multi-level recursion
+
+**Example:**
+```pascal
+program example;
+
+function factorial(n: integer): integer;
+begin
+  if n <= 1 then
+    factorial := 1
+  else
+    factorial := n * factorial(n - 1)
+end;
+
+function add(a, b: integer): integer;
+begin
+  add := a + b
+end;
+
+var result: integer;
+begin
+  result := factorial(5);        { 120 }
+  writeln(result);
+  result := add(3, 4);           { 7 }
+  writeln(result);
+  result := add(factorial(3), 10);  { 16 }
+  writeln(result)
+end.
+```
+
+### Technical Implementation
+- Uses System V AMD64 calling convention
+- Arguments passed in registers: `%rdi`, `%rsi`, `%rdx`, `%rcx`, `%r8`, `%r9`
+- Return value in `%rax`
+- Callee-saved registers (`rbx`, `r12`-`r15`) preserved across calls
+- Maximum 6 parameters (hardware register limit)
+
+---
+
+## 🆕 Previous: v1.3
+
+Post-audit hardening pass with verified fixes and expanded regression coverage.
 
 ### Key improvements
 - ✅ Fixed division-by-zero fallback behavior to use controlled runtime error handling.
@@ -154,10 +203,15 @@ This release supports a **practical subset** of Pascal focused on core programmi
 - **Nested Blocks**: Local variable scoping with proper shadowing
 - **Relational Operators**: `=`, `<>`, `<`, `<=`, `>`, `>=` (integer comparisons only)
 - **Unary Operators**: `+` (implicit), `-` (negation)
+- **Functions**: Integer functions with up to 6 integer parameters
+  - **Recursion**: Fully supported with proper register preservation
+  - **Return values**: Pascal-style (`funcname := value`)
+  - **Expression calls**: `add(3, multiply(2, 4))`
 
 #### ❌ Not Yet Implemented
 - Arrays and records
-- Procedures and functions
+- Procedures (void functions - all functions must return integer)
+- Forward declarations (functions must be defined before use)
 - String variables or expressions
 - Floating-point numbers
 - Pointer arithmetic

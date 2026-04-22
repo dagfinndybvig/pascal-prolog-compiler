@@ -87,14 +87,23 @@ runtime_paths(RuntimeCPath, RuntimeIncludeDir) :-
     directory_file_path(RuntimeIncludeDir, 'runtime.c', RuntimeCPath).
 
 % Write assembly file
-write_asm_file(AsmPath, ir_program(_, Vars, IRStmts)) :-
+write_asm_file(AsmPath, ir_program(_, Funcs, Vars, IRStmts)) :-
     open(AsmPath, write, Stream),
     init_var_offsets(Vars),
     length(Vars, VarCount),
     total_stack_size(VarCount, TotalSize),
     asm_header(Header),
     write(Stream, Header),
+    % Generate data section for main program
     (   member(IR, IRStmts),
+        once(generate_asm(IR, AsmCode)),
+        write(Stream, AsmCode),
+        fail
+    ;   true
+    ),
+    % Generate data section for functions
+    (   member(ir_func(_, _, FuncStmts), Funcs),
+        member(IR, FuncStmts),
         once(generate_asm(IR, AsmCode)),
         write(Stream, AsmCode),
         fail
@@ -102,9 +111,10 @@ write_asm_file(AsmPath, ir_program(_, Vars, IRStmts)) :-
     ),
     asm_footer(FooterStart),
     write(Stream, FooterStart),
-    % Add stack frame with overflow protection
+    % Add stack frame with overflow protection for main
     asm_stack_frame(TotalSize, StackFrame),
     write(Stream, StackFrame),
+    % Generate main program code
     (   member(IR, IRStmts),
         once(generate_asm_text(IR, AsmCode)),
         write(Stream, AsmCode),
@@ -112,6 +122,12 @@ write_asm_file(AsmPath, ir_program(_, Vars, IRStmts)) :-
     ;   true
     ),
     write(Stream, "\tmovq $0, %rax\n\tleave\n\tret\n"),
+    % Generate function code
+    (   member(Func, Funcs),
+        once(generate_func_asm(Func, Stream)),
+        fail
+    ;   true
+    ),
     % Add error handlers at the end
     asm_stack_overflow_handler(OverflowHandler),
     write(Stream, OverflowHandler),

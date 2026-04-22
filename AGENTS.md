@@ -10,7 +10,10 @@ This is a **Pascal compiler written in SWI-Prolog** that compiles a subset of Pa
 - Integer-only arithmetic (32-bit signed)
 - Compiles to x86-64 assembly via GCC
 - Uses Prolog DCGs for parsing
+- **Functions supported**: Integer functions with up to 6 parameters, recursion
 - Prime number algorithms are the primary test cases
+
+**Version**: 1.4 (2026-04-22) - Added function support
 
 ## Quick Start
 
@@ -149,9 +152,11 @@ Test completed successfully!
 **Never forget these constraints:**
 
 1. **Integer-only**: No floating-point. Division truncates toward zero (`7/2 = 3`, `-7/2 = -3`)
-2. **No arrays, procedures, or functions** - only simple variables and control flow
-3. **String literals are output-only** - no string variables or operations
-4. **32-bit signed integers** - overflow behavior is undefined
+2. **No arrays or records** - only simple variables and control flow
+3. **No procedures** - functions only, must return integer
+4. **String literals are output-only** - no string variables or operations
+5. **32-bit signed integers** - overflow behavior is undefined
+6. **Maximum 6 function parameters** - x86-64 calling convention limit
 
 ## File Organization
 
@@ -185,6 +190,7 @@ Test completed successfully!
 
 ## Version History
 
+- **v1.4** (2026-04-22): Added function support - integer functions with up to 6 parameters, recursion, proper callee-saved register handling
 - **v1.3** (2026-04-17): Post-audit hardening, fixed division-by-zero handling, register allocation fixes
 
 ---

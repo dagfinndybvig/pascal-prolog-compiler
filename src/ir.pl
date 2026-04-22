@@ -1,13 +1,23 @@
 :- module(ir, [lower_program/2]).
 
-lower_program(program(Name, Vars, Block), ir_program(Name, AllVars, IRStmts)) :-
+lower_program(program(Name, Funcs, Vars, Block), ir_program(Name, IRFuncs, AllVars, IRStmts)) :-
     vars_env(Vars, GlobalEnv),
+    lower_funcs(Funcs, GlobalEnv, IRFuncs),
     lower_block(Block, GlobalEnv, 0, _CounterOut, IRStmts, LocalVars),
     append(Vars, LocalVars, AllVars).
 
 vars_env([], []).
 vars_env([Var|Vars], [Var-Var|EnvTail]) :-
     vars_env(Vars, EnvTail).
+
+lower_funcs([], _, []).
+lower_funcs([func(Name, Params, Body)|Rest], GlobalEnv, [ir_func(Name, Params, IRBody)|IRFuncsRest]) :-
+    vars_env(Params, ParamEnv),
+    % Add function name to environment for return value assignment
+    append(ParamEnv, [Name-Name], FuncEnv0),
+    append(FuncEnv0, GlobalEnv, FuncEnv),
+    lower_block(Body, FuncEnv, 0, _CounterOut, IRBody, _),
+    lower_funcs(Rest, GlobalEnv, IRFuncsRest).
 
 lower_block(block(LocalVars, Stmts), ParentEnv, CounterIn, CounterOut, IRStmts, AddedVars) :-
     allocate_locals(LocalVars, CounterIn, CounterNext, LocalMappings, LocalAllocations),
@@ -57,8 +67,15 @@ map_name(Name, [_|Rest], Mapped) :-
 lower_expr(int(N), _Env, ir_int(N)).
 lower_expr(var(Name), Env, ir_var(MappedName)) :-
     map_name(Name, Env, MappedName).
+lower_expr(call(Name, Args), Env, ir_call(Name, IRArgs)) :-
+    lower_exprs(Args, Env, IRArgs).
 lower_expr(unary('-', Expr), Env, ir_unary('-', IRExpr)) :-
     lower_expr(Expr, Env, IRExpr).
 lower_expr(bin(Op, Left, Right), Env, ir_bin(Op, IRLeft, IRRight)) :-
     lower_expr(Left, Env, IRLeft),
     lower_expr(Right, Env, IRRight).
+
+lower_exprs([], _, []).
+lower_exprs([Expr|Rest], Env, [IRExpr|IRRest]) :-
+    lower_expr(Expr, Env, IRExpr),
+    lower_exprs(Rest, Env, IRRest).
