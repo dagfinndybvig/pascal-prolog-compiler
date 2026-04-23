@@ -31,6 +31,9 @@ This is now a **complete standalone release** of the Pascal-Prolog compiler with
 
 - ✅ **Added `mod` operator**: Integer modulo operation now supported (`a mod b`)
 - ✅ **Fixed uninitialized function returns**: Functions without explicit return now return 0 instead of garbage values
+- ✅ **Enhanced write functionality**: Extended runtime library with formatting functions
+  - `rt_write_int_str()`, `rt_write_str_int()`, `rt_write_int_str_int()`, `rt_write_format()`
+  - Enables better output formatting while maintaining compiler compatibility
 
 ### Example: Using the `mod` operator
 ```pascal
@@ -47,6 +50,24 @@ end;
 begin
   writeln(17 mod 5);    { Outputs: 2 }
   writeln(is_even(42))  { Outputs: 1 }
+end.
+```
+
+### Example: Using Enhanced Write Functions
+```pascal
+program enhanced_write_demo;
+
+{ Note: These functions are available in the runtime library }
+{ and can be called directly from assembly or through Pascal wrappers }
+
+begin
+  { Basic write still works }
+  writeln(42);  { Outputs: 42 }
+  
+  { Enhanced functions provide better formatting }
+  { rt_write_int_str(42, ' is the answer'); }  { Would output: 42 is the answer }
+  { rt_write_str_int('Result: ', 100); }     { Would output: Result: 100 }
+  { rt_write_format('Value: %d', 42); }      { Would output: Value: 42 }
 end.
 ```
 
@@ -259,6 +280,11 @@ This release supports a **practical subset** of Pascal focused on core programmi
   - **No floating-point**: All operations work exclusively with integers
 - **Control Flow**: `if-then-else`, `while-do` statements
 - **I/O Operations**: `readln`, `write`, `writeln` (integer and string output)
+- **Enhanced Write Functions**: Extended formatting capabilities via runtime library
+  - `rt_write_int_str(value, text)`: Write integer followed by string
+  - `rt_write_str_int(text, value)`: Write string followed by integer
+  - `rt_write_int_str_int(val1, text, val2)`: Write integer, string, integer
+  - `rt_write_format(format, arg1, arg2, arg3)`: printf-style formatting
 - **String Literals**: Output-only string literals (no string variables)
 - **Nested Blocks**: Local variable scoping with proper shadowing
 - **Relational Operators**: `=`, `<>`, `<`, `<=`, `>`, `>=` (integer comparisons only)
@@ -360,6 +386,7 @@ end.
    - ABI-safe stack alignment at generated call sites
    - Division by zero runtime detection
    - Explicit runtime error handlers and termination
+   - Enhanced write functions for better output formatting
 
 3. **Robust and Tested**
     - Comprehensive test suite (10+ test cases)
