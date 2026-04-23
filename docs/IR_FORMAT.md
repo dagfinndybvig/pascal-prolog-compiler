@@ -27,8 +27,10 @@ ir_func(Name, Parameters, LocalVariables, Statements)
 
 - `Name`: Function name (atom)
 - `Parameters`: List of parameter names
-- `LocalVariables`: List of local variable names (including mangled names)
+- `LocalVariables`: List of local variable names (mangled as `local(Counter, OriginalName)`)
 - `Statements`: List of IR statements for the function body
+
+**Note on Function Local Variables**: During IR generation, function-level local variables (declared in `var` section before `begin`) are merged with the function body's block-level local variables. This ensures proper name mangling and allocation for all local variables in function scope.
 
 ### Variable Naming Convention
 

@@ -1,6 +1,6 @@
 <img width="1880" height="515" alt="image" src="https://github.com/user-attachments/assets/0c40b246-bb09-4c59-80ee-e9eafc54bde0" />
 
-# Pascal-Prolog Assembly Backend - Release Version 1.4.3
+# Pascal-Prolog Assembly Backend - Release Version 1.4.4
 
 > [!WARNING]
 > This project implements only a **fragment of Pascal**. It supports **integer-only arithmetic** and a feature subset that is just enough to have som fun with prime-number programs and the like.
@@ -9,8 +9,8 @@
 
 ## 📦 Pascal-Prolog Assembly Backend Release
 
-**Version**: 1.4.3
-**Release Date**: 2026-04-22
+**Version**: 1.4.4
+**Release Date**: 2026-04-23
 **License**: Unlicense (Public Domain)
 
 ## 🎯 About This Release
@@ -25,7 +25,36 @@ This is now a **complete standalone release** of the Pascal-Prolog compiler with
 - ✅ Full documentation
 - ✅ Minimal, clean distribution
 
-## 🆕 What's New In v1.4.3
+## 🆕 What's New In v1.4.4
+
+### Bug Fixes: Function Semantic Checking & Local Variables
+
+Fixed critical bugs affecting programs with functions and local variables.
+
+- ✅ **Fixed semantic checker function handling**: `collect_func_sigs/2` now correctly handles `func/4` AST terms (matching parser output)
+- ✅ **Fixed IR generation for function locals**: Function-level local variables now properly merged with block-level locals during IR lowering
+- ✅ **Fixed codegen mangled name handling**: Code generator now correctly resolves `local(Counter, Name)` mangled variable references
+
+### Example: Functions with Local Variables
+```pascal
+program local_vars_demo;
+
+function double_and_add_one(n: integer): integer;
+var
+  temp: integer;
+begin
+  temp := n * 2;
+  double_and_add_one := temp + 1
+end;
+
+begin
+  writeln(double_and_add_one(5))  { Outputs: 11 }
+end.
+```
+
+---
+
+## 🆕 Previous: v1.4.3
 
 ### New Features & Bug Fixes
 

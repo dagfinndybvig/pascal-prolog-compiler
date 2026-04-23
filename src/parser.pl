@@ -40,7 +40,7 @@ func_decls_rest(Funcs) -->
 func_decls_rest([]) -->
     [].
 
-func_decl(func(Name, Params, Body)) -->
+func_decl(func(Name, Params, LocalVars, Body)) -->
     identifier(Name),
     symbol('('),
     params(Params),
@@ -48,6 +48,7 @@ func_decl(func(Name, Params, Body)) -->
     symbol(':'),
     keyword(integer),
     symbol(';'),
+    declarations(LocalVars),
     block(Body),
     symbol(';').
 

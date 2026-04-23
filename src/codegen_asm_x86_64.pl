@@ -698,7 +698,12 @@ func_var_offset(Name, _, Params, _, Offset) :-
     !,
     Offset is -48 - (Index * 8).
 func_var_offset(Name, _, Params, Locals, Offset) :-
-    nth1(Index, Locals, Name),
+    % Handle mangled local variable names: local(Counter, VarName)
+    (   Name = local(_, _)  % Already mangled
+    ->  nth1(Index, Locals, Name)
+    ;   % Raw name - find matching mangled local
+        nth1(Index, Locals, local(_, Name))
+    ),
     !,
     length(Params, ParamCount),
     Offset is -48 - ((ParamCount + Index) * 8).

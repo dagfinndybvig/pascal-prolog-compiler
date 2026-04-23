@@ -13,12 +13,16 @@ vars_env([Var|Vars], [Var-Var|EnvTail]) :-
     vars_env(Vars, EnvTail).
 
 lower_funcs([], _, []).
-lower_funcs([func(Name, Params, Body)|Rest], GlobalEnv, [ir_func(Name, Params, FuncLocals, IRBody)|IRFuncsRest]) :-
+lower_funcs([func(Name, Params, FuncLocalVars, block(BlockLocalVars, Stmts))|Rest], GlobalEnv, [ir_func(Name, Params, FuncLocals, IRBody)|IRFuncsRest]) :-
     vars_env(Params, ParamEnv),
     % Add function name to environment for return value assignment
     append(ParamEnv, [Name-Name], FuncEnv0),
-    append(FuncEnv0, GlobalEnv, FuncEnv),
-    lower_block(Body, FuncEnv, 0, _CounterOut, IRBody, FuncLocals),
+    vars_env(FuncLocalVars, LocalEnv),
+    append(FuncEnv0, LocalEnv, FuncEnv1),
+    append(FuncEnv1, GlobalEnv, FuncEnv),
+    % Merge function locals with block locals for lowering
+    append(FuncLocalVars, BlockLocalVars, AllLocalVars),
+    lower_block(block(AllLocalVars, Stmts), FuncEnv, 0, _CounterOut, IRBody, FuncLocals),
     lower_funcs(Rest, GlobalEnv, IRFuncsRest).
 
 lower_block(block(LocalVars, Stmts), ParentEnv, CounterIn, CounterOut, IRStmts, AddedVars) :-

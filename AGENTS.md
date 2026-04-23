@@ -14,7 +14,8 @@ This is a **Pascal compiler written in SWI-Prolog** that compiles a subset of Pa
 - **Functions supported**: Integer functions with up to 6 parameters, recursion
 - Prime number algorithms are the primary test cases
 
-**Version**: 1.4.3 (2026-04-22) - Added `mod` operator, fixed uninitialized function return values
+**Version**: 1.4.4 (2026-04-23) - Fixed function semantic checking and local variable codegen bugs
+**Previous**: 1.4.3 (2026-04-22) - Added `mod` operator, fixed uninitialized function return values
 
 ## Quick Start
 
@@ -192,6 +193,7 @@ Test completed successfully!
 
 ## Version History
 
+- **v1.4.4** (2026-04-23): Fixed function semantic checking bug - `collect_func_sigs/2` now correctly handles `func/4` AST terms; fixed IR generation to properly merge function locals with block locals; fixed codegen to handle mangled local variable names
 - **v1.4.3** (2026-04-22): Added `mod` operator support, fixed uninitialized function return values (now default to 0)
 - **v1.4.2** (2026-04-22): Fixed nested call argument clobbering, function-local variable codegen support, and call-site stack alignment
 - **v1.4.1** (2026-04-22): Fixed function semantic checking bug - separated signature collection from body checking to enable mutual recursion

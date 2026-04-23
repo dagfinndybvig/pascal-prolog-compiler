@@ -21,13 +21,21 @@ check_funcs(Funcs, GlobalVars, FuncSigs) :-
     check_all_func_bodies(Funcs, GlobalVars, FuncSigs).
 
 collect_func_sigs([], []).
-collect_func_sigs([func(Name, Params, _)|Rest], [(Name, ParamCount)|RestSigs]) :-
+collect_func_sigs([func(Name, Params, _LocalVars, _Body)|Rest], [(Name, ParamCount)|RestSigs]) :-
     length(Params, ParamCount),
     ensure_no_duplicates([Name|Params]),
     collect_func_sigs(Rest, RestSigs).
 
 check_all_func_bodies([], _, _).
+check_all_func_bodies([func(Name, Params, LocalVars, Body)|Rest], GlobalVars, FuncSigs) :-
+    ensure_no_duplicates([Name|Params]),
+    ensure_no_duplicates(LocalVars),
+    append([Name|Params], LocalVars, FuncScope),
+    check_block(Body, FuncScope, FuncSigs),
+    check_all_func_bodies(Rest, GlobalVars, FuncSigs).
+
 check_all_func_bodies([func(Name, Params, Body)|Rest], GlobalVars, FuncSigs) :-
+    ensure_no_duplicates([Name|Params]),
     check_block(Body, [Name|Params], FuncSigs),
     check_all_func_bodies(Rest, GlobalVars, FuncSigs).
 
