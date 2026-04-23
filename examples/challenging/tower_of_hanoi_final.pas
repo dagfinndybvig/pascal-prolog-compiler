@@ -15,6 +15,17 @@ begin
     hanoi_moves := hanoi_moves(n - 1) * 2 + 1
 end;
 
+function power_of_two(n: integer): integer;
+{ Calculates 2^n using recursion }
+{ Base case: 2^0 = 1 }
+{ Recursive case: 2^n = 2 * 2^(n-1) }
+begin
+  if n = 0 then
+    power_of_two := 1
+  else
+    power_of_two := power_of_two(n - 1) * 2
+end;
+
 var
   disks: integer;
   total_moves: integer;
@@ -25,7 +36,7 @@ begin
   
   { Calculate and display results }
   total_moves := hanoi_moves(disks);
-  expected_moves := (1 shl disks) - 1;
+  expected_moves := power_of_two(disks) - 1;
   
   { Output results using basic write }
   writeln(disks);          { Number of disks }
