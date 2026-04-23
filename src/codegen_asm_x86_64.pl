@@ -128,6 +128,17 @@ generate_asm(ir_writeln_int(_Expr), Assembly) :-
     format(atom(Assembly), "", []).
 generate_asm(ir_write_int(_Expr), Assembly) :-
     format(atom(Assembly), "", []).
+
+% Enhanced write statements for stdlib - data section
+generate_asm(ir_write_int_str(_Expr, Text), Assembly) :-
+    asm_string_data(Text, Assembly).
+generate_asm(ir_write_str_int(Text, _Expr), Assembly) :-
+    asm_string_data(Text, Assembly).
+generate_asm(ir_write_int_str_int(_Expr1, Text, _Expr2), Assembly) :-
+    asm_string_data(Text, Assembly).
+generate_asm(ir_write_format(Text, _Expr1, _Expr2, _Expr3), Assembly) :-
+    asm_string_data(Text, Assembly).
+
 generate_asm(ir_readln(_Name), Assembly) :-
     format(atom(Assembly), "", []).
 generate_asm(ir_assign(_VarName, _Expr), Assembly) :-
@@ -161,6 +172,16 @@ generate_asm_text(ir_write_int(Expr), Assembly) :-
     asm_write_int_text(Expr, Assembly).
 generate_asm_text(ir_readln(Name), Assembly) :-
     asm_readln_text(Name, Assembly).
+
+% Enhanced write statements for stdlib
+generate_asm_text(ir_write_int_str(Expr, Text), Assembly) :-
+    asm_write_int_str_text(Expr, Text, Assembly).
+generate_asm_text(ir_write_str_int(Text, Expr), Assembly) :-
+    asm_write_str_int_text(Text, Expr, Assembly).
+generate_asm_text(ir_write_int_str_int(Expr1, Text, Expr2), Assembly) :-
+    asm_write_int_str_int_text(Expr1, Text, Expr2, Assembly).
+generate_asm_text(ir_write_format(Text, Expr1, Expr2, Expr3), Assembly) :-
+    asm_write_format_text(Text, Expr1, Expr2, Expr3, Assembly).
 generate_asm_text(ir_assign(VarName, Expr), Assembly) :-
     asm_assign(VarName, Expr, Assembly).
 generate_asm_text(ir_block(Stmts), Assembly) :-
@@ -275,6 +296,46 @@ asm_write_int_text(Expr, TextSection) :-
         atom(TextSection),
         "~w\tmovl %eax, %edi\n~w",
         [ExprCode, CallCode]
+    ).
+
+% Enhanced write functions for stdlib
+asm_write_int_str_text(Expr, String, TextSection) :-
+    asm_expr(Expr, ExprCode),
+    asm_string_call_text(String, rt_write_int_str, IntStrCode),
+    format(
+        atom(TextSection),
+        "~w\tmovl %eax, %edi\n~w",
+        [ExprCode, IntStrCode]
+    ).
+
+asm_write_str_int_text(String, Expr, TextSection) :-
+    asm_string_call_text(String, rt_write_str_int, StrIntCode),
+    asm_expr(Expr, ExprCode),
+    format(
+        atom(TextSection),
+        "~w\tmovl %eax, %esi\n~w",
+        [StrIntCode, ExprCode]
+    ).
+
+asm_write_int_str_int_text(Expr1, String, Expr2, TextSection) :-
+    asm_expr(Expr1, ExprCode1),
+    asm_string_call_text(String, rt_write_int_str_int, IntStrIntCode),
+    asm_expr(Expr2, ExprCode2),
+    format(
+        atom(TextSection),
+        "~w\tmovl %eax, %edi\n~w\tmovl %eax, %esi\n~w",
+        [ExprCode1, IntStrIntCode, ExprCode2]
+    ).
+
+asm_write_format_text(String, Expr1, Expr2, Expr3, TextSection) :-
+    asm_string_call_text(String, rt_write_format, FormatCode),
+    asm_expr(Expr1, ExprCode1),
+    asm_expr(Expr2, ExprCode2),
+    asm_expr(Expr3, ExprCode3),
+    format(
+        atom(TextSection),
+        "~w\tmovl %eax, %edi\n~w\tmovl %eax, %esi\n~w\tmovl %eax, %edx\n~w",
+        [FormatCode, ExprCode1, ExprCode2, ExprCode3]
     ).
 
 asm_readln_text(VarName, Assembly) :-

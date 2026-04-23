@@ -141,12 +141,54 @@ statement(writeln(Arg)) -->
     writeln_arg(Arg),
     symbol(')'),
     !.
+% Enhanced write statements for stdlib - must come BEFORE basic write to match first
+% statement(write_int_str(Expr, Text)) -->
+%     keyword(write),
+%     symbol('('),
+%     expression(Expr),
+%     symbol(','),
+%     string_literal(Text),
+%     symbol(')'),
+%     !.
+% statement(write_str_int(Text, Expr)) -->
+%     keyword(write),
+%     symbol('('),
+%     string_literal(Text),
+%     symbol(','),
+%     expression(Expr),
+%     symbol(')'),
+%     !.
+% statement(write_int_str_int(Expr1, Text, Expr2)) -->
+%     keyword(write),
+%     symbol('('),
+%     expression(Expr1),
+%     symbol(','),
+%     string_literal(Text),
+%     symbol(','),
+%     expression(Expr2),
+%     symbol(')'),
+%     !.
+% statement(write_format(Text, Expr1, Expr2, Expr3)) -->
+%     keyword(write),
+%     symbol('('),
+%     string_literal(Text),
+%     symbol(','),
+%     expression(Expr1),
+%     symbol(','),
+%     expression(Expr2),
+%     symbol(','),
+%     expression(Expr3),
+%     symbol(')'),
+%     !.
+
+% Basic write statement - must come after enhanced versions
 statement(write(Arg)) -->
     keyword(write),
     symbol('('),
     writeln_arg(Arg),
     symbol(')'),
     !.
+
 statement(readln(Name)) -->
     keyword(readln),
     symbol('('),

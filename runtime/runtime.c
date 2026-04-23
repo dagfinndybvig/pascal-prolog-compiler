@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 int rt_readln_int(void) {
     int value = 0;
@@ -31,4 +32,28 @@ void rt_write_str(const char *value) {
 void rt_error(int code, const char *message) {
     fprintf(stderr, "runtime error %d: %s", code, message);
     exit(code);
+}
+
+/* Enhanced write functions */
+
+void rt_write_int_str(int value, const char *text) {
+    printf("%d%s", value, text);
+}
+
+void rt_write_str_int(const char *text, int value) {
+    printf("%s%d", text, value);
+}
+
+void rt_write_int_str_int(int value1, const char *text, int value2) {
+    printf("%d%s%d", value1, text, value2);
+}
+
+void rt_write_format(const char *format, int arg1, int arg2, int arg3) {
+    printf(format, arg1, arg2, arg3);
+}
+
+/* String conversion functions */
+
+void rt_int_to_buffer(int value, char *buffer, int buffer_size) {
+    snprintf(buffer, buffer_size, "%d", value);
 }

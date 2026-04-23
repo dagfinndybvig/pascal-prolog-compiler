@@ -1,5 +1,7 @@
 :- module(ir, [lower_program/2]).
 
+:- discontiguous lower_stmt/6.
+
 lower_program(program(Name, Funcs, Vars, Block), ir_program(Name, IRFuncs, AllVars, IRStmts)) :-
     vars_env(Vars, GlobalEnv),
     lower_funcs(Funcs, GlobalEnv, IRFuncs),
@@ -54,6 +56,27 @@ lower_stmt(writeln(str(Text)), _Env, Counter, Counter, ir_writeln_str(Text), [])
 lower_stmt(write(expr(Expr)), Env, Counter, Counter, ir_write_int(IRExpr), []) :-
     lower_expr(Expr, Env, IRExpr).
 lower_stmt(write(str(Text)), _Env, Counter, Counter, ir_write_str(Text), []).
+
+% Enhanced write statements for stdlib
+lower_stmt(write_int_str(Expr, Text), Env, Counter, Counter, ir_write_int_str(IRExpr, NormalizedText), []) :-
+    lower_expr(Expr, Env, IRExpr),
+    normalize_string_literal(Text, NormalizedText).
+
+% Normalize string literal to ensure it's wrapped in str()/1
+normalize_string_literal(str(Text), str(Text)) :- !.
+normalize_string_literal(Text, str(Text)).
+lower_stmt(write_str_int(Text, Expr), Env, Counter, Counter, ir_write_str_int(NormalizedText, IRExpr), []) :-
+    lower_expr(Expr, Env, IRExpr),
+    normalize_string_literal(Text, NormalizedText).
+lower_stmt(write_int_str_int(Expr1, Text, Expr2), Env, Counter, Counter, ir_write_int_str_int(IRExpr1, NormalizedText, IRExpr2), []) :-
+    lower_expr(Expr1, Env, IRExpr1),
+    lower_expr(Expr2, Env, IRExpr2),
+    normalize_string_literal(Text, NormalizedText).
+lower_stmt(write_format(Text, Expr1, Expr2, Expr3), Env, Counter, Counter, ir_write_format(NormalizedText, IRExpr1, IRExpr2, IRExpr3), []) :-
+    lower_expr(Expr1, Env, IRExpr1),
+    lower_expr(Expr2, Env, IRExpr2),
+    lower_expr(Expr3, Env, IRExpr3),
+    normalize_string_literal(Text, NormalizedText).
 lower_stmt(readln(Name), Env, Counter, Counter, ir_readln(MappedName), []) :-
     map_name(Name, Env, MappedName).
 lower_stmt(block(LocalVars, Stmts), Env, CounterIn, CounterOut, ir_block(IRStmts), AddedVars) :-
