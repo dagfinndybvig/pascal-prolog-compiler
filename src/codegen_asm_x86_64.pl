@@ -301,41 +301,45 @@ asm_write_int_text(Expr, TextSection) :-
 % Enhanced write functions for stdlib
 asm_write_int_str_text(Expr, String, TextSection) :-
     asm_expr(Expr, ExprCode),
-    asm_string_call_text(String, rt_write_int_str, IntStrCode),
+    asm_string_label(String, Label),
+    asm_call_instruction(rt_write_int_str, CallCode),
     format(
         atom(TextSection),
-        "~w\tmovl %eax, %edi\n~w",
-        [ExprCode, IntStrCode]
+        "~w\tmovl %eax, %edi\n\tleaq ~w(%rip), %rsi\n~w",
+        [ExprCode, Label, CallCode]
     ).
 
 asm_write_str_int_text(String, Expr, TextSection) :-
-    asm_string_call_text(String, rt_write_str_int, StrIntCode),
+    asm_string_label(String, Label),
     asm_expr(Expr, ExprCode),
+    asm_call_instruction(rt_write_str_int, CallCode),
     format(
         atom(TextSection),
-        "~w\tmovl %eax, %esi\n~w",
-        [StrIntCode, ExprCode]
+        "~w\tleaq ~w(%rip), %rdi\n\tmovl %eax, %esi\n~w",
+        [ExprCode, Label, CallCode]
     ).
 
 asm_write_int_str_int_text(Expr1, String, Expr2, TextSection) :-
     asm_expr(Expr1, ExprCode1),
-    asm_string_call_text(String, rt_write_int_str_int, IntStrIntCode),
+    asm_string_label(String, Label),
     asm_expr(Expr2, ExprCode2),
+    asm_call_instruction(rt_write_int_str_int, CallCode),
     format(
         atom(TextSection),
-        "~w\tmovl %eax, %edi\n~w\tmovl %eax, %esi\n~w",
-        [ExprCode1, IntStrIntCode, ExprCode2]
+        "~w\tmovl %eax, %edi\n\tleaq ~w(%rip), %rdx\n~w\tmovl %eax, %esi\n~w",
+        [ExprCode1, Label, ExprCode2, CallCode]
     ).
 
 asm_write_format_text(String, Expr1, Expr2, Expr3, TextSection) :-
-    asm_string_call_text(String, rt_write_format, FormatCode),
+    asm_string_label(String, Label),
     asm_expr(Expr1, ExprCode1),
     asm_expr(Expr2, ExprCode2),
     asm_expr(Expr3, ExprCode3),
+    asm_call_instruction(rt_write_format, CallCode),
     format(
         atom(TextSection),
-        "~w\tmovl %eax, %edi\n~w\tmovl %eax, %esi\n~w\tmovl %eax, %edx\n~w",
-        [FormatCode, ExprCode1, ExprCode2, ExprCode3]
+        "~w\tleaq ~w(%rip), %rdi\n\tmovl %eax, %esi\n~w\tmovl %eax, %edx\n~w\tmovl %eax, %ecx\n~w",
+        [ExprCode1, Label, ExprCode2, ExprCode3, CallCode]
     ).
 
 asm_readln_text(VarName, Assembly) :-
@@ -358,6 +362,13 @@ asm_string_data(String, DataSection) :-
     ->  asm_escape_string(String, Escaped),
         format(atom(DataSection), "~w:\n\t.asciz \"~w\"\n", [Label, Escaped])
     ;   format(atom(DataSection), "", [])
+    ).
+
+asm_string_label(String, Label) :-
+    (   string_label(String, Label)
+    ->  true
+    ;   next_string_label(Label),
+        assert(string_label(String, Label))
     ).
 
 asm_string_call_text(String, FuncName, TextSection) :-

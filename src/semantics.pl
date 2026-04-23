@@ -52,6 +52,10 @@ check_stmt(writeln(str(_)), _, _).
 check_stmt(write(expr(Expr)), Vars, FuncSigs) :-
     check_expr(Expr, Vars, FuncSigs).
 check_stmt(write(str(_)), _, _).
+check_stmt(write(Expr, _), Vars, FuncSigs) :-
+    check_expr(Expr, Vars, FuncSigs).
+check_stmt(write(_, Expr), Vars, FuncSigs) :-
+    check_expr(Expr, Vars, FuncSigs).
 check_stmt(readln(Name), Vars, _) :-
     ensure_declared(Name, Vars).
 check_stmt(block(LocalVars, Stmts), Vars, FuncSigs) :-

@@ -64,10 +64,10 @@ begin
   { Basic write still works }
   writeln(42);  { Outputs: 42 }
   
-  { Enhanced functions provide better formatting }
-  { rt_write_int_str(42, ' is the answer'); }  { Would output: 42 is the answer }
-  { rt_write_str_int('Result: ', 100); }     { Would output: Result: 100 }
-  { rt_write_format('Value: %d', 42); }      { Would output: Value: 42 }
+  { Enhanced write functions with new syntax }
+  write(42, ' is the answer');  { Outputs: 42 is the answer }
+  write('Result: ', 100);       { Outputs: Result: 100 }
+  write('Value: ', 42);         { Outputs: Value: 42 }
 end.
 ```
 
@@ -280,6 +280,7 @@ This release supports a **practical subset** of Pascal focused on core programmi
   - **No floating-point**: All operations work exclusively with integers
 - **Control Flow**: `if-then-else`, `while-do` statements
 - **I/O Operations**: `readln`, `write`, `writeln` (integer and string output)
+  - **Enhanced write syntax**: `write(expr, str)` and `write(str, expr)` for better formatting
 - **Enhanced Write Functions**: Extended formatting capabilities via runtime library
   - `rt_write_int_str(value, text)`: Write integer followed by string
   - `rt_write_str_int(text, value)`: Write string followed by integer
@@ -412,6 +413,7 @@ pascal-prolog-asm-release/
 │   └── codegen_asm_x86_64.pl   # x86-64 assembly generator
 ├── examples/                    # Example Pascal programs
 │   ├── comprehensive_test.pas # Comprehensive test program
+│   ├── challenging/           # Challenging algorithms (recursion, etc.)
 │   └── primes/                 # Prime algorithm examples
 │       ├── basic/             # Basic prime algorithms
 │       ├── optimized/         # Optimized prime algorithms
@@ -609,5 +611,20 @@ This project provides a minimalist Pascal compiler with assembly backend. It's p
 - Teaching programming concepts
 
 **Happy coding!** 🚀
+
+### Challenging Algorithms
+
+The `examples/challenging/` directory contains advanced recursive algorithms:
+
+```bash
+# Build and run the Tower of Hanoi with enhanced output
+swipl -q -s pascal_compiler.pl -- build-asm examples/challenging/tower_of_hanoi_enhanced.pas tower_of_hanoi
+./tower_of_hanoi
+# Output: "Tower of Hanoi with 3 disks requires 7 moves"
+```
+
+Challenging examples include:
+- **`tower_of_hanoi_simple.pas`**: Basic recursive implementation (mathematical formula)
+- **`tower_of_hanoi_enhanced.pas`**: Enhanced version demonstrating new write functionality
 
 -- The Pascal-Prolog Team
