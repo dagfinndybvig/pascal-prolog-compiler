@@ -5,7 +5,10 @@
 *_test
 *_output
 /comprehensive_test
+/comprehensive_test_updated
 /primes_*
+tower_of_hanoi_*
+no_func
 
 # Generic executable patterns (catch-all for any future builds)
 *.executable
