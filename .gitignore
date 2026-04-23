@@ -1,30 +1,27 @@
 # Build outputs (pascal_compiler.pl -- build-asm)
 # All compiled Pascal executables
-/comprehensive_test
-/primes_less_than_200
-/primes_less_than_200_simple
-/primes_simple_slow
-/primes_simple_fast
-/primes_fast_full
-/primes_slow_full
-/primes_sqrt_optimized
-/primes_with_summary
-/primes_no_division
-/primes_mult_sub
-/primes_sqrt_no_div
-
-# Generic executable patterns (catch-all for any future builds)
-/*.pas~
-
-# Tool/intermediate artifacts
 *.s
 *.o
+*_test
+*_output
+/comprehensive_test
+/primes_*
+
+# Generic executable patterns (catch-all for any future builds)
+*.executable
+*.bin
+
+# Tool/intermediate artifacts
 *.tmp
 *.temp
 *~
 *.swp
 *.swo
+
+# Build directories
 /.verify_bin/
+/build/
+/dist/
 
 # Windows downloaded-file metadata
 *:Zone.Identifier
