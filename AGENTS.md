@@ -183,6 +183,7 @@ Test completed successfully!
 │   ├── global_function_demo.pas # Function read/write access to globals
 │   ├── boolean_char_demo.pas    # Boolean and char scalar example
 │   ├── array_demo.pas           # Static array and char-buffer example
+│   ├── datatypes/               # Focused v1.5 datatype showcase programs
 │   └── primes/                 # Prime algorithm examples
 │       ├── basic/
 │       ├── optimized/

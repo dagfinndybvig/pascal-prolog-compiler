@@ -84,6 +84,13 @@ swipl -q -s pascal_compiler.pl -- build-asm examples/array_demo.pas array_demo
 ./array_demo
 ```
 
+More focused datatype examples live under `examples/datatypes/`:
+
+- `scalars_showcase.pas` demonstrates `boolean`, `char`, scalar functions, and boolean conditions.
+- `array_math_showcase.pas` demonstrates static integer arrays and indexed loop access.
+- `char_buffer_showcase.pas` demonstrates printable fixed-size `array of char` buffers.
+- `global_array_function_showcase.pas` demonstrates a function writing to a global array.
+
 ---
 
 ## 🆕 Previous: v1.4.4
