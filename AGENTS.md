@@ -20,8 +20,8 @@ This is a **Pascal compiler written in SWI-Prolog** that compiles a subset of Pa
 - Top-level global `var` sections may appear before functions or after functions
 - Prime number algorithms are the primary test cases
 
-**Version**: 1.11.0 (2026-04-28) - Added `case` statements for integer and char selectors with optional `else` branch
-**Previous**: 1.10.0 (2026-04-28) - Added multi-argument `write` and `writeln` with mixed string-literal and expression arguments
+**Version**: 1.12.0 (2026-04-28) - Expanded Pascal's Triangle demo, audited docs, and fixed two-argument `write` with boolean/char values
+**Previous**: 1.11.0 (2026-04-28) - Added `case` statements for integer and char selectors with optional `else` branch
 
 ## Quick Start
 
@@ -206,6 +206,7 @@ Test completed successfully!
 
 ## Version History
 
+- **v1.12.0** (2026-04-28): Expanded Pascal's Triangle demo to rows 0..6, added exact-output verification, fixed two-argument `write` for boolean/char expressions, and refreshed docs
 - **v1.11.0** (2026-04-28): Added `case` statements (integer and char selectors, comma-separated labels, optional `else`); lowered to chained `if`/`else` IR
 - **v1.10.0** (2026-04-28): Added multi-argument `write`/`writeln`; lowered to a sequence of single-arg writes with the last writeln entry providing the newline
 - **v1.9.0** (2026-04-28): Added `for ... to/downto ... do` counted loops; lowered to existing while-loop IR with re-evaluated end-bound

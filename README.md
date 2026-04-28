@@ -1,6 +1,6 @@
 <img width="1880" height="515" alt="image" src="https://github.com/user-attachments/assets/0c40b246-bb09-4c59-80ee-e9eafc54bde0" />
 
-# Pascal-Prolog Assembly Backend - Release Version 1.11.0
+# Pascal-Prolog Assembly Backend - Release Version 1.12.0
 
 > [!WARNING]
 > This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`) plus static arrays, procedures, `var` parameters (including arrays passed by reference), `for` loops, multi-argument `write`/`writeln`, and `case` statements, while still intentionally omitting full ISO Pascal features.
@@ -11,7 +11,7 @@
 
 ## 📦 Pascal-Prolog Assembly Backend Release
 
-**Version**: 1.11.0
+**Version**: 1.12.0
 **Release Date**: 2026-04-28
 **License**: Unlicense (Public Domain)
 
@@ -27,7 +27,20 @@ This is now a **complete standalone release** of the Pascal-Prolog compiler with
 - ✅ Full documentation
 - ✅ Minimal, clean distribution
 
-## 🆕 What's New In v1.11.0
+## 🆕 What's New In v1.12.0
+
+### Pascal's Triangle demo and audit hardening
+
+This release adds a fuller Pascal's Triangle demonstration and tightens documentation and output handling discovered during the audit:
+
+- ✅ `examples/Pascals_Triangle/full_binomial.pas` now prints rows 0 through 6 of Pascal's Triangle
+- ✅ The verification suite checks the exact Pascal's Triangle output
+- ✅ Two-argument `write` forms now support writable non-integer expressions such as `boolean` and `char`
+- ✅ Documentation now matches current write lowering, `case` lowering, global-variable demo commands, and challenging example outputs
+
+See `examples/Pascals_Triangle/README.md`.
+
+## 🆕 Previous: v1.11.0
 
 ### `case` statements
 
