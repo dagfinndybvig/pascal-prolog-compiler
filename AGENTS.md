@@ -10,10 +10,13 @@ This is a **Pascal compiler written in SWI-Prolog** that compiles a subset of Pa
 - Typed scalars: `integer`, `boolean`, and `char`
 - Static arrays with runtime bounds checks; `array[...] of char` works as fixed-size text output
 - Operators: `+`, `-`, `*`, `/`, `mod`, boolean operators (`and`, `or`, `not`), comparisons (`=`, `<>`, `<`, `<=`, `>`, `>=`)
+- Control flow: `if`/`else`, `while`, `for ... to/downto ... do`, `case ... of ... else ... end`
 - Compiles to x86-64 assembly via GCC
 - Uses Prolog DCGs for parsing
-- **Functions supported**: Scalar functions with up to 6 scalar parameters, recursion
-- Functions can read and write global variables; parameters and locals shadow globals
+- **Subprograms**: scalar-returning functions and `void` procedures; up to 6 parameters; recursion supported
+- **Parameter modes**: by-value (default) and by-reference (`var`); `var` parameters may be scalar or static-array typed
+- I/O: `readln`, `write`/`writeln` (multi-argument; mixes string literals and writable expressions)
+- Subprograms can read and write global variables; parameters and locals shadow globals
 - Top-level global `var` sections may appear before functions or after functions
 - Prime number algorithms are the primary test cases
 
@@ -158,14 +161,14 @@ Test completed successfully!
 **Never forget these constraints:**
 
 1. **No floating-point**: integer division truncates toward zero (`7/2 = 3`, `-7/2 = -3`)
-2. **Arrays are static only**: fixed bounds, scalar element types, no array parameters/returns
+2. **Arrays are static only**: fixed bounds, scalar element types; passable only by reference (`var`), not by value
 3. **No records or user-defined types**
-4. **Arrays only as `var` parameters** - value array parameters are not supported (use `var` to pass arrays)
-5. ~~**No procedures**~~ — procedures are supported (v1.6.0+); they don't return a value
+4. **Procedures and functions**: procedures (no return) and scalar-returning functions are supported; both may take `var` and value parameters
 5. **String literals are output-only**; fixed-size text uses `array[...] of char`
 6. **32-bit signed integers** - overflow behavior is undefined
-7. **Maximum 6 function parameters** - x86-64 calling convention limit
+7. **Maximum 6 function/procedure parameters** - x86-64 calling convention limit
 8. **No pointers yet** - future pointer work should be typed, not raw integer-address arithmetic
+9. **`for` loop bounds and `case` selectors are re-evaluated** - avoid side-effecting expressions in those positions
 
 ## File Organization
 

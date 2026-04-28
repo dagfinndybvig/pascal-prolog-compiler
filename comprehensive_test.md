@@ -5,7 +5,7 @@
 >
 > It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
 
-This document describes the comprehensive test program that demonstrates the compiler's core arithmetic, control-flow, scoped-variable, I/O, and string-output behavior. Additional examples and generated regressions cover functions, `mod`, boolean operators, chars, arrays, semantic errors, declaration order, and global access from functions.
+This document describes the comprehensive test program that demonstrates the compiler's core arithmetic, control-flow, scoped-variable, I/O, and string-output behavior. Additional examples and generated regressions cover functions, procedures, `var` parameters (scalar and array), `for` loops, multi-argument `write`/`writeln`, `case` statements, `mod`, boolean operators, chars, arrays, semantic errors, declaration order, and global access from subprograms.
 
 ## Test Program: `comprehensive_test.pas`
 

@@ -1,7 +1,7 @@
 # Pascal-Prolog Compiler Audit Report
 
 **Date:** 2026-04-28
-**Version:** 1.6.0
+**Version:** 1.11.0
 **Auditor:** Code Review
 
 ---
@@ -25,6 +25,12 @@ This educational Pascal-to-x86-64 compiler is well-structured with a clean pipel
 - ✅ Global `var` sections can appear before functions or after functions
 - ✅ Top-level compiler errors use explicit user-facing messages
 - ✅ Unsafe printf-style runtime formatting entry point removed
+- ✅ Procedures (void subprograms) with up to 6 parameters (v1.6.0)
+- ✅ `var` (by-reference) scalar parameters with non-lvalue rejection (v1.7.0)
+- ✅ `var` array parameters with full bounds-checked indexed access (v1.8.0)
+- ✅ `for ... to/downto ... do` counted loops (v1.9.0)
+- ✅ Multi-argument `write`/`writeln` (v1.10.0)
+- ✅ `case` statements for integer and char selectors with optional `else` (v1.11.0)
 
 ---
 
@@ -136,7 +142,12 @@ The following are documented limitations:
 | Static arrays | ✅ **Supported** | Fixed bounds with runtime bounds checks |
 | Records | ❌ Not supported | Significant work required |
 | Separate forward declarations | ❌ Not supported | Mutual recursion works between fully defined functions |
-| Procedures (void) | ✅ **Supported** | Procedures with up to 6 scalar parameters; no return value; added in v1.6.0 |
+| Procedures (void) | ✅ **Supported** | Procedures with up to 6 parameters; no return value; added in v1.6.0 |
+| `var` parameters (scalar) | ✅ **Supported** | By-reference scalar params; non-lvalue args rejected; added in v1.7.0 |
+| `var` parameters (array) | ✅ **Supported** | Pass static arrays by reference with bounds-checked access; added in v1.8.0 |
+| `for ... to/downto ... do` | ✅ **Supported** | Counted loops, both directions; added in v1.9.0 |
+| Multi-argument `write`/`writeln` | ✅ **Supported** | Mixed string/expr args; added in v1.10.0 |
+| `case` statements | ✅ **Supported** | Integer and char selectors, comma-separated labels, optional `else`; added in v1.11.0 |
 | Real/float | ❌ Not supported | Integer only |
 
 ---
@@ -163,7 +174,7 @@ The following are documented limitations:
 
 4. **Testing:**
    - Comprehensive test suite (`verify_math.py`)
-   - 47 example programs covering various cases
+   - 52 example programs covering various cases
    - Prime number algorithms as realistic test cases
 
 ### ⚠️ Areas for Improvement

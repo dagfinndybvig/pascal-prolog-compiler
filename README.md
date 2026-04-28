@@ -494,32 +494,27 @@ This release supports a **practical subset** of Pascal focused on core programmi
   - **Division**: Integer division (truncates toward zero, e.g., `7/2 = 3`)
   - **Modulo**: Remainder of integer division (e.g., `17 mod 5 = 2`)
   - **No floating-point**: All operations work exclusively with integers
-- **Control Flow**: `if-then-else`, `while-do` statements
+- **Control Flow**: `if-then-else`, `while-do`, `for-to/downto-do`, and `case-of-else-end`
 - **Booleans**: `boolean`, `true`, `false`, `and`, `or`, `not`; `if` and `while` conditions are boolean
 - **Chars**: `char` variables, character literals, comparisons, and character I/O
 - **Static arrays**: fixed bounds, indexed load/store, runtime bounds checks
 - **Character buffers**: `array[...] of char` can be printed as fixed-size text
-- **I/O Operations**: `readln`, `write`, `writeln` (integer, char, char-array, and string-literal output)
-  - **Enhanced write syntax**: `write(expr, str)` and `write(str, expr)` for better formatting
-- **Enhanced Write Functions**: Extended formatting capabilities via runtime library
-  - `rt_write_int_str(value, text)`: Write integer followed by string
-  - `rt_write_str_int(text, value)`: Write string followed by integer
-  - `rt_write_int_str_int(val1, text, val2)`: Write integer, string, integer
+- **I/O Operations**: `readln`, multi-argument `write` and `writeln` mixing string literals and writable expressions (`integer`, `boolean`, `char`, `array[...] of char`)
 - **String Literals**: Output-only string literals (no string variables)
 - **Nested Blocks**: Local variable scoping with proper shadowing
 - **Relational Operators**: `=`, `<>`, `<`, `<=`, `>`, `>=` (typed comparisons)
 - **Unary Operators**: `+` (implicit), `-` (integer negation), `not` (boolean negation)
-- **Functions**: Scalar functions with up to 6 scalar parameters
+- **Functions and procedures**: scalar functions and `void` procedures with up to 6 parameters
+  - **Parameter modes**: by-value (default) and by-reference (`var`); `var` parameters may be scalar or static-array typed
   - **Recursion**: Fully supported with proper register preservation
-  - **Return values**: Pascal-style (`funcname := value`)
-  - **Expression calls**: `add(3, multiply(2, 4))`
-  - **Global access**: Functions can read and write global variables
+  - **Return values** (functions): Pascal-style (`funcname := value`)
+  - **Procedure calls**: `name(args);` as a statement; `name;` for parameterless procedures
+  - **Global access**: Subprograms can read and write global variables
   - **Top-level order**: Global `var` sections may be declared before functions or after functions
+- **`case` statements**: integer or char selectors; comma-separated label lists; optional `else` branch
 
 #### ❌ Not Yet Implemented
 - Records
-- ~~`var` (by-reference) parameters for arrays~~ (added in v1.8.0)
-- Array parameters
 - Separate forward declarations/prototypes
 - Dynamic string variables or string expressions
 - Floating-point numbers
