@@ -92,28 +92,33 @@ check_stmt(assign(Name, Expr), Vars, FuncSigs) :-
     check_expr(Expr, Vars, FuncSigs, ExprType),
     ensure_assignable(TargetType, ExprType).
 check_stmt(if(Cond, Then, Else), Vars, FuncSigs) :-
-    check_expr(Cond, Vars, FuncSigs, integer),
+    check_expr(Cond, Vars, FuncSigs, boolean),
     check_stmt(Then, Vars, FuncSigs),
     check_stmt(Else, Vars, FuncSigs).
 check_stmt(while(Cond, Body), Vars, FuncSigs) :-
-    check_expr(Cond, Vars, FuncSigs, integer),
+    check_expr(Cond, Vars, FuncSigs, boolean),
     check_stmt(Body, Vars, FuncSigs).
 check_stmt(writeln(expr(Expr)), Vars, FuncSigs) :-
-    check_expr(Expr, Vars, FuncSigs, integer).
+    check_expr(Expr, Vars, FuncSigs, Type),
+    ensure_writable_type(Type).
 check_stmt(writeln(str(_)), _, _).
 check_stmt(write(expr(Expr)), Vars, FuncSigs) :-
-    check_expr(Expr, Vars, FuncSigs, integer).
+    check_expr(Expr, Vars, FuncSigs, Type),
+    ensure_writable_type(Type).
 check_stmt(write(str(_)), _, _).
 check_stmt(write(Expr, _), Vars, FuncSigs) :-
     check_expr(Expr, Vars, FuncSigs, integer).
 check_stmt(write(_, Expr), Vars, FuncSigs) :-
     check_expr(Expr, Vars, FuncSigs, integer).
 check_stmt(readln(Name), Vars, _) :-
-    ensure_declared(Name, Vars, integer).
+    ensure_declared(Name, Vars, Type),
+    ensure_readable_type(Type).
 check_stmt(block(LocalVars, Stmts), Vars, FuncSigs) :-
     check_block(block(LocalVars, Stmts), Vars, FuncSigs).
 
 check_expr(int(_), _, _, integer).
+check_expr(bool(_), _, _, boolean).
+check_expr(char(_), _, _, char).
 check_expr(var(Name), Vars, _, Type) :-
     ensure_declared(Name, Vars, Type).
 check_expr(call(Name, Args), Vars, FuncSigs, ReturnType) :-
@@ -128,12 +133,18 @@ check_expr(call(Name, Args), Vars, FuncSigs, ReturnType) :-
 check_expr(unary('-', Expr), Vars, FuncSigs, integer) :-
     check_expr(Expr, Vars, FuncSigs, integer).
 check_expr(bin(Op, Left, Right), Vars, FuncSigs, Type) :-
-    bin_expr_type(Op, LeftType, RightType, Type),
     check_expr(Left, Vars, FuncSigs, LeftType),
-    check_expr(Right, Vars, FuncSigs, RightType).
+    check_expr(Right, Vars, FuncSigs, RightType),
+    bin_expr_type(Op, LeftType, RightType, Type).
 
 bin_expr_type(Op, integer, integer, integer) :-
-    memberchk(Op, ['+', '-', '*', '/', mod, '=', '<>', '<', '<=', '>', '>=']).
+    memberchk(Op, ['+', '-', '*', '/', mod]).
+bin_expr_type(Op, integer, integer, boolean) :-
+    memberchk(Op, ['=', '<>', '<', '<=', '>', '>=']).
+bin_expr_type(Op, char, char, boolean) :-
+    memberchk(Op, ['=', '<>', '<', '<=', '>', '>=']).
+bin_expr_type(Op, boolean, boolean, boolean) :-
+    memberchk(Op, ['=', '<>']).
 
 check_exprs([], [], _, _).
 check_exprs([Expr|Rest], [Type|Types], Vars, FuncSigs) :-
@@ -141,10 +152,18 @@ check_exprs([Expr|Rest], [Type|Types], Vars, FuncSigs) :-
     check_exprs(Rest, Types, Vars, FuncSigs).
 
 ensure_declared(Name, Vars, Type) :-
-    (   memberchk(Name-Type, Vars)
-    ->  true
+    (   memberchk(Name-ActualType, Vars)
+    ->  ensure_expected_type(Type, ActualType)
     ;   throw(error(undeclared_variable(Name), context(semantics/ensure_declared, 'Variable not declared in current scope')))
     ).
+
+ensure_expected_type(Expected, Actual) :-
+    var(Expected),
+    !,
+    Expected = Actual.
+ensure_expected_type(Type, Type) :- !.
+ensure_expected_type(Expected, Actual) :-
+    throw(error(type_mismatch(Expected, Actual), context(semantics/ensure_declared, 'Variable has a different declared type'))).
 
 ensure_function_declared(Name, FuncSigs, ParamTypes, ReturnType) :-
     (   memberchk(func_sig(Name, ParamTypes, ReturnType), FuncSigs)
@@ -155,6 +174,13 @@ ensure_function_declared(Name, FuncSigs, ParamTypes, ReturnType) :-
 ensure_assignable(Type, Type) :- !.
 ensure_assignable(Expected, Actual) :-
     throw(error(type_mismatch(Expected, Actual), context(semantics/ensure_assignable, 'Expression type is not assignable to target'))).
+
+ensure_writable_type(integer).
+ensure_writable_type(boolean).
+ensure_writable_type(char).
+
+ensure_readable_type(integer).
+ensure_readable_type(char).
 
 check_block(block(LocalVars, Stmts), VarsInScope, FuncSigs) :-
     ensure_no_duplicate_decls(LocalVars),

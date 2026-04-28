@@ -452,6 +452,68 @@ end.
         ["4", "10"],
     )
 
+    bool_char_source = """program bool_char_check;
+function choose(flag: boolean): char;
+begin
+  if flag then
+    choose := 'Y'
+  else
+    choose := 'N'
+end;
+var
+  flag: boolean;
+  c: char;
+begin
+  flag := 4 < 9;
+  c := choose(flag);
+  writeln(c);
+  flag := c = 'Y';
+  if flag then
+    writeln(c)
+  else
+    writeln('N')
+end.
+"""
+    bool_char_result = build_and_run_source(
+        bool_char_source,
+        "regression_bool_char",
+    )
+    checks["boolean_char_scalars"] = check_expected_stdout_lines(
+        bool_char_result,
+        ["Y", "Y"],
+    )
+
+    type_mismatch_source = """program type_mismatch_check;
+var
+  i: integer;
+  b: boolean;
+begin
+  b := true;
+  i := b
+end.
+"""
+    type_mismatch_path = BIN_DIR / "type_mismatch_check.pas"
+    type_mismatch_path.write_text(type_mismatch_source)
+    type_mismatch_proc = run(
+        [
+            "swipl",
+            "-q",
+            "-s",
+            "pascal_compiler.pl",
+            "--",
+            "check",
+            str(type_mismatch_path.relative_to(ROOT)),
+        ]
+    )
+    type_mismatch_output = type_mismatch_proc.stdout + type_mismatch_proc.stderr
+    checks["type_mismatch_rejected"] = {
+        "returncode": type_mismatch_proc.returncode,
+        "expected_failure": type_mismatch_proc.returncode != 0,
+        "expected_message": "type mismatch" in type_mismatch_output,
+        "pass": type_mismatch_proc.returncode != 0
+        and "type mismatch" in type_mismatch_output,
+    }
+
     result = {
         "build_results": build_results,
         "checks": checks,

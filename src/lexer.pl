@@ -109,6 +109,10 @@ consume_digits(Rest, Rest, []).
 keyword_or_ident(program, kw(program)) :- !.
 keyword_or_ident(var, kw(var)) :- !.
 keyword_or_ident(integer, kw(integer)) :- !.
+keyword_or_ident(boolean, kw(boolean)) :- !.
+keyword_or_ident(char, kw(char)) :- !.
+keyword_or_ident(true, kw(true)) :- !.
+keyword_or_ident(false, kw(false)) :- !.
 keyword_or_ident(begin, kw(begin)) :- !.
 keyword_or_ident(end, kw(end)) :- !.
 keyword_or_ident(if, kw(if)) :- !.

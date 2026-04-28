@@ -164,6 +164,8 @@ prolog:message(error(gcc_failed(Status), _)) -->
     [ 'gcc failed: ~w'-[Status] ].
 prolog:message(error(unsupported_write_format, context(_, Detail))) -->
     [ 'unsupported write format (~w)'-[Detail] ].
+prolog:message(error(type_mismatch(Expected, Actual), context(_, Detail))) -->
+    [ 'type mismatch: expected ~w, got ~w (~w)'-[Expected, Actual, Detail] ].
 
 usage :-
     writeln("Usage:"),

@@ -85,6 +85,10 @@ var_decl(Names) -->
 
 type_spec(integer) -->
     keyword(integer).
+type_spec(boolean) -->
+    keyword(boolean).
+type_spec(char) -->
+    keyword(char).
 
 make_params([], _, []).
 make_params([Name|Names], Type, [param(Name, Type)|Params]) :-
@@ -283,6 +287,18 @@ unary(Expr) -->
 
 primary(int(N)) -->
     [tok(int(N), _, _)],
+    !.
+primary(bool(1)) -->
+    keyword(true),
+    !.
+primary(bool(0)) -->
+    keyword(false),
+    !.
+primary(char(Code)) -->
+    [tok(str(Text), _, _)],
+    { string_length(Text, 1),
+      string_codes(Text, [Code])
+    },
     !.
 primary(call(Name, Args)) -->
     identifier(Name),

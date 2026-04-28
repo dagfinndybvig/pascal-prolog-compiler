@@ -13,8 +13,24 @@ int rt_readln_int(void) {
     return value;
 }
 
+int rt_readln_char(void) {
+    int value = getchar();
+    while (value == '\n' || value == '\r') {
+        value = getchar();
+    }
+    if (value == EOF) {
+        fprintf(stderr, "runtime error: expected character input\n");
+        exit(1);
+    }
+    return value;
+}
+
 void rt_writeln_int(int value) {
     printf("%d\n", value);
+}
+
+void rt_writeln_char(int value) {
+    printf("%c\n", (char)value);
 }
 
 void rt_writeln_str(const char *value) {
@@ -23,6 +39,10 @@ void rt_writeln_str(const char *value) {
 
 void rt_write_int(int value) {
     printf("%d", value);
+}
+
+void rt_write_char(int value) {
+    printf("%c", (char)value);
 }
 
 void rt_write_str(const char *value) {

@@ -140,6 +140,10 @@ generate_asm(ir_writeln_int(_Expr), Assembly) :-
     format(atom(Assembly), "", []).
 generate_asm(ir_write_int(_Expr), Assembly) :-
     format(atom(Assembly), "", []).
+generate_asm(ir_writeln_char(_Expr), Assembly) :-
+    format(atom(Assembly), "", []).
+generate_asm(ir_write_char(_Expr), Assembly) :-
+    format(atom(Assembly), "", []).
 
 % Enhanced write statements for stdlib - data section
 generate_asm(ir_write_int_str(_Expr, Text), Assembly) :-
@@ -152,6 +156,8 @@ generate_asm(ir_write_format(_, _, _, _), _) :-
     throw(error(unsupported_write_format, context(codegen/generate_asm, 'printf-style formatting is not exposed by the Pascal frontend'))).
 
 generate_asm(ir_readln(_Name), Assembly) :-
+    format(atom(Assembly), "", []).
+generate_asm(ir_readln_char(_Name), Assembly) :-
     format(atom(Assembly), "", []).
 generate_asm(ir_assign(_VarName, _Expr), Assembly) :-
     format(atom(Assembly), "", []).
@@ -182,8 +188,14 @@ generate_asm_text(ir_writeln_int(Expr), Assembly) :-
     asm_writeln_int_text(Expr, Assembly).
 generate_asm_text(ir_write_int(Expr), Assembly) :-
     asm_write_int_text(Expr, Assembly).
+generate_asm_text(ir_writeln_char(Expr), Assembly) :-
+    asm_writeln_char_text(Expr, Assembly).
+generate_asm_text(ir_write_char(Expr), Assembly) :-
+    asm_write_char_text(Expr, Assembly).
 generate_asm_text(ir_readln(Name), Assembly) :-
     asm_readln_text(Name, Assembly).
+generate_asm_text(ir_readln_char(Name), Assembly) :-
+    asm_readln_char_text(Name, Assembly).
 
 % Enhanced write statements for stdlib
 generate_asm_text(ir_write_int_str(Expr, Text), Assembly) :-
@@ -313,6 +325,24 @@ asm_write_int_text(Expr, TextSection) :-
         [ExprCode, CallCode]
     ).
 
+asm_writeln_char_text(Expr, TextSection) :-
+    asm_expr(Expr, ExprCode),
+    asm_call_instruction(rt_writeln_char, CallCode),
+    format(
+        atom(TextSection),
+        "~w\tmovl %eax, %edi\n~w",
+        [ExprCode, CallCode]
+    ).
+
+asm_write_char_text(Expr, TextSection) :-
+    asm_expr(Expr, ExprCode),
+    asm_call_instruction(rt_write_char, CallCode),
+    format(
+        atom(TextSection),
+        "~w\tmovl %eax, %edi\n~w",
+        [ExprCode, CallCode]
+    ).
+
 % Enhanced write functions for stdlib
 asm_write_int_str_text(Expr, String, TextSection) :-
     asm_expr(Expr, ExprCode),
@@ -348,6 +378,15 @@ asm_write_int_str_int_text(Expr1, String, Expr2, TextSection) :-
 asm_readln_text(VarName, Assembly) :-
     var_offset(VarName, Offset),
     asm_call_instruction(rt_readln_int, CallCode),
+    format(
+        atom(Assembly),
+        "~w\tmovslq %eax, %rax\n\tmovq %rax, -~d(%rbp)\n",
+        [CallCode, Offset]
+    ).
+
+asm_readln_char_text(VarName, Assembly) :-
+    var_offset(VarName, Offset),
+    asm_call_instruction(rt_readln_char, CallCode),
     format(
         atom(Assembly),
         "~w\tmovslq %eax, %rax\n\tmovq %rax, -~d(%rbp)\n",
@@ -424,6 +463,10 @@ escape_asm_string_codes([Code|Rest], [Code|EscapedRest]) :-
 % Generate assembly for expressions
 asm_expr(ir_int(N), Assembly) :-
     format(atom(Assembly), "\tmovq $~d, %rax\n", [N]).
+asm_expr(ir_bool(Value), Assembly) :-
+    format(atom(Assembly), "\tmovq $~d, %rax\n", [Value]).
+asm_expr(ir_char(Code), Assembly) :-
+    format(atom(Assembly), "\tmovq $~d, %rax\n", [Code]).
 asm_expr(ir_var(Name), Assembly) :-
     var_offset(Name, Offset),
     format(atom(Assembly), "\tmovq -~d(%rbp), %rax\n", [Offset]).
@@ -652,12 +695,24 @@ generate_func_asm_text(ir_write_int(Expr), FuncName, Params, Locals, Assembly) :
     asm_expr_func(Expr, FuncName, Params, Locals, ExprCode),
     asm_call_instruction(rt_write_int, CallCode),
     format(atom(Assembly), "~w\tmovl %eax, %edi\n~w", [ExprCode, CallCode]).
+generate_func_asm_text(ir_writeln_char(Expr), FuncName, Params, Locals, Assembly) :-
+    asm_expr_func(Expr, FuncName, Params, Locals, ExprCode),
+    asm_call_instruction(rt_writeln_char, CallCode),
+    format(atom(Assembly), "~w\tmovl %eax, %edi\n~w", [ExprCode, CallCode]).
+generate_func_asm_text(ir_write_char(Expr), FuncName, Params, Locals, Assembly) :-
+    asm_expr_func(Expr, FuncName, Params, Locals, ExprCode),
+    asm_call_instruction(rt_write_char, CallCode),
+    format(atom(Assembly), "~w\tmovl %eax, %edi\n~w", [ExprCode, CallCode]).
 generate_func_asm_text(ir_writeln_str(Text), _, _, _, Assembly) :-
     asm_writeln_str_text(Text, Assembly).
 generate_func_asm_text(ir_write_str(Text), _, _, _, Assembly) :-
     asm_write_str_text(Text, Assembly).
 generate_func_asm_text(ir_readln(Name), FuncName, Params, Locals, Assembly) :-
     asm_call_instruction(rt_readln_int, CallCode),
+    asm_func_store(Name, FuncName, Params, Locals, StoreCode),
+    format(atom(Assembly), "~w\tmovslq %eax, %rax\n~w", [CallCode, StoreCode]).
+generate_func_asm_text(ir_readln_char(Name), FuncName, Params, Locals, Assembly) :-
+    asm_call_instruction(rt_readln_char, CallCode),
     asm_func_store(Name, FuncName, Params, Locals, StoreCode),
     format(atom(Assembly), "~w\tmovslq %eax, %rax\n~w", [CallCode, StoreCode]).
 generate_func_asm_text(ir_if(Cond, ThenStmt, ElseStmt), FuncName, Params, Locals, Assembly) :-
@@ -733,6 +788,10 @@ asm_func_store(Name, FuncName, Params, Locals, Assembly) :-
 % Expression evaluation within function context
 asm_expr_func(ir_int(N), _, _, _, Assembly) :-
     format(atom(Assembly), "\tmovq $~d, %rax\n", [N]).
+asm_expr_func(ir_bool(Value), _, _, _, Assembly) :-
+    format(atom(Assembly), "\tmovq $~d, %rax\n", [Value]).
+asm_expr_func(ir_char(Code), _, _, _, Assembly) :-
+    format(atom(Assembly), "\tmovq $~d, %rax\n", [Code]).
 asm_expr_func(ir_var(Name), FuncName, Params, Locals, Assembly) :-
     (   func_global_var(Name, FuncName, Params, Locals, Offset)
     ->  format(atom(Assembly), "\tmovq main_frame_ptr(%rip), %r11\n\tmovq -~d(%r11), %rax\n", [Offset])
