@@ -40,22 +40,23 @@ func_decls_rest(Funcs) -->
 func_decls_rest([]) -->
     [].
 
-func_decl(func(Name, Params, LocalVars, Body)) -->
+func_decl(func(Name, Params, ReturnType, LocalVars, Body)) -->
     identifier(Name),
     symbol('('),
     params(Params),
     symbol(')'),
     symbol(':'),
-    keyword(integer),
+    type_spec(ReturnType),
     symbol(';'),
     declarations(LocalVars),
     block(Body),
     symbol(';').
 
 params(Params) -->
-    ident_list(Params),
+    ident_list(Names),
     symbol(':'),
-    keyword(integer),
+    type_spec(Type),
+    { make_params(Names, Type, Params) },
     !.
 params([]) -->
     [].
@@ -77,9 +78,21 @@ var_decls([]) -->
     [].
 
 var_decl(Names) -->
-    ident_list(Names),
+    ident_list(RawNames),
     symbol(':'),
+    type_spec(Type),
+    { make_decls(RawNames, Type, Names) }.
+
+type_spec(integer) -->
     keyword(integer).
+
+make_params([], _, []).
+make_params([Name|Names], Type, [param(Name, Type)|Params]) :-
+    make_params(Names, Type, Params).
+
+make_decls([], _, []).
+make_decls([Name|Names], Type, [decl(Name, Type)|Decls]) :-
+    make_decls(Names, Type, Decls).
 
 ident_list([Name|Rest]) -->
     identifier(Name),

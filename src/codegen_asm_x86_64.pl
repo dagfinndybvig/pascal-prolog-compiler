@@ -116,9 +116,20 @@ init_var_offsets(Vars) :-
 
 init_var_offsets([], _).
 init_var_offsets([Var|Vars], Offset) :-
-    assert(var_offset(Var, Offset)),
+    storage_name(Var, Name),
+    assert(var_offset(Name, Offset)),
     NextOffset is Offset + 8,
     init_var_offsets(Vars, NextOffset).
+
+storage_name(decl(Name, _), Name) :- !.
+storage_name(param(Name, _), Name) :- !.
+storage_name(Name, Name).
+
+param_name(param(Name, _), Name) :- !.
+param_name(Name, Name).
+
+local_storage_name(decl(Name, _), Name) :- !.
+local_storage_name(Name, Name).
 
 % Generate assembly for different IR statements
 generate_asm(ir_writeln_str(String), Assembly) :-
@@ -557,7 +568,7 @@ asm_compare_expr(Left, Right, SetInstr, Assembly) :-
     ).
 
 % Generate assembly for a function
-generate_func_asm(ir_func(Name, Params, Locals, Stmts), Stream) :-
+generate_func_asm(ir_func(Name, Params, _ReturnType, Locals, Stmts), Stream) :-
     format(Stream, "\n# Function: ~w\n", [Name]),
     format(Stream, "\t.globl ~w\n", [Name]),
     format(Stream, "~w:\n", [Name]),
@@ -686,15 +697,18 @@ func_var_offset(Name, FuncName, _, _, -48) :-
     Name == FuncName,  % Return value
     !.
 func_var_offset(Name, _, Params, _, Offset) :-
-    nth1(Index, Params, Name),
+    nth1(Index, Params, Param),
+    param_name(Param, Name),
     !,
     Offset is -48 - (Index * 8).
 func_var_offset(Name, _, Params, Locals, Offset) :-
     % Handle mangled local variable names: local(Counter, VarName)
     (   Name = local(_, _)  % Already mangled
-    ->  nth1(Index, Locals, Name)
+    ->  nth1(Index, Locals, Local),
+        local_storage_name(Local, Name)
     ;   % Raw name - find matching mangled local
-        nth1(Index, Locals, local(_, Name))
+        nth1(Index, Locals, Local),
+        local_storage_name(Local, local(_, Name))
     ),
     !,
     length(Params, ParamCount),
@@ -705,8 +719,8 @@ func_var_offset(Name, _, _, _, _) :-
 func_global_var(Name, FuncName, Params, Locals, Offset) :-
     atom(Name),
     Name \== FuncName,
-    \+ memberchk(Name, Params),
-    \+ memberchk(local(_, Name), Locals),
+    \+ (member(Param, Params), param_name(Param, Name)),
+    \+ (member(Local, Locals), local_storage_name(Local, local(_, Name))),
     var_offset(Name, Offset).
 
 asm_func_store(Name, FuncName, Params, Locals, Assembly) :-

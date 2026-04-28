@@ -8,12 +8,22 @@ lower_program(program(Name, Funcs, Vars, Block), ir_program(Name, IRFuncs, AllVa
     lower_block(Block, GlobalEnv, 0, _CounterOut, IRStmts, LocalVars),
     append(Vars, LocalVars, AllVars).
 
+decl_name(decl(Name, _), Name).
+decl_name(param(Name, _), Name).
+
+decl_type(decl(_, Type), Type).
+decl_type(param(_, Type), Type).
+
+rename_decl(decl(_, Type), MappedName, decl(MappedName, Type)).
+rename_decl(param(_, Type), MappedName, param(MappedName, Type)).
+
 vars_env([], []).
-vars_env([Var|Vars], [Var-Var|EnvTail]) :-
+vars_env([Decl|Vars], [Name-Name|EnvTail]) :-
+    decl_name(Decl, Name),
     vars_env(Vars, EnvTail).
 
 lower_funcs([], _, []).
-lower_funcs([func(Name, Params, FuncLocalVars, block(BlockLocalVars, Stmts))|Rest], GlobalEnv, [ir_func(Name, Params, FuncLocals, IRBody)|IRFuncsRest]) :-
+lower_funcs([func(Name, Params, ReturnType, FuncLocalVars, block(BlockLocalVars, Stmts))|Rest], GlobalEnv, [ir_func(Name, Params, ReturnType, FuncLocals, IRBody)|IRFuncsRest]) :-
     vars_env(Params, ParamEnv),
     % Add function name to environment for return value assignment
     append(ParamEnv, [Name-Name], FuncEnv0),
@@ -32,8 +42,10 @@ lower_block(block(LocalVars, Stmts), ParentEnv, CounterIn, CounterOut, IRStmts, 
     append(LocalAllocations, NestedAllocations, AddedVars).
 
 allocate_locals([], Counter, Counter, [], []).
-allocate_locals([Var|Vars], CounterIn, CounterOut, [Var-Mangled|MapTail], [Mangled|AllocTail]) :-
-    Mangled = local(CounterIn, Var),
+allocate_locals([Decl|Vars], CounterIn, CounterOut, [Name-Mangled|MapTail], [TypedMangled|AllocTail]) :-
+    decl_name(Decl, Name),
+    Mangled = local(CounterIn, Name),
+    rename_decl(Decl, Mangled, TypedMangled),
     CounterNext is CounterIn + 1,
     allocate_locals(Vars, CounterNext, CounterOut, MapTail, AllocTail).
 
@@ -66,11 +78,9 @@ lower_stmt(write(Expr, Text), Env, Counter, Counter, ir_write_int_str(IRExpr, St
     lower_expr(Expr, Env, IRExpr),
     extract_string_content(Text, StringContent).
 
-% Extract raw string content from string literal
 extract_string_content(str(Text), Text) :- !.
 extract_string_content(Text, Text).
 
-% Normalize string literal to ensure it's wrapped in str()/1
 normalize_string_literal(str(Text), str(Text)) :- !.
 normalize_string_literal(Text, str(Text)).
 lower_stmt(write(Text, Expr), Env, Counter, Counter, ir_write_str_int(StringContent, IRExpr), []) :-
