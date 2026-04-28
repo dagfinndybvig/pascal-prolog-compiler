@@ -742,6 +742,35 @@ end.
         "pass": var_param_literal_proc.returncode != 0,
     }
 
+    array_params_source = """program array_params_check;
+var
+  a: array[1..3] of integer;
+
+procedure fill(var arr: array[1..3] of integer);
+begin
+  arr[1] := 10;
+  arr[2] := 20;
+  arr[3] := 30
+end;
+
+function total(var arr: array[1..3] of integer): integer;
+begin
+  total := arr[1] + arr[2] + arr[3]
+end;
+
+begin
+  fill(a);
+  writeln(a[1]);
+  writeln(a[2]);
+  writeln(a[3]);
+  writeln(total(a))
+end.
+"""
+    array_params_result = build_and_run_source(array_params_source, "regression_array_params")
+    checks["array_params"] = check_expected_stdout_lines(
+        array_params_result, ["10", "20", "30", "60"]
+    )
+
     result = {
         "build_results": build_results,
         "checks": checks,

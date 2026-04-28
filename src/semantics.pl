@@ -55,11 +55,19 @@ collect_func_sigs([func(Name, Params, ReturnType, _LocalVars, _Body)|Rest], [fun
     length(Params, ParamCount),
     ensure_param_limit(Name, ParamCount),
     ensure_return_type(ReturnType),
-    ensure_scalar_decls(Params),
+    ensure_param_decls(Params),
     decl_names(Params, ParamNames),
     ensure_no_duplicates([Name|ParamNames]),
     maplist(param_spec, Params, ParamSpecs),
     collect_func_sigs(Rest, RestSigs).
+
+ensure_param_decls([]).
+ensure_param_decls([param(_, Type)|Rest]) :-
+    ensure_scalar_type(Type),
+    ensure_param_decls(Rest).
+ensure_param_decls([param_var(_, Type)|Rest]) :-
+    ensure_valid_type(Type),
+    ensure_param_decls(Rest).
 
 ensure_return_type(void) :- !.
 ensure_return_type(Type) :- ensure_scalar_type(Type).
@@ -82,7 +90,7 @@ check_all_func_bodies([], _, _).
 check_all_func_bodies([func(Name, Params, ReturnType, LocalVars, Body)|Rest], GlobalEnv, FuncSigs) :-
     ensure_no_duplicate_decls(Params),
     ensure_no_duplicate_decls(LocalVars),
-    ensure_scalar_decls(Params),
+    ensure_param_decls(Params),
     ensure_valid_decls(LocalVars),
     decl_names(Params, ParamNames),
     decl_names(LocalVars, LocalNames),

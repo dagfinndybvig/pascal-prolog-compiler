@@ -959,26 +959,33 @@ asm_func_store(Name, FuncName, Params, Locals, Assembly) :-
 func_array_base(Name, FuncName, Params, Locals, FrameReg, BaseOffset) :-
     (   func_global_var(Name, FuncName, Params, Locals, BaseOffset)
     ->  FrameReg = main
+    ;   is_var_param(Name, Params)
+    ->  func_var_offset(Name, FuncName, Params, Locals, Offset),
+        BaseOffset = Offset,  % keep slot offset (negative)
+        FrameReg = var_array
     ;   func_var_offset(Name, FuncName, Params, Locals, Offset),
         BaseOffset is -Offset,
         FrameReg = local
     ).
 
-asm_array_frame_setup(main, Setup) :-
+asm_array_frame_setup(main, BaseOffset, Setup) :-
     !,
-    Setup = "\tmovq main_frame_ptr(%rip), %r11\n".
-asm_array_frame_setup(local, Setup) :-
-    Setup = "\tmovq %rbp, %r11\n".
+    format(atom(Setup), "\tmovq main_frame_ptr(%rip), %r11\n\tsubq $~d, %r11\n", [BaseOffset]).
+asm_array_frame_setup(local, BaseOffset, Setup) :-
+    !,
+    format(atom(Setup), "\tmovq %rbp, %r11\n\tsubq $~d, %r11\n", [BaseOffset]).
+asm_array_frame_setup(var_array, SlotOffset, Setup) :-
+    format(atom(Setup), "\tmovq ~d(%rbp), %r11\n", [SlotOffset]).
 
 asm_array_load_func(Name, Low, High, IndexExpr, FuncName, Params, Locals, Assembly) :-
     asm_expr_func(IndexExpr, FuncName, Params, Locals, IndexCode),
     asm_array_index_check(Low, High, CheckCode),
     func_array_base(Name, FuncName, Params, Locals, FrameReg, BaseOffset),
-    asm_array_frame_setup(FrameReg, FrameSetup),
+    asm_array_frame_setup(FrameReg, BaseOffset, FrameSetup),
     format(
         atom(Assembly),
-        "~w~w\tmovq %rax, %r10\n~w\tsubq $~d, %r11\n\tsubq %r10, %r11\n\tmovq (%r11), %rax\n",
-        [IndexCode, CheckCode, FrameSetup, BaseOffset]
+        "~w~w\tmovq %rax, %r10\n~w\tsubq %r10, %r11\n\tmovq (%r11), %rax\n",
+        [IndexCode, CheckCode, FrameSetup]
     ).
 
 asm_array_store_func(Name, Low, High, IndexExpr, Expr, FuncName, Params, Locals, Assembly) :-
@@ -986,22 +993,42 @@ asm_array_store_func(Name, Low, High, IndexExpr, Expr, FuncName, Params, Locals,
     asm_array_index_check(Low, High, CheckCode),
     asm_expr_func(Expr, FuncName, Params, Locals, ExprCode),
     func_array_base(Name, FuncName, Params, Locals, FrameReg, BaseOffset),
-    asm_array_frame_setup(FrameReg, FrameSetup),
+    asm_array_frame_setup(FrameReg, BaseOffset, FrameSetup),
     format(
         atom(Assembly),
-        "~w~w\tmovq %rax, %r10\n\tpushq %r10\n~w\tpopq %r10\n~w\tsubq $~d, %r11\n\tsubq %r10, %r11\n\tmovq %rax, (%r11)\n",
-        [IndexCode, CheckCode, ExprCode, FrameSetup, BaseOffset]
+        "~w~w\tmovq %rax, %r10\n\tpushq %r10\n~w\tpopq %r10\n~w\tsubq %r10, %r11\n\tmovq %rax, (%r11)\n",
+        [IndexCode, CheckCode, ExprCode, FrameSetup]
     ).
 
 asm_char_array_text_func(Name, Low, High, WithNewline, FuncName, Params, Locals, Assembly) :-
     func_array_base(Name, FuncName, Params, Locals, FrameReg, BaseOffset),
-    asm_array_frame_setup(FrameReg, FrameSetup),
-    asm_char_array_elements_func(BaseOffset, Low, High, Low, FrameSetup, ElementCode),
+    (   FrameReg == var_array
+    ->  asm_char_array_elements_var(BaseOffset, Low, High, Low, ElementCode)
+    ;   asm_char_array_simple_setup(FrameReg, FrameSetup),
+        asm_char_array_elements_func(BaseOffset, Low, High, Low, FrameSetup, ElementCode)
+    ),
     (   WithNewline == true
     ->  asm_call_instruction(rt_write_newline, NewlineCode)
     ;   NewlineCode = ""
     ),
     format(atom(Assembly), "~w~w", [ElementCode, NewlineCode]).
+
+asm_char_array_simple_setup(main, "\tmovq main_frame_ptr(%rip), %r11\n") :- !.
+asm_char_array_simple_setup(local, "\tmovq %rbp, %r11\n").
+
+asm_char_array_elements_var(_, Current, High, _, "") :-
+    Current > High,
+    !.
+asm_char_array_elements_var(SlotOffset, Current, High, Low, Assembly) :-
+    Delta is (Current - Low) * 8,
+    asm_call_instruction(rt_write_char, CallCode),
+    Next is Current + 1,
+    asm_char_array_elements_var(SlotOffset, Next, High, Low, Rest),
+    format(
+        atom(Assembly),
+        "\tmovq ~d(%rbp), %r11\n\tmovq -~d(%r11), %rax\n\tmovl %eax, %edi\n~w~w",
+        [SlotOffset, Delta, CallCode, Rest]
+    ).
 
 asm_char_array_elements_func(_, Current, High, _, _, "") :-
     Current > High,

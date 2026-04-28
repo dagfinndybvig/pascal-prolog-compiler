@@ -17,8 +17,8 @@ This is a **Pascal compiler written in SWI-Prolog** that compiles a subset of Pa
 - Top-level global `var` sections may appear before functions or after functions
 - Prime number algorithms are the primary test cases
 
-**Version**: 1.7.0 (2026-04-28) - Added `var` (by-reference) parameters for procedures and functions
-**Previous**: 1.6.0 (2026-04-28) - Added procedures with up to 6 scalar parameters and call statements
+**Version**: 1.8.0 (2026-04-28) - Added `var` array parameters with full bounds-checked indexed access in callee
+**Previous**: 1.7.0 (2026-04-28) - Added `var` (by-reference) parameters for procedures and functions
 
 ## Quick Start
 
@@ -160,7 +160,8 @@ Test completed successfully!
 1. **No floating-point**: integer division truncates toward zero (`7/2 = 3`, `-7/2 = -3`)
 2. **Arrays are static only**: fixed bounds, scalar element types, no array parameters/returns
 3. **No records or user-defined types**
-4. **No `var`/by-reference parameters for arrays yet** - scalar `var` parameters are supported; array values are still passed by value (or via globals)
+4. **Arrays only as `var` parameters** - value array parameters are not supported (use `var` to pass arrays)
+5. ~~**No procedures**~~ — procedures are supported (v1.6.0+); they don't return a value
 5. **String literals are output-only**; fixed-size text uses `array[...] of char`
 6. **32-bit signed integers** - overflow behavior is undefined
 7. **Maximum 6 function parameters** - x86-64 calling convention limit
@@ -202,6 +203,7 @@ Test completed successfully!
 
 ## Version History
 
+- **v1.8.0** (2026-04-28): Added `var` array parameters — arrays can now be passed by reference to procedures and functions with full bounds-checked indexed access
 - **v1.7.0** (2026-04-28): Added `var` (by-reference) scalar parameters for procedures and functions; semantic checks reject non-lvalue arguments
 - **v1.6.0** (2026-04-28): Added procedures (void subprograms) with up to 6 scalar parameters, parameterless calls, recursion, and rejection of procedures used as expressions
 - **v1.5.0** (2026-04-28): Added typed declarations, booleans, chars, static arrays, array bounds checks, and fixed-size char-array text buffers

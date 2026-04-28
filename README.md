@@ -1,15 +1,15 @@
 <img width="1880" height="515" alt="image" src="https://github.com/user-attachments/assets/0c40b246-bb09-4c59-80ee-e9eafc54bde0" />
 
-# Pascal-Prolog Assembly Backend - Release Version 1.7.0
+# Pascal-Prolog Assembly Backend - Release Version 1.8.0
 
 > [!WARNING]
-> This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`) plus static arrays, procedures, and `var` parameters, while still intentionally omitting full ISO Pascal features.
+> This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`) plus static arrays, procedures, and `var` parameters (including arrays passed by reference), while still intentionally omitting full ISO Pascal features.
 >
 > It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
 
 ## 📦 Pascal-Prolog Assembly Backend Release
 
-**Version**: 1.7.0
+**Version**: 1.8.0
 **Release Date**: 2026-04-28
 **License**: Unlicense (Public Domain)
 
@@ -25,7 +25,20 @@ This is now a **complete standalone release** of the Pascal-Prolog compiler with
 - ✅ Full documentation
 - ✅ Minimal, clean distribution
 
-## 🆕 What's New In v1.7.0
+## 🆕 What's New In v1.8.0
+
+### `var` array parameters
+
+Static arrays may now be passed by reference using `var`, so procedures and functions can mutate them in place and read them without copying.
+
+- ✅ **Array `var` parameters**: `procedure fill(var arr: array[1..N] of integer);`
+- ✅ **Array reads and writes** inside the callee work via the same indexed syntax with full bounds checking
+- ✅ **Char arrays** can also be passed `var` and printed with `writeln(arr)`
+- ✅ **Functions** can take `var` array parameters as well
+
+See `examples/array_params_demo.pas`.
+
+## 🆕 Previous: v1.7.0
 
 ### `var` parameters (pass by reference)
 
@@ -466,7 +479,7 @@ This release supports a **practical subset** of Pascal focused on core programmi
 
 #### ❌ Not Yet Implemented
 - Records
-- `var` (by-reference) parameters for arrays
+- ~~`var` (by-reference) parameters for arrays~~ (added in v1.8.0)
 - Array parameters
 - Separate forward declarations/prototypes
 - Dynamic string variables or string expressions
