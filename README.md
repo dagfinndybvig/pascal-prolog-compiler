@@ -15,7 +15,7 @@
 
 ## 🎯 About This Release
 
-This is now a **complete standalone release** of the Pascal-Prolog compiler with assembly backend. It includes everything needed to compile Pascal programs directly to x86-64 assembly and native executables.
+This is now a **complete standalone release** of the Pascal-Prolog compiler with assembly backend. It includes everything needed to compile simple Pascal programs directly to x86-64 assembly and native executables.
 
 ### What's Included
 - ✅ Complete Pascal compiler (parser, semantics, IR generator)
