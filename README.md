@@ -56,6 +56,37 @@ begin
 end.
 ```
 
+### Example: Function Accessing a Global Variable
+
+See `examples/global_function_demo.pas` for a complete program where a function reads and updates a global variable:
+
+```pascal
+program global_function_demo;
+
+function add_counter(value: integer): integer;
+begin
+  counter := counter + value;
+  add_counter := counter
+end;
+
+var
+  counter: integer;
+
+begin
+  counter := 10;
+  writeln(add_counter(5));  { Outputs: 15 }
+  writeln(add_counter(7));  { Outputs: 22 }
+  writeln(counter)          { Outputs: 22 }
+end.
+```
+
+Build and run it with:
+
+```bash
+swipl -q -s pascal_compiler.pl -- build-asm examples/global_function_demo.pas global_function_demo
+./global_function_demo
+```
+
 ---
 
 ## 🆕 Previous: v1.4.3
@@ -384,6 +415,18 @@ begin
   writeln('The result is: ');
   writeln(result)
 end.
+```
+
+### Global Variable Function Example
+
+`examples/global_function_demo.pas` demonstrates function access to a global variable. The `add_counter` function updates the global `counter` and returns the new value:
+
+```bash
+swipl -q -s pascal_compiler.pl -- build-asm examples/global_function_demo.pas global_function_demo
+./global_function_demo
+# 15
+# 22
+# 22
 ```
 
 ### Integer Division Example

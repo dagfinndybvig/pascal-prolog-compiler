@@ -59,6 +59,7 @@ Expected count of primes <= 46000: **4761**
 
 ### 5. Comprehensive Program Behavior
 - `examples/comprehensive_test.pas` executes correctly and produces expected arithmetic, control-flow, relational, I/O, and string-output behavior.
+- `examples/global_function_demo.pas` builds as part of the example sweep and demonstrates function read/write access to a global variable.
 
 ### 6. Backend Safety and Correctness Regressions
 Verified additional regression checks in `scripts/verify_math.py`:

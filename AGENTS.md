@@ -177,6 +177,7 @@ Test completed successfully!
 │   └── runtime.h               # Runtime headers
 ├── examples/
 │   ├── comprehensive_test.pas  # Main test suite
+│   ├── global_function_demo.pas # Function read/write access to globals
 │   └── primes/                 # Prime algorithm examples
 │       ├── basic/
 │       ├── optimized/

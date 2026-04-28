@@ -15,6 +15,29 @@ Functions can access and modify global variables, matching standard Pascal behav
 - Function parameters and local variables shadow globals.
 - Global variables are still allocated in the generated `main` stack frame.
 - Generated `main` records its frame pointer in `main_frame_ptr`; generated functions use that pointer when accessing true globals.
+- `examples/global_function_demo.pas` demonstrates the feature with a function that updates a global counter.
+
+## Example
+
+```pascal
+program global_function_demo;
+
+function add_counter(value: integer): integer;
+begin
+  counter := counter + value;
+  add_counter := counter
+end;
+
+var
+  counter: integer;
+
+begin
+  counter := 10;
+  writeln(add_counter(5));  { 15 }
+  writeln(add_counter(7));  { 22 }
+  writeln(counter)          { 22 }
+end.
+```
 
 ## Implementation Summary
 
