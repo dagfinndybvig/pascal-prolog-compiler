@@ -133,6 +133,13 @@ check_stmt(for_loop(Name, Start, End, _Dir, Body), Vars, FuncSigs) :-
     check_expr(Start, Vars, FuncSigs, integer),
     check_expr(End, Vars, FuncSigs, integer),
     check_stmt(Body, Vars, FuncSigs).
+check_stmt(case_stmt(Selector, Branches, ElseBody), Vars, FuncSigs) :-
+    check_expr(Selector, Vars, FuncSigs, SelType),
+    ensure_case_selector_type(SelType),
+    forall(member(case_branch(Labels, Body), Branches),
+           ( forall(member(Label, Labels), ensure_case_label(Label, SelType)),
+             check_stmt(Body, Vars, FuncSigs) )),
+    check_stmt(ElseBody, Vars, FuncSigs).
 check_stmt(writeln(expr(Expr)), Vars, FuncSigs) :-
     check_expr(Expr, Vars, FuncSigs, Type),
     ensure_writable_type(Type).
@@ -262,6 +269,16 @@ check_writeln_arg(str(_), _, _).
 check_writeln_arg(expr(Expr), Vars, FuncSigs) :-
     check_expr(Expr, Vars, FuncSigs, Type),
     ensure_writable_type(Type).
+
+ensure_case_selector_type(integer) :- !.
+ensure_case_selector_type(char) :- !.
+ensure_case_selector_type(Type) :-
+    throw(error(case_selector_type(Type), _)).
+
+ensure_case_label(label_const(int(_)), integer) :- !.
+ensure_case_label(label_const(char(_)), char) :- !.
+ensure_case_label(Label, SelType) :-
+    throw(error(case_label_type_mismatch(Label, SelType), _)).
 
 ensure_readable_type(integer).
 ensure_readable_type(char).

@@ -17,8 +17,8 @@ This is a **Pascal compiler written in SWI-Prolog** that compiles a subset of Pa
 - Top-level global `var` sections may appear before functions or after functions
 - Prime number algorithms are the primary test cases
 
-**Version**: 1.10.0 (2026-04-28) - Added multi-argument `write` and `writeln` with mixed string-literal and expression arguments
-**Previous**: 1.9.0 (2026-04-28) - Added `for` loops (`to` and `downto`) lowered to existing while-loop IR
+**Version**: 1.11.0 (2026-04-28) - Added `case` statements for integer and char selectors with optional `else` branch
+**Previous**: 1.10.0 (2026-04-28) - Added multi-argument `write` and `writeln` with mixed string-literal and expression arguments
 
 ## Quick Start
 
@@ -203,6 +203,7 @@ Test completed successfully!
 
 ## Version History
 
+- **v1.11.0** (2026-04-28): Added `case` statements (integer and char selectors, comma-separated labels, optional `else`); lowered to chained `if`/`else` IR
 - **v1.10.0** (2026-04-28): Added multi-argument `write`/`writeln`; lowered to a sequence of single-arg writes with the last writeln entry providing the newline
 - **v1.9.0** (2026-04-28): Added `for ... to/downto ... do` counted loops; lowered to existing while-loop IR with re-evaluated end-bound
 - **v1.8.0** (2026-04-28): Added `var` array parameters — arrays can now be passed by reference to procedures and functions with full bounds-checked indexed access

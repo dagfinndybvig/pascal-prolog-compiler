@@ -120,6 +120,7 @@ keyword_or_ident(end, kw(end)) :- !.
 keyword_or_ident(if, kw(if)) :- !.
 keyword_or_ident(then, kw(then)) :- !.
 keyword_or_ident(else, kw(else)) :- !.
+keyword_or_ident(case, kw(case)) :- !.
 keyword_or_ident(while, kw(while)) :- !.
 keyword_or_ident(do, kw(do)) :- !.
 keyword_or_ident(for, kw(for)) :- !.

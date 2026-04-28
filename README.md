@@ -1,15 +1,15 @@
 <img width="1880" height="515" alt="image" src="https://github.com/user-attachments/assets/0c40b246-bb09-4c59-80ee-e9eafc54bde0" />
 
-# Pascal-Prolog Assembly Backend - Release Version 1.10.0
+# Pascal-Prolog Assembly Backend - Release Version 1.11.0
 
 > [!WARNING]
-> This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`) plus static arrays, procedures, `var` parameters (including arrays passed by reference), `for` loops, and multi-argument `write`/`writeln`, while still intentionally omitting full ISO Pascal features.
+> This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`) plus static arrays, procedures, `var` parameters (including arrays passed by reference), `for` loops, multi-argument `write`/`writeln`, and `case` statements, while still intentionally omitting full ISO Pascal features.
 >
 > It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
 
 ## 📦 Pascal-Prolog Assembly Backend Release
 
-**Version**: 1.10.0
+**Version**: 1.11.0
 **Release Date**: 2026-04-28
 **License**: Unlicense (Public Domain)
 
@@ -25,7 +25,20 @@ This is now a **complete standalone release** of the Pascal-Prolog compiler with
 - ✅ Full documentation
 - ✅ Minimal, clean distribution
 
-## 🆕 What's New In v1.10.0
+## 🆕 What's New In v1.11.0
+
+### `case` statements
+
+Pascal-style `case` statements are now supported for `integer` and `char` selectors:
+
+- ✅ `case Sel of L1: S1; L2, L3: S2; ... else SD end` — comma-separated label lists per branch
+- ✅ Selector type may be `integer` or `char`; labels must be matching constants (negative integers allowed)
+- ✅ Optional `else` branch; when omitted, an unmatched selector falls through with no statement executed
+- ⚠️ Lowered to chained `if`/`else` IR; the selector expression is re-evaluated per label, so avoid side-effecting selectors
+
+See `examples/case_demo.pas`.
+
+## 🆕 Previous: v1.10.0
 
 ### Multi-argument `write` and `writeln`
 

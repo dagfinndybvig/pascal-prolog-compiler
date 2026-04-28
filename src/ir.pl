@@ -106,6 +106,10 @@ lower_stmt(for_loop(Name, Start, End, Dir, Body), Env, CounterIn, CounterOut,
     lower_expr(End, Env, IREnd, integer),
     for_ops(Dir, CmpOp, StepOp),
     lower_stmt(Body, Env, CounterIn, CounterOut, IRBody, AddedVars).
+lower_stmt(case_stmt(Selector, Branches, ElseBody), Env, CounterIn, CounterOut, IRStmt, AddedVars) :-
+    lower_stmt(ElseBody, Env, CounterIn, CounterAfterElse, IRElse, AddedElse),
+    lower_case_branches(Branches, Selector, Env, CounterAfterElse, CounterOut, IRElse, IRStmt, AddedBranches),
+    append(AddedElse, AddedBranches, AddedVars).
 lower_stmt(writeln(expr(Expr)), Env, Counter, Counter, IRStmt, []) :-
     lower_expr(Expr, Env, IRExpr, Type),
     output_stmt(writeln, Type, IRExpr, IRStmt).
@@ -222,6 +226,26 @@ lowered_bin_type(_, _, _, boolean).
 
 for_ops(to, '<=', '+').
 for_ops(downto, '>=', '-').
+
+lower_case_branches([], _Selector, _Env, Counter, Counter, IRElse, IRElse, []).
+lower_case_branches([case_branch(Labels, Body)|Rest], Selector, Env, CounterIn, CounterOut, IRElse, IRStmt, AddedVars) :-
+    lower_stmt(Body, Env, CounterIn, CounterAfterBody, IRBody, AddedBody),
+    lower_case_branches(Rest, Selector, Env, CounterAfterBody, CounterOut, IRElse, IRRest, AddedRest),
+    lower_case_cond(Labels, Selector, Env, IRCond),
+    IRStmt = ir_if(IRCond, IRBody, IRRest),
+    append(AddedBody, AddedRest, AddedVars).
+
+lower_case_cond([Label], Selector, Env, IRCond) :-
+    !,
+    lower_case_label(Label, Selector, Env, IRCond).
+lower_case_cond([Label|Rest], Selector, Env, ir_bin(or, IRThis, IRRest)) :-
+    lower_case_label(Label, Selector, Env, IRThis),
+    lower_case_cond(Rest, Selector, Env, IRRest).
+
+lower_case_label(label_const(int(N)), Selector, Env, ir_bin('=', IRSel, ir_int(N))) :-
+    lower_expr(Selector, Env, IRSel, _).
+lower_case_label(label_const(char(Code)), Selector, Env, ir_bin('=', IRSel, ir_char(Code))) :-
+    lower_expr(Selector, Env, IRSel, _).
 
 lower_exprs([], _, []).
 lower_exprs([Expr|Rest], Env, [IRExpr|IRRest]) :-

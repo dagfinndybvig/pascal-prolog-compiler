@@ -213,6 +213,14 @@ statement(while(Cond, Body)) -->
     keyword(do),
     statement(Body),
     !.
+statement(case_stmt(Selector, Branches, ElseBody)) -->
+    keyword(case),
+    expression(Selector),
+    keyword(of),
+    case_branches(Branches),
+    case_else(ElseBody),
+    keyword(end),
+    !.
 statement(for_loop(Name, Start, End, Dir, Body)) -->
     keyword(for),
     [tok(ident(Name), _, _)],
@@ -308,6 +316,58 @@ optional_else(block([], [])) -->
 
 for_direction(to) --> keyword(to), !.
 for_direction(downto) --> keyword(downto).
+
+case_branches([Branch|Rest]) -->
+    case_branch(Branch),
+    case_branches_tail(Rest).
+
+case_branches_tail([Branch|Rest]) -->
+    symbol(';'),
+    peek_not_case_end,
+    !,
+    case_branch(Branch),
+    case_branches_tail(Rest).
+case_branches_tail([]) --> [].
+
+case_branch(case_branch(Labels, Body)) -->
+    case_labels(Labels),
+    symbol(':'),
+    statement(Body).
+
+case_labels([Label|Rest]) -->
+    case_label(Label),
+    case_labels_tail(Rest).
+
+case_labels_tail([Label|Rest]) -->
+    symbol(','),
+    !,
+    case_label(Label),
+    case_labels_tail(Rest).
+case_labels_tail([]) --> [].
+
+case_label(label_const(int(N))) -->
+    symbol('-'),
+    [tok(int(M), _, _)],
+    !,
+    { N is -M }.
+case_label(label_const(int(N))) -->
+    [tok(int(N), _, _)],
+    !.
+case_label(label_const(char(Code))) -->
+    [tok(str(Text), _, _)],
+    { string_length(Text, 1), string_codes(Text, [Code]) },
+    !.
+
+case_else(Body) -->
+    keyword(else),
+    !,
+    statement(Body).
+case_else(block([], [])) --> [].
+
+peek_not_case_end(Stream, Stream) :-
+    \+ next_is_case_end(Stream).
+next_is_case_end([tok(kw(else), _, _)|_]).
+next_is_case_end([tok(kw(end), _, _)|_]).
 
 expression(Expr) -->
     disjunction(Expr).

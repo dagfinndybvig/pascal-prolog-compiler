@@ -802,6 +802,36 @@ end.
         multi_arg_result, ["x=7 y=3", "sum=10", "hi there"]
     )
 
+    case_source = """program case_check;
+var n, i: integer; g: char;
+begin
+  for i := 1 to 4 do
+    case i of
+      1: writeln('one');
+      2, 3: writeln('two or three');
+      4: writeln('four')
+    end;
+  g := 'B';
+  case g of
+    'A': writeln('A');
+    'B': writeln('B')
+  else
+    writeln('other')
+  end;
+  n := 99;
+  case n of
+    1: writeln('one')
+  else
+    writeln('other')
+  end
+end.
+"""
+    case_result = build_and_run_source(case_source, "regression_case")
+    checks["case_stmt"] = check_expected_stdout_lines(
+        case_result,
+        ["one", "two or three", "two or three", "four", "B", "other"],
+    )
+
     result = {
         "build_results": build_results,
         "checks": checks,
