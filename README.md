@@ -32,7 +32,7 @@ This is now a **complete standalone release** of the Pascal-Prolog compiler with
 The compiler now has an explicit type system across parsing, semantic checking, IR lowering, and x86-64 code generation.
 
 - ✅ **Typed declarations and function signatures**: variables, parameters, and return values carry declared types internally
-- ✅ **Boolean scalars**: `boolean`, `true`, `false`, boolean function parameters/returns, and boolean conditions
+- ✅ **Boolean scalars and operators**: `boolean`, `true`, `false`, `and`, `or`, `not`, boolean function parameters/returns, and boolean conditions
 - ✅ **Char scalars**: `char` variables, parameters/returns, character literals such as `'A'`, and character I/O
 - ✅ **Static arrays**: fixed-bound arrays such as `array[1..5] of integer`
 - ✅ **Indexed array access**: `a[i]` works as both an r-value and assignment target
@@ -87,6 +87,8 @@ swipl -q -s pascal_compiler.pl -- build-asm examples/array_demo.pas array_demo
 More focused datatype examples live under `examples/datatypes/`:
 
 - `scalars_showcase.pas` demonstrates `boolean`, `char`, scalar functions, and boolean conditions.
+- `boolean_edge_cases.pas` demonstrates boolean `and`, `or`, and `not` operators.
+- `boolean_truth_table.pas`, `boolean_array_filters.pas`, and `boolean_precedence_demo.pas` provide focused boolean operator examples.
 - `array_math_showcase.pas` demonstrates static integer arrays and indexed loop access.
 - `char_buffer_showcase.pas` demonstrates printable fixed-size `array of char` buffers.
 - `global_array_function_showcase.pas` demonstrates a function writing to a global array.

@@ -589,6 +589,9 @@ asm_expr(ir_call(Name, Args), Assembly) :-
 asm_expr(ir_unary('-', Expr), Assembly) :-
     asm_expr(Expr, ExprCode),
     format(atom(Assembly), "~w\tnegq %rax\n", [ExprCode]).
+asm_expr(ir_unary(not, Expr), Assembly) :-
+    asm_expr(Expr, ExprCode),
+    format(atom(Assembly), "~w\tcmpq $0, %rax\n\tsete %al\n\tmovzbq %al, %rax\n", [ExprCode]).
 asm_expr(ir_bin('+', Left, Right), Assembly) :-
     asm_expr(Left, LeftCode),
     (   get_preferred_temp_register(TempReg)
@@ -655,6 +658,10 @@ asm_expr(ir_bin(mod, Left, Right), Assembly) :-
             [LeftCode, RightCode]
         )
     ).
+asm_expr(ir_bin(and, Left, Right), Assembly) :-
+    asm_bool_bin_expr(Left, Right, "andb", Assembly).
+asm_expr(ir_bin(or, Left, Right), Assembly) :-
+    asm_bool_bin_expr(Left, Right, "orb", Assembly).
 asm_expr(ir_bin('=', Left, Right), Assembly) :-
     asm_compare_expr(Left, Right, "sete", Assembly).
 asm_expr(ir_bin('<>', Left, Right), Assembly) :-
@@ -713,6 +720,24 @@ asm_compare_expr(Left, Right, SetInstr, Assembly) :-
             atom(Assembly),
             "~w\tpushq %rax\n~w\tpopq %r10\n\tcmpq %rax, %r10\n\t~w %al\n\tmovzbq %al, %rax\n",
             [LeftCode, RightCode, SetInstr]
+        )
+    ).
+
+asm_bool_bin_expr(Left, Right, BoolInstr, Assembly) :-
+    asm_expr(Left, LeftCode),
+    (   get_preferred_temp_register(TempReg)
+    ->  asm_expr(Right, RightCode),
+        format(
+            atom(Assembly),
+            "~w\tmovq %rax, %~w\n~w\tcmpq $0, %~w\n\tsetne %r10b\n\tcmpq $0, %rax\n\tsetne %al\n\t~w %r10b, %al\n\tmovzbq %al, %rax\n",
+            [LeftCode, TempReg, RightCode, TempReg, BoolInstr]
+        ),
+        free_register(TempReg)
+    ;   asm_expr(Right, RightCode),
+        format(
+            atom(Assembly),
+            "~w\tpushq %rax\n~w\tpopq %r10\n\tcmpq $0, %r10\n\tsetne %r10b\n\tcmpq $0, %rax\n\tsetne %al\n\t~w %r10b, %al\n\tmovzbq %al, %rax\n",
+            [LeftCode, RightCode, BoolInstr]
         )
     ).
 
@@ -986,6 +1011,9 @@ asm_expr_func(ir_call(Name, Args), FuncName, Params, Locals, Assembly) :-
 asm_expr_func(ir_unary('-', Expr), FuncName, Params, Locals, Assembly) :-
     asm_expr_func(Expr, FuncName, Params, Locals, ExprCode),
     format(atom(Assembly), "~w\tnegq %rax\n", [ExprCode]).
+asm_expr_func(ir_unary(not, Expr), FuncName, Params, Locals, Assembly) :-
+    asm_expr_func(Expr, FuncName, Params, Locals, ExprCode),
+    format(atom(Assembly), "~w\tcmpq $0, %rax\n\tsete %al\n\tmovzbq %al, %rax\n", [ExprCode]).
 asm_expr_func(ir_bin('+', Left, Right), FuncName, Params, Locals, Assembly) :-
     asm_expr_func(Left, FuncName, Params, Locals, LeftCode),
     (   get_preferred_temp_register(TempReg)
@@ -1047,6 +1075,10 @@ asm_expr_func(ir_bin(mod, Left, Right), FuncName, Params, Locals, Assembly) :-
             [LeftCode, RightCode]
         )
     ).
+asm_expr_func(ir_bin(and, Left, Right), FuncName, Params, Locals, Assembly) :-
+    asm_bool_bin_expr_func(Left, Right, FuncName, Params, Locals, "andb", Assembly).
+asm_expr_func(ir_bin(or, Left, Right), FuncName, Params, Locals, Assembly) :-
+    asm_bool_bin_expr_func(Left, Right, FuncName, Params, Locals, "orb", Assembly).
 asm_expr_func(ir_bin(Comp, Left, Right), FuncName, Params, Locals, Assembly) :-
     comparison_op(Comp, SetInstr),
     asm_compare_expr_func(Left, Right, FuncName, Params, Locals, SetInstr, Assembly).
@@ -1073,6 +1105,24 @@ asm_compare_expr_func(Left, Right, FuncName, Params, Locals, SetInstr, Assembly)
             atom(Assembly),
             "~w\tpushq %rax\n~w\tpopq %r10\n\tcmpq %rax, %r10\n\t~w %al\n\tmovzbq %al, %rax\n",
             [LeftCode, RightCode, SetInstr]
+        )
+    ).
+
+asm_bool_bin_expr_func(Left, Right, FuncName, Params, Locals, BoolInstr, Assembly) :-
+    asm_expr_func(Left, FuncName, Params, Locals, LeftCode),
+    (   get_preferred_temp_register(TempReg)
+    ->  asm_expr_func(Right, FuncName, Params, Locals, RightCode),
+        format(
+            atom(Assembly),
+            "~w\tmovq %rax, %~w\n~w\tcmpq $0, %~w\n\tsetne %r10b\n\tcmpq $0, %rax\n\tsetne %al\n\t~w %r10b, %al\n\tmovzbq %al, %rax\n",
+            [LeftCode, TempReg, RightCode, TempReg, BoolInstr]
+        ),
+        free_register(TempReg)
+    ;   asm_expr_func(Right, FuncName, Params, Locals, RightCode),
+        format(
+            atom(Assembly),
+            "~w\tpushq %rax\n~w\tpopq %r10\n\tcmpq $0, %r10\n\tsetne %r10b\n\tcmpq $0, %rax\n\tsetne %al\n\t~w %r10b, %al\n\tmovzbq %al, %rax\n",
+            [LeftCode, RightCode, BoolInstr]
         )
     ).
 

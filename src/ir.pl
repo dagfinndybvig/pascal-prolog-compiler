@@ -157,6 +157,8 @@ lower_expr(call(Name, Args), Env, ir_call(Name, IRArgs), Type) :-
     lower_exprs(Args, Env, IRArgs).
 lower_expr(unary('-', Expr), Env, ir_unary('-', IRExpr), integer) :-
     lower_expr(Expr, Env, IRExpr, integer).
+lower_expr(unary(not, Expr), Env, ir_unary(not, IRExpr), boolean) :-
+    lower_expr(Expr, Env, IRExpr, boolean).
 lower_expr(bin(Op, Left, Right), Env, ir_bin(Op, IRLeft, IRRight), Type) :-
     lower_expr(Left, Env, IRLeft, LeftType),
     lower_expr(Right, Env, IRRight, RightType),

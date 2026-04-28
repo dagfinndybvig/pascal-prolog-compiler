@@ -127,6 +127,9 @@ keyword_or_ident(write, kw(write)) :- !.
 keyword_or_ident(readln, kw(readln)) :- !.
 keyword_or_ident(function, kw(function)) :- !.
 keyword_or_ident(mod, kw(mod)) :- !.
+keyword_or_ident(and, kw(and)) :- !.
+keyword_or_ident(or, kw(or)) :- !.
+keyword_or_ident(not, kw(not)) :- !.
 keyword_or_ident(Atom, ident(Atom)).
 
 consume_symbol(0':, [0'=|Rest], Rest, ':=', 2) :- !.

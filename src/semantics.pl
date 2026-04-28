@@ -146,10 +146,15 @@ check_expr(call(Name, Args), Vars, FuncSigs, ReturnType) :-
     check_exprs(Args, ParamTypes, Vars, FuncSigs).
 check_expr(unary('-', Expr), Vars, FuncSigs, integer) :-
     check_expr(Expr, Vars, FuncSigs, integer).
+check_expr(unary(not, Expr), Vars, FuncSigs, boolean) :-
+    check_expr(Expr, Vars, FuncSigs, boolean).
 check_expr(bin(Op, Left, Right), Vars, FuncSigs, Type) :-
     check_expr(Left, Vars, FuncSigs, LeftType),
     check_expr(Right, Vars, FuncSigs, RightType),
-    bin_expr_type(Op, LeftType, RightType, Type).
+    (   bin_expr_type(Op, LeftType, RightType, Type)
+    ->  true
+    ;   throw(error(type_mismatch(operator(Op), operands(LeftType, RightType)), context(semantics/check_expr, 'Operator is not defined for operand types')))
+    ).
 
 bin_expr_type(Op, integer, integer, integer) :-
     memberchk(Op, ['+', '-', '*', '/', mod]).
@@ -158,7 +163,7 @@ bin_expr_type(Op, integer, integer, boolean) :-
 bin_expr_type(Op, char, char, boolean) :-
     memberchk(Op, ['=', '<>', '<', '<=', '>', '>=']).
 bin_expr_type(Op, boolean, boolean, boolean) :-
-    memberchk(Op, ['=', '<>']).
+    memberchk(Op, [and, or, '=', '<>']).
 
 check_exprs([], [], _, _).
 check_exprs([Expr|Rest], [Type|Types], Vars, FuncSigs) :-

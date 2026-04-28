@@ -9,7 +9,7 @@ This is a **Pascal compiler written in SWI-Prolog** that compiles a subset of Pa
 **Key characteristics:**
 - Typed scalars: `integer`, `boolean`, and `char`
 - Static arrays with runtime bounds checks; `array[...] of char` works as fixed-size text output
-- Operators: `+`, `-`, `*`, `/`, `mod`, comparisons (`=`, `<>`, `<`, `<=`, `>`, `>=`)
+- Operators: `+`, `-`, `*`, `/`, `mod`, boolean operators (`and`, `or`, `not`), comparisons (`=`, `<>`, `<`, `<=`, `>`, `>=`)
 - Compiles to x86-64 assembly via GCC
 - Uses Prolog DCGs for parsing
 - **Functions supported**: Scalar functions with up to 6 scalar parameters, recursion

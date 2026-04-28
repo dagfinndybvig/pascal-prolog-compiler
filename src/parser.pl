@@ -251,6 +251,35 @@ optional_else(block([], [])) -->
     [].
 
 expression(Expr) -->
+    disjunction(Expr).
+
+disjunction(Expr) -->
+    conjunction(Left),
+    disjunction_tail(Left, Expr).
+
+disjunction_tail(Acc, Expr) -->
+    keyword(or),
+    !,
+    conjunction(Right),
+    { Next = bin(or, Acc, Right) },
+    disjunction_tail(Next, Expr).
+disjunction_tail(Expr, Expr) -->
+    [].
+
+conjunction(Expr) -->
+    relational(Left),
+    conjunction_tail(Left, Expr).
+
+conjunction_tail(Acc, Expr) -->
+    keyword(and),
+    !,
+    relational(Right),
+    { Next = bin(and, Acc, Right) },
+    conjunction_tail(Next, Expr).
+conjunction_tail(Expr, Expr) -->
+    [].
+
+relational(Expr) -->
     additive(Left),
     relational_tail(Left, Expr).
 
@@ -304,6 +333,10 @@ mul_op(mod) --> keyword(mod).
 
 unary(unary('-', Expr)) -->
     symbol('-'),
+    !,
+    unary(Expr).
+unary(unary(not, Expr)) -->
+    keyword(not),
     !,
     unary(Expr).
 unary(Expr) -->

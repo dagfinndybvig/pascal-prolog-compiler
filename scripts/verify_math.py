@@ -378,6 +378,16 @@ end.
 """,
             "duplicate declaration",
         ),
+        "boolean_operator_type_rejected": (
+            """program boolean_operator_type_check;
+var
+  b: boolean;
+begin
+  b := 1 and 2
+end.
+""",
+            "type mismatch",
+        ),
     }
 
     for name, (source, expected_message) in semantic_regressions.items():
@@ -481,6 +491,42 @@ end.
     checks["boolean_char_scalars"] = check_expected_stdout_lines(
         bool_char_result,
         ["Y", "Y"],
+    )
+
+    boolean_ops_source = """program boolean_operator_check;
+function both_positive(a, b: integer): boolean;
+begin
+  both_positive := (a > 0) and (b > 0)
+end;
+function to_int(value: boolean): integer;
+begin
+  if value then
+    to_int := 1
+  else
+    to_int := 0
+end;
+var
+  t, f: boolean;
+begin
+  t := true;
+  f := false;
+  writeln(to_int(t and f));
+  writeln(to_int(t or f));
+  writeln(to_int(not t));
+  writeln(to_int(not f));
+  writeln(to_int(both_positive(3, 4)));
+  writeln(to_int(both_positive(3, -4)));
+  writeln(to_int((1 < 2) and not (2 < 1)));
+  writeln(to_int((1 > 2) or (2 > 1)))
+end.
+"""
+    boolean_ops_result = build_and_run_source(
+        boolean_ops_source,
+        "regression_boolean_operators",
+    )
+    checks["boolean_operators"] = check_expected_stdout_lines(
+        boolean_ops_result,
+        ["0", "1", "0", "1", "1", "0", "1", "1"],
     )
 
     type_mismatch_source = """program type_mismatch_check;
