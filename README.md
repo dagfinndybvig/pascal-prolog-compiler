@@ -1,15 +1,15 @@
 <img width="1880" height="515" alt="image" src="https://github.com/user-attachments/assets/0c40b246-bb09-4c59-80ee-e9eafc54bde0" />
 
-# Pascal-Prolog Assembly Backend - Release Version 1.9.0
+# Pascal-Prolog Assembly Backend - Release Version 1.10.0
 
 > [!WARNING]
-> This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`) plus static arrays, procedures, `var` parameters (including arrays passed by reference), and `for` loops, while still intentionally omitting full ISO Pascal features.
+> This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`) plus static arrays, procedures, `var` parameters (including arrays passed by reference), `for` loops, and multi-argument `write`/`writeln`, while still intentionally omitting full ISO Pascal features.
 >
 > It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
 
 ## 📦 Pascal-Prolog Assembly Backend Release
 
-**Version**: 1.9.0
+**Version**: 1.10.0
 **Release Date**: 2026-04-28
 **License**: Unlicense (Public Domain)
 
@@ -25,7 +25,20 @@ This is now a **complete standalone release** of the Pascal-Prolog compiler with
 - ✅ Full documentation
 - ✅ Minimal, clean distribution
 
-## 🆕 What's New In v1.9.0
+## 🆕 What's New In v1.10.0
+
+### Multi-argument `write` and `writeln`
+
+`write` and `writeln` now accept any number of comma-separated arguments mixing string literals and writable expressions:
+
+- ✅ `writeln('x=', x, ' y=', y)` prints all parts on one line followed by a newline
+- ✅ `write(a, ' ', b, ' ', c)` prints all parts without a trailing newline
+- ✅ Each argument may be a string literal or any writable expression (`integer`, `boolean`, `char`, or `array[...] of char`)
+- ✅ Lowered to the existing single-argument write/writeln IR ops, with the last arg of a `writeln` getting the line-ending behavior
+
+See `examples/multi_arg_write_demo.pas`.
+
+## 🆕 Previous: v1.9.0
 
 ### `for` loops
 

@@ -137,6 +137,10 @@ check_stmt(writeln(expr(Expr)), Vars, FuncSigs) :-
     check_expr(Expr, Vars, FuncSigs, Type),
     ensure_writable_type(Type).
 check_stmt(writeln(str(_)), _, _).
+check_stmt(writeln_multi(Args), Vars, FuncSigs) :-
+    forall(member(Arg, Args), check_writeln_arg(Arg, Vars, FuncSigs)).
+check_stmt(write_multi(Args), Vars, FuncSigs) :-
+    forall(member(Arg, Args), check_writeln_arg(Arg, Vars, FuncSigs)).
 check_stmt(write(expr(Expr)), Vars, FuncSigs) :-
     check_expr(Expr, Vars, FuncSigs, Type),
     ensure_writable_type(Type).
@@ -253,6 +257,11 @@ ensure_writable_type(integer).
 ensure_writable_type(boolean).
 ensure_writable_type(char).
 ensure_writable_type(array(_, _, char)).
+
+check_writeln_arg(str(_), _, _).
+check_writeln_arg(expr(Expr), Vars, FuncSigs) :-
+    check_expr(Expr, Vars, FuncSigs, Type),
+    ensure_writable_type(Type).
 
 ensure_readable_type(integer).
 ensure_readable_type(char).

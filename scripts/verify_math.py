@@ -787,6 +787,21 @@ end.
         for_loop_result, ["55", "3", "2", "1"]
     )
 
+    multi_arg_source = """program multi_arg_check;
+var x, y: integer;
+begin
+  x := 7;
+  y := 3;
+  writeln('x=', x, ' y=', y);
+  writeln('sum=', x + y);
+  write('hi '); writeln('there')
+end.
+"""
+    multi_arg_result = build_and_run_source(multi_arg_source, "regression_multi_arg")
+    checks["multi_arg_writeln"] = check_expected_stdout_lines(
+        multi_arg_result, ["x=7 y=3", "sum=10", "hi there"]
+    )
+
     result = {
         "build_results": build_results,
         "checks": checks,

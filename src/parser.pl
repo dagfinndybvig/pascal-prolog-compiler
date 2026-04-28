@@ -226,7 +226,14 @@ statement(for_loop(Name, Start, End, Dir, Body)) -->
 statement(writeln(Arg)) -->
     keyword(writeln),
     symbol('('),
-    writeln_arg(Arg),
+    writeln_args([Arg|RestArgs]),
+    { RestArgs == [] },
+    symbol(')'),
+    !.
+statement(writeln_multi([A,B|Rest])) -->
+    keyword(writeln),
+    symbol('('),
+    writeln_args([A,B|Rest]),
     symbol(')'),
     !.
 % Enhanced write statements for stdlib - must come BEFORE basic write to match first
@@ -246,34 +253,19 @@ statement(write(Text, Expr)) -->
     expression(Expr),
     symbol(')'),
     !.
-% statement(write_int_str_int(Expr1, Text, Expr2)) -->
-%     keyword(write),
-%     symbol('('),
-%     expression(Expr1),
-%     symbol(','),
-%     string_literal(Text),
-%     symbol(','),
-%     expression(Expr2),
-%     symbol(')'),
-%     !.
-% statement(write_format(Text, Expr1, Expr2, Expr3)) -->
-%     keyword(write),
-%     symbol('('),
-%     string_literal(Text),
-%     symbol(','),
-%     expression(Expr1),
-%     symbol(','),
-%     expression(Expr2),
-%     symbol(','),
-%     expression(Expr3),
-%     symbol(')'),
-%     !.
 
 % Basic write statement - must come after enhanced versions
 statement(write(Arg)) -->
     keyword(write),
     symbol('('),
-    writeln_arg(Arg),
+    writeln_args([Arg|RestArgs]),
+    { RestArgs == [] },
+    symbol(')'),
+    !.
+statement(write_multi([A,B|Rest])) -->
+    keyword(write),
+    symbol('('),
+    writeln_args([A,B|Rest]),
     symbol(')'),
     !.
 
@@ -463,6 +455,18 @@ writeln_arg(str(Text)) -->
     !.
 writeln_arg(expr(Expr)) -->
     expression(Expr).
+
+writeln_args([Arg|Rest]) -->
+    writeln_arg(Arg),
+    writeln_args_tail(Rest).
+
+writeln_args_tail([Arg|Rest]) -->
+    symbol(','),
+    !,
+    writeln_arg(Arg),
+    writeln_args_tail(Rest).
+writeln_args_tail([]) -->
+    [].
 
 keyword(K) -->
     [tok(kw(K), _, _)].

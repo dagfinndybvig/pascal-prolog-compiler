@@ -110,6 +110,10 @@ lower_stmt(writeln(expr(Expr)), Env, Counter, Counter, IRStmt, []) :-
     lower_expr(Expr, Env, IRExpr, Type),
     output_stmt(writeln, Type, IRExpr, IRStmt).
 lower_stmt(writeln(str(Text)), _Env, Counter, Counter, ir_writeln_str(Text), []).
+lower_stmt(writeln_multi(Args), Env, Counter, Counter, ir_block(IRStmts), []) :-
+    lower_writeln_multi(Args, Env, IRStmts).
+lower_stmt(write_multi(Args), Env, Counter, Counter, ir_block(IRStmts), []) :-
+    lower_write_multi(Args, Env, IRStmts).
 lower_stmt(write(expr(Expr)), Env, Counter, Counter, IRStmt, []) :-
     lower_expr(Expr, Env, IRExpr, Type),
     output_stmt(write, Type, IRExpr, IRStmt).
@@ -153,6 +157,24 @@ output_stmt(writeln, _, IRExpr, ir_writeln_int(IRExpr)).
 output_stmt(write, char, IRExpr, ir_write_char(IRExpr)) :- !.
 output_stmt(write, array(Low, High, char), ir_var(Name), ir_write_char_array(Name, Low, High)) :- !.
 output_stmt(write, _, IRExpr, ir_write_int(IRExpr)).
+
+lower_writeln_multi([Arg], Env, [IR]) :-
+    !,
+    lower_writeln_arg(writeln, Arg, Env, IR).
+lower_writeln_multi([Arg|Rest], Env, [IR|IRRest]) :-
+    lower_writeln_arg(write, Arg, Env, IR),
+    lower_writeln_multi(Rest, Env, IRRest).
+
+lower_write_multi([], _Env, []).
+lower_write_multi([Arg|Rest], Env, [IR|IRRest]) :-
+    lower_writeln_arg(write, Arg, Env, IR),
+    lower_write_multi(Rest, Env, IRRest).
+
+lower_writeln_arg(write, str(Text), _Env, ir_write_str(Text)) :- !.
+lower_writeln_arg(writeln, str(Text), _Env, ir_writeln_str(Text)) :- !.
+lower_writeln_arg(Mode, expr(Expr), Env, IRStmt) :-
+    lower_expr(Expr, Env, IRExpr, Type),
+    output_stmt(Mode, Type, IRExpr, IRStmt).
 
 input_stmt(char, MappedName, ir_readln_char(MappedName)) :- !.
 input_stmt(_, MappedName, ir_readln(MappedName)).
