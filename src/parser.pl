@@ -28,23 +28,20 @@ top_level_declarations(Funcs, Vars) -->
     func_declarations(Funcs),
     declarations(Vars).
 
-func_declarations(Funcs) -->
-    keyword(function),
+func_declarations([First|Rest]) -->
+    subprogram_decl(First),
     !,
-    func_decl(First),
-    func_decls_rest(Rest),
-    { append([First], Rest, Funcs) }.
+    func_declarations(Rest).
 func_declarations([]) -->
     [].
 
-func_decls_rest(Funcs) -->
+subprogram_decl(Decl) -->
     keyword(function),
     !,
-    func_decl(First),
-    func_decls_rest(Rest),
-    { append([First], Rest, Funcs) }.
-func_decls_rest([]) -->
-    [].
+    func_decl(Decl).
+subprogram_decl(Decl) -->
+    keyword(procedure),
+    proc_decl(Decl).
 
 func_decl(func(Name, Params, ReturnType, LocalVars, Body)) -->
     identifier(Name),
@@ -53,6 +50,22 @@ func_decl(func(Name, Params, ReturnType, LocalVars, Body)) -->
     symbol(')'),
     symbol(':'),
     type_spec(ReturnType),
+    symbol(';'),
+    declarations(LocalVars),
+    block(Body),
+    symbol(';').
+
+proc_decl(func(Name, Params, void, LocalVars, Body)) -->
+    identifier(Name),
+    symbol('('),
+    params(Params),
+    symbol(')'),
+    symbol(';'),
+    declarations(LocalVars),
+    block(Body),
+    symbol(';').
+proc_decl(func(Name, [], void, LocalVars, Body)) -->
+    identifier(Name),
     symbol(';'),
     declarations(LocalVars),
     block(Body),
@@ -235,6 +248,16 @@ statement(readln(Name)) -->
     identifier(Name),
     symbol(')'),
     !.
+statement(proc_call(Name, Args)) -->
+    identifier(Name),
+    symbol('('),
+    expr_list(Args),
+    symbol(')'),
+    !.
+statement(proc_call(Name, [])) -->
+    identifier(Name),
+    peek_proc_call_end,
+    !.
 statement(assign_index(Name, IndexExpr, Expr)) -->
     identifier(Name),
     symbol('['),
@@ -416,3 +439,8 @@ string_literal(Text) -->
     [tok(str(Text), _, _)].
 
 peek_keyword(K, [tok(kw(K), _, _)|Tokens], [tok(kw(K), _, _)|Tokens]).
+
+peek_proc_call_end([tok(sym(';'), L, C)|T], [tok(sym(';'), L, C)|T]).
+peek_proc_call_end([tok(sym('.'), L, C)|T], [tok(sym('.'), L, C)|T]).
+peek_proc_call_end([tok(kw(end), L, C)|T], [tok(kw(end), L, C)|T]).
+peek_proc_call_end([tok(kw(else), L, C)|T], [tok(kw(else), L, C)|T]).

@@ -34,12 +34,13 @@ vars_env([Decl|Vars], [Name-MappedName-Type|EnvTail]) :-
 lower_funcs([], _, []).
 lower_funcs([func(Name, Params, ReturnType, FuncLocalVars, block(BlockLocalVars, Stmts))|Rest], GlobalEnv, [ir_func(Name, Params, ReturnType, FuncLocals, IRBody)|IRFuncsRest]) :-
     vars_env(Params, ParamEnv),
-    % Add function name to environment for return value assignment
-    append(ParamEnv, [Name-Name-ReturnType], FuncEnv0),
+    (   ReturnType == void
+    ->  FuncEnv0 = ParamEnv
+    ;   append(ParamEnv, [Name-Name-ReturnType], FuncEnv0)
+    ),
     vars_env(FuncLocalVars, LocalEnv),
     append(FuncEnv0, LocalEnv, FuncEnv1),
     append(FuncEnv1, GlobalEnv, FuncEnv),
-    % Merge function locals with block locals for lowering
     append(FuncLocalVars, BlockLocalVars, AllLocalVars),
     lower_block(block(AllLocalVars, Stmts), FuncEnv, 0, _CounterOut, IRBody, FuncLocals),
     lower_funcs(Rest, GlobalEnv, IRFuncsRest).
@@ -118,6 +119,8 @@ lower_stmt(readln(Name), Env, Counter, Counter, IRStmt, []) :-
     input_stmt(Type, MappedName, IRStmt).
 lower_stmt(block(LocalVars, Stmts), Env, CounterIn, CounterOut, ir_block(IRStmts), AddedVars) :-
     lower_block(block(LocalVars, Stmts), Env, CounterIn, CounterOut, IRStmts, AddedVars).
+lower_stmt(proc_call(Name, Args), Env, Counter, Counter, ir_proc_call(Name, IRArgs), []) :-
+    lower_exprs(Args, Env, IRArgs).
 
 output_stmt(writeln, char, IRExpr, ir_writeln_char(IRExpr)) :- !.
 output_stmt(writeln, array(Low, High, char), ir_var(Name), ir_writeln_char_array(Name, Low, High)) :- !.

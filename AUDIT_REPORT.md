@@ -1,7 +1,7 @@
 # Pascal-Prolog Compiler Audit Report
 
 **Date:** 2026-04-28
-**Version:** 1.5.0
+**Version:** 1.6.0
 **Auditor:** Code Review
 
 ---
@@ -136,7 +136,7 @@ The following are documented limitations:
 | Static arrays | ✅ **Supported** | Fixed bounds with runtime bounds checks |
 | Records | ❌ Not supported | Significant work required |
 | Separate forward declarations | ❌ Not supported | Mutual recursion works between fully defined functions |
-| Procedures (void) | ❌ Not supported | Functions only |
+| Procedures (void) | ✅ **Supported** | Procedures with up to 6 scalar parameters; no return value; added in v1.6.0 |
 | Real/float | ❌ Not supported | Integer only |
 
 ---
@@ -163,7 +163,7 @@ The following are documented limitations:
 
 4. **Testing:**
    - Comprehensive test suite (`verify_math.py`)
-   - 45 example programs covering various cases
+   - 47 example programs covering various cases
    - Prime number algorithms as realistic test cases
 
 ### ⚠️ Areas for Improvement
@@ -207,7 +207,7 @@ The following are documented limitations:
 ## 5. Test Results Summary
 
 ```
-Build Tests:    45/45 passed ✅
+Build Tests:    47/47 passed ✅
 Prime Tests:    All match expected output ✅
 Math Tests:     All pass ✅
 Division Signs: Correct (-7/2 = -3) ✅

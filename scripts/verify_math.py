@@ -642,6 +642,62 @@ end.
             "pass": False,
         }
 
+    procedures_source = """program procedure_check;
+var
+  total: integer;
+procedure add(x: integer);
+begin
+  total := total + x
+end;
+procedure reset;
+begin
+  total := 0
+end;
+begin
+  reset;
+  add(3);
+  add(4);
+  writeln(total);
+  reset();
+  add(10);
+  writeln(total)
+end.
+"""
+    procedures_result = build_and_run_source(
+        procedures_source,
+        "regression_procedures",
+    )
+    checks["procedures"] = check_expected_stdout_lines(
+        procedures_result,
+        ["7", "10"],
+    )
+
+    procedure_as_expr_source = """program proc_as_expr_check;
+procedure noop;
+begin
+  noop := 0
+end;
+begin
+end.
+"""
+    proc_as_expr_path = BIN_DIR / "proc_as_expr_check.pas"
+    proc_as_expr_path.write_text(procedure_as_expr_source)
+    proc_as_expr_proc = run(
+        [
+            "swipl",
+            "-q",
+            "-s",
+            "pascal_compiler.pl",
+            "--",
+            "check",
+            str(proc_as_expr_path.relative_to(ROOT)),
+        ]
+    )
+    checks["procedure_assign_to_name_rejected"] = {
+        "returncode": proc_as_expr_proc.returncode,
+        "pass": proc_as_expr_proc.returncode != 0,
+    }
+
     result = {
         "build_results": build_results,
         "checks": checks,

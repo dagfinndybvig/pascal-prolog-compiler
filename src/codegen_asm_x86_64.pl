@@ -196,6 +196,8 @@ generate_asm(ir_assign(_VarName, _Expr), Assembly) :-
     format(atom(Assembly), "", []).
 generate_asm(ir_array_store(_, _, _, _, _), Assembly) :-
     format(atom(Assembly), "", []).
+generate_asm(ir_proc_call(_, _), Assembly) :-
+    format(atom(Assembly), "", []).
 generate_asm(ir_if(_, ThenStmt, ElseStmt), Assembly) :-
     generate_asm(ThenStmt, ThenData),
     generate_asm(ElseStmt, ElseData),
@@ -255,6 +257,15 @@ generate_asm_text(ir_assign(VarName, Expr), Assembly) :-
     asm_assign(VarName, Expr, Assembly).
 generate_asm_text(ir_array_store(Name, Low, High, IndexExpr, Expr), Assembly) :-
     asm_array_store(Name, Low, High, IndexExpr, Expr, Assembly).
+generate_asm_text(ir_proc_call(Name, Args), Assembly) :-
+    length(Args, ArgCount),
+    (   ArgCount > 6
+    ->  throw(error(too_many_arguments(Name, ArgCount), _))
+    ;   true
+    ),
+    asm_call_args(Args, ArgCode),
+    asm_call_instruction(Name, CallCode),
+    format(atom(Assembly), "~w~w", [ArgCode, CallCode]).
 generate_asm_text(ir_block(Stmts), Assembly) :-
     asm_stmt_list(Stmts, StmtCode),
     format(atom(Assembly), "~w", [StmtCode]).
@@ -876,6 +887,15 @@ generate_func_asm_text(ir_while(Cond, BodyStmt), FuncName, Params, Locals, Assem
 generate_func_asm_text(ir_block(Stmts), FuncName, Params, Locals, Assembly) :-
     func_stmt_list(Stmts, FuncName, Params, Locals, StmtCode),
     format(atom(Assembly), "~w", [StmtCode]).
+generate_func_asm_text(ir_proc_call(Name, Args), FuncName, Params, Locals, Assembly) :-
+    length(Args, ArgCount),
+    (   ArgCount > 6
+    ->  throw(error(too_many_arguments(Name, ArgCount), _))
+    ;   true
+    ),
+    asm_call_args_func(Args, FuncName, Params, Locals, ArgCode),
+    asm_call_instruction(Name, CallCode),
+    format(atom(Assembly), "~w~w", [ArgCode, CallCode]).
 
 func_stmt_list([], _, _, _, "").
 func_stmt_list([Stmt|Rest], FuncName, Params, Locals, Assembly) :-

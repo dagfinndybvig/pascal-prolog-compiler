@@ -1,15 +1,15 @@
 <img width="1880" height="515" alt="image" src="https://github.com/user-attachments/assets/0c40b246-bb09-4c59-80ee-e9eafc54bde0" />
 
-# Pascal-Prolog Assembly Backend - Release Version 1.5.0
+# Pascal-Prolog Assembly Backend - Release Version 1.6.0
 
 > [!WARNING]
-> This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`) plus static arrays, while still intentionally omitting full ISO Pascal features.
+> This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`) plus static arrays and procedures, while still intentionally omitting full ISO Pascal features.
 >
 > It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
 
 ## 📦 Pascal-Prolog Assembly Backend Release
 
-**Version**: 1.5.0
+**Version**: 1.6.0
 **Release Date**: 2026-04-28
 **License**: Unlicense (Public Domain)
 
@@ -25,7 +25,22 @@ This is now a **complete standalone release** of the Pascal-Prolog compiler with
 - ✅ Full documentation
 - ✅ Minimal, clean distribution
 
-## 🆕 What's New In v1.5.0
+## 🆕 What's New In v1.6.0
+
+### Procedures
+
+The compiler now supports `procedure` declarations as first-class subprograms.
+
+- ✅ **Procedure declarations**: `procedure name(params); ... end;` with up to 6 scalar parameters
+- ✅ **Parameterless procedures**: `procedure name; ... end;` may be called as `name;` or `name()`
+- ✅ **Procedure call statements**: `name(args)` is a statement that does not produce a value
+- ✅ **Recursion**: procedures may call themselves and other procedures/functions
+- ✅ **Global access**: procedures share the same scoping rules as functions
+- ✅ **Type safety**: a procedure cannot be used inside an expression; assigning to a procedure name is rejected
+
+See `examples/procedures_demo.pas` and `examples/procedures_recursive.pas`.
+
+## 🆕 Previous: v1.5.0
 
 ### Datatypes: Boolean, Char, and Static Arrays
 
@@ -437,7 +452,8 @@ This release supports a **practical subset** of Pascal focused on core programmi
 
 #### ❌ Not Yet Implemented
 - Records
-- Procedures (void functions - all functions must return a scalar value)
+- `var` (by-reference) parameters
+- Array parameters
 - Separate forward declarations/prototypes
 - Dynamic string variables or string expressions
 - Floating-point numbers

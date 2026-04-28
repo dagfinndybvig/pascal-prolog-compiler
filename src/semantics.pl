@@ -49,12 +49,15 @@ collect_func_sigs([], []).
 collect_func_sigs([func(Name, Params, ReturnType, _LocalVars, _Body)|Rest], [func_sig(Name, ParamTypes, ReturnType)|RestSigs]) :-
     length(Params, ParamCount),
     ensure_param_limit(Name, ParamCount),
-    ensure_scalar_type(ReturnType),
+    ensure_return_type(ReturnType),
     ensure_scalar_decls(Params),
     decl_names(Params, ParamNames),
     ensure_no_duplicates([Name|ParamNames]),
     findall(Type, member(param(_, Type), Params), ParamTypes),
     collect_func_sigs(Rest, RestSigs).
+
+ensure_return_type(void) :- !.
+ensure_return_type(Type) :- ensure_scalar_type(Type).
 
 ensure_no_duplicate_functions(FuncSigs) :-
     findall(Name, member(func_sig(Name, _, _), FuncSigs), Names),
@@ -82,7 +85,10 @@ check_all_func_bodies([func(Name, Params, ReturnType, LocalVars, Body)|Rest], Gl
     ensure_no_duplicates(FuncScopeNames),
     decls_env(Params, ParamEnv),
     decls_env(LocalVars, LocalEnv),
-    append([Name-ReturnType|ParamEnv], LocalEnv, FuncScope),
+    (   ReturnType == void
+    ->  append(ParamEnv, LocalEnv, FuncScope)
+    ;   append([Name-ReturnType|ParamEnv], LocalEnv, FuncScope)
+    ),
     append(FuncScope, GlobalEnv, VarsInScope),
     check_block(Body, VarsInScope, FuncSigs),
     check_all_func_bodies(Rest, GlobalEnv, FuncSigs).
@@ -126,6 +132,15 @@ check_stmt(readln(Name), Vars, _) :-
     ensure_readable_type(Type).
 check_stmt(block(LocalVars, Stmts), Vars, FuncSigs) :-
     check_block(block(LocalVars, Stmts), Vars, FuncSigs).
+check_stmt(proc_call(Name, Args), Vars, FuncSigs) :-
+    ensure_function_declared(Name, FuncSigs, ParamTypes, _ReturnType),
+    length(Args, ActualArity),
+    length(ParamTypes, ExpectedArity),
+    (   ActualArity = ExpectedArity
+    ->  true
+    ;   throw(error(wrong_arity(Name, ExpectedArity, ActualArity), context(semantics/check_stmt, 'Procedure called with incorrect number of arguments')))
+    ),
+    check_exprs(Args, ParamTypes, Vars, FuncSigs).
 
 check_expr(int(_), _, _, integer).
 check_expr(bool(_), _, _, boolean).
@@ -137,6 +152,10 @@ check_expr(array_ref(Name, IndexExpr), Vars, FuncSigs, ElementType) :-
     check_expr(IndexExpr, Vars, FuncSigs, integer).
 check_expr(call(Name, Args), Vars, FuncSigs, ReturnType) :-
     ensure_function_declared(Name, FuncSigs, ParamTypes, ReturnType),
+    (   ReturnType == void
+    ->  throw(error(procedure_used_as_expression(Name), context(semantics/check_expr, 'Procedures do not return a value and cannot appear in expressions')))
+    ;   true
+    ),
     length(Args, ActualArity),
     length(ParamTypes, ExpectedArity),
     (   ActualArity = ExpectedArity
