@@ -15,19 +15,20 @@ ir_program(Name, Functions, Variables, Statements)
 ```
 
 - `Name`: Program name (atom)
-- `Functions`: List of `ir_func/4` structures
-- `Variables`: List of global variable names
+- `Functions`: List of `ir_func/5` structures
+- `Variables`: List of typed global declarations, e.g. `decl(Name, Type)`
 - `Statements`: List of IR statements for the main program
 
 ### Function Representation
 
 ```prolog
-ir_func(Name, Parameters, LocalVariables, Statements)
+ir_func(Name, Parameters, ReturnType, LocalVariables, Statements)
 ```
 
 - `Name`: Function name (atom)
-- `Parameters`: List of parameter names
-- `LocalVariables`: List of local variable names (mangled as `local(Counter, OriginalName)`)
+- `Parameters`: List of typed parameters, e.g. `param(Name, Type)`
+- `ReturnType`: Scalar function return type
+- `LocalVariables`: List of typed local declarations (mangled as `decl(local(Counter, OriginalName), Type)`)
 - `Statements`: List of IR statements for the function body
 
 **Note on Function Local Variables**: During IR generation, function-level local variables (declared in `var` section before `begin`) are merged with the function body's block-level local variables. This ensures proper name mangling and allocation for all local variables in function scope.
@@ -50,6 +51,14 @@ ir_assign(VariableName, Expression)
 ```
 
 Assigns the result of evaluating Expression to VariableName.
+
+### Array Assignment
+
+```prolog
+ir_array_store(VariableName, LowBound, HighBound, IndexExpression, ValueExpression)
+```
+
+Stores a scalar value in a statically bounded array element. Bounds are carried in the IR so the backend can emit runtime checks.
 
 ### Conditional
 
@@ -79,13 +88,18 @@ Groups multiple statements into a single block with its own scope.
 
 ```prolog
 ir_writeln_int(Expression)      % Write integer with newline
+ir_writeln_char(Expression)     % Write char with newline
+ir_writeln_char_array(Name, Low, High)
 ir_writeln_str(String)          % Write string literal with newline
 ir_write_int(Expression)         % Write integer without newline
+ir_write_char(Expression)        % Write char without newline
+ir_write_char_array(Name, Low, High)
 ir_write_str(String)            % Write string literal without newline
 ir_write_int_str(Expression, String)
 ir_write_str_int(String, Expression)
 ir_write_int_str_int(Expression, String, Expression)
 ir_readln(VariableName)         % Read integer from input
+ir_readln_char(VariableName)    % Read char from input
 ```
 
 ## IR Expression Types
@@ -98,6 +112,13 @@ ir_int(Value)
 
 Represents a 32-bit signed integer constant.
 
+### Boolean and Char Literals
+
+```prolog
+ir_bool(Value)   % 0 or 1
+ir_char(Code)    % character code
+```
+
 ### Variable Reference
 
 ```prolog
@@ -105,6 +126,14 @@ ir_var(VariableName)
 ```
 
 References a variable (global, local, or parameter).
+
+### Array Load
+
+```prolog
+ir_array_load(VariableName, LowBound, HighBound, IndexExpression)
+```
+
+Loads a scalar element from a statically bounded array. The generated assembly checks the index before accessing memory.
 
 ### Function Call
 
@@ -128,7 +157,7 @@ Supported operators: `'-'` (negation)
 ir_bin(Operator, LeftExpression, RightExpression)
 ```
 
-Supported operators: `'+'`, `'-'`, `'*'`, `'/'`, `mod`, `'='`, `'<>'`, `'<'`, `'<='`, `'>'`, `'>='`
+Supported operators: `'+'`, `'-'`, `'*'`, `'/'`, `mod`, `'='`, `'<>'`, `'<'`, `'<='`, `'>'`, `'>='`. Arithmetic operators require integers; comparisons produce booleans.
 
 ## Example IR
 
@@ -136,21 +165,29 @@ Consider this Pascal code:
 
 ```pascal
 program test;
-var x, y: integer;
+var
+  x, y: integer;
+  text: array[1..2] of char;
 begin
   x := 10;
   y := x + 5;
-  writeln(y)
+  text[1] := 'O';
+  text[2] := 'K';
+  writeln(y);
+  writeln(text)
 end.
 ```
 
 The corresponding IR might look like:
 
 ```prolog
-ir_program(test, [], [x, y], [
+ir_program(test, [], [decl(x, integer), decl(y, integer), decl(text, array(1, 2, char))], [
   ir_assign(x, ir_int(10)),
   ir_assign(y, ir_bin('+', ir_var(x), ir_int(5))),
-  ir_writeln_int(ir_var(y))
+  ir_array_store(text, 1, 2, ir_int(1), ir_char(79)),
+  ir_array_store(text, 1, 2, ir_int(2), ir_char(75)),
+  ir_writeln_int(ir_var(y)),
+  ir_writeln_char_array(text, 1, 2)
 ])
 ```
 

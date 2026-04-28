@@ -1,16 +1,16 @@
 <img width="1880" height="515" alt="image" src="https://github.com/user-attachments/assets/0c40b246-bb09-4c59-80ee-e9eafc54bde0" />
 
-# Pascal-Prolog Assembly Backend - Release Version 1.4.4
+# Pascal-Prolog Assembly Backend - Release Version 1.5.0
 
 > [!WARNING]
-> This project implements only a **fragment of Pascal**. It supports **integer-only arithmetic** and a feature subset that is just enough to have som fun with prime-number programs and the like.
+> This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`) plus static arrays, while still intentionally omitting full ISO Pascal features.
 >
 > It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
 
 ## 📦 Pascal-Prolog Assembly Backend Release
 
-**Version**: 1.4.4
-**Release Date**: 2026-04-23
+**Version**: 1.5.0
+**Release Date**: 2026-04-28
 **License**: Unlicense (Public Domain)
 
 ## 🎯 About This Release
@@ -25,13 +25,74 @@ This is now a **complete standalone release** of the Pascal-Prolog compiler with
 - ✅ Full documentation
 - ✅ Minimal, clean distribution
 
-## 🆕 What's New In v1.4.4
+## 🆕 What's New In v1.5.0
+
+### Datatypes: Boolean, Char, and Static Arrays
+
+The compiler now has an explicit type system across parsing, semantic checking, IR lowering, and x86-64 code generation.
+
+- ✅ **Typed declarations and function signatures**: variables, parameters, and return values carry declared types internally
+- ✅ **Boolean scalars**: `boolean`, `true`, `false`, boolean function parameters/returns, and boolean conditions
+- ✅ **Char scalars**: `char` variables, parameters/returns, character literals such as `'A'`, and character I/O
+- ✅ **Static arrays**: fixed-bound arrays such as `array[1..5] of integer`
+- ✅ **Indexed array access**: `a[i]` works as both an r-value and assignment target
+- ✅ **Runtime bounds checks**: invalid indexes exit through a clear array-bounds runtime error
+- ✅ **Fixed-size text buffers**: `array[...] of char` can be written with `write`/`writeln`
+- ✅ **Pointer decision**: raw integer-address pointers remain intentionally deferred; future pointer work should be typed and based on the array/l-value model
+
+### Example: Arrays and Character Buffers
+
+See `examples/array_demo.pas`:
+
+```pascal
+program array_demo;
+
+var
+  values: array[1..5] of integer;
+  text: array[1..4] of char;
+  i: integer;
+  sum: integer;
+
+begin
+  values[1] := 2;
+  values[2] := 3;
+  values[3] := 5;
+  values[4] := 7;
+  values[5] := 11;
+
+  i := 1;
+  sum := 0;
+  while i <= 5 do
+  begin
+    sum := sum + values[i];
+    i := i + 1
+  end;
+  writeln(sum);  { Outputs: 28 }
+
+  text[1] := 'M';
+  text[2] := 'a';
+  text[3] := 't';
+  text[4] := 'h';
+  writeln(text)  { Outputs: Math }
+end.
+```
+
+Build and run it with:
+
+```bash
+swipl -q -s pascal_compiler.pl -- build-asm examples/array_demo.pas array_demo
+./array_demo
+```
+
+---
+
+## 🆕 Previous: v1.4.4
 
 ### Bug Fixes: Function Semantic Checking & Local Variables
 
 Fixed critical bugs affecting programs with functions and local variables.
 
-- ✅ **Fixed semantic checker function handling**: `collect_func_sigs/2` now correctly handles `func/4` AST terms (matching parser output)
+- ✅ **Fixed semantic checker function handling**: `collect_func_sigs/2` was corrected to match parser function AST terms
 - ✅ **Fixed IR generation for function locals**: Function-level local variables now properly merged with block-level locals during IR lowering
 - ✅ **Fixed codegen mangled name handling**: Code generator now correctly resolves `local(Counter, Name)` mangled variable references
 - ✅ **Hardened semantic validation**: Duplicate function names, excessive parameter lists, and parameter/local name collisions are now rejected clearly
@@ -337,13 +398,17 @@ This implementation is inspired by Wirth's classic book **"Algorithms + Data Str
 This release supports a **practical subset** of Pascal focused on core programming constructs:
 
 #### ✅ Supported Features
-- **Variables**: Integer variables only (32-bit signed integers)
-- **Arithmetic**: Integer arithmetic only (`+`, `-`, `*`, `/`, `mod`)
+- **Typed variables**: `integer`, `boolean`, `char`, and static arrays
+- **Integers**: 32-bit signed integer arithmetic (`+`, `-`, `*`, `/`, `mod`)
   - **Division**: Integer division (truncates toward zero, e.g., `7/2 = 3`)
   - **Modulo**: Remainder of integer division (e.g., `17 mod 5 = 2`)
   - **No floating-point**: All operations work exclusively with integers
 - **Control Flow**: `if-then-else`, `while-do` statements
-- **I/O Operations**: `readln`, `write`, `writeln` (integer and string output)
+- **Booleans**: `boolean`, `true`, `false`; `if` and `while` conditions are boolean
+- **Chars**: `char` variables, character literals, comparisons, and character I/O
+- **Static arrays**: fixed bounds, indexed load/store, runtime bounds checks
+- **Character buffers**: `array[...] of char` can be printed as fixed-size text
+- **I/O Operations**: `readln`, `write`, `writeln` (integer, char, char-array, and string-literal output)
   - **Enhanced write syntax**: `write(expr, str)` and `write(str, expr)` for better formatting
 - **Enhanced Write Functions**: Extended formatting capabilities via runtime library
   - `rt_write_int_str(value, text)`: Write integer followed by string
@@ -351,22 +416,26 @@ This release supports a **practical subset** of Pascal focused on core programmi
   - `rt_write_int_str_int(val1, text, val2)`: Write integer, string, integer
 - **String Literals**: Output-only string literals (no string variables)
 - **Nested Blocks**: Local variable scoping with proper shadowing
-- **Relational Operators**: `=`, `<>`, `<`, `<=`, `>`, `>=` (integer comparisons only)
+- **Relational Operators**: `=`, `<>`, `<`, `<=`, `>`, `>=` (typed comparisons)
 - **Unary Operators**: `+` (implicit), `-` (negation)
-- **Functions**: Integer functions with up to 6 integer parameters
+- **Functions**: Scalar functions with up to 6 scalar parameters
   - **Recursion**: Fully supported with proper register preservation
   - **Return values**: Pascal-style (`funcname := value`)
   - **Expression calls**: `add(3, multiply(2, 4))`
   - **Global access**: Functions can read and write global variables
 
 #### ❌ Not Yet Implemented
-- Arrays and records
-- Procedures (void functions - all functions must return integer)
+- Records
+- Procedures (void functions - all functions must return a scalar value)
 - Forward declarations (functions must be defined before use)
-- String variables or expressions
+- Dynamic string variables or string expressions
 - Floating-point numbers
-- Pointer arithmetic
+- Pointers and pointer arithmetic
 - User-defined types
+
+#### Pointer Direction
+
+Pointers are intentionally still out of scope. Now that arrays provide real l-values, layout, and bounds checks, any future pointer feature should be Pascal-style and typed (for example, a pointer to `integer` or `char`) rather than raw integer-address arithmetic. That keeps the compiler type-checkable and avoids turning addresses into unvalidated integers.
 
 ### Prime Number Examples
 

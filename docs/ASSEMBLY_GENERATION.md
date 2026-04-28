@@ -42,13 +42,13 @@ High Addresses
 +----------------+  
 |    ...         |  
 +----------------+  
-|  Local Var N   | - (48 + 8*N)
+|  Var/Array Slot N | - (48 + 8*N)
 +----------------+  
 |    ...         |  
 +----------------+  
-|  Local Var 1   | - 56
+|  Var/Array Slot 1 | - 56
 +----------------+  
-|  Local Var 0   | - 48
+|  Var/Array Slot 0 | - 48
 +----------------+  
 |    %r15        | - 40
 +----------------+
@@ -75,13 +75,13 @@ High Addresses
 +----------------+  
 |    ...         |  
 +----------------+  
-|  Local Var N   | - (48 + 8*(ParamCount + N))
+|  Local/Array Slot N | - (48 + 8*(ParamCount + N))
 +----------------+  
 |    ...         |  
 +----------------+  
-|  Local Var 1   | - (48 + 8*(ParamCount + 2))
+|  Local/Array Slot 1 | - (48 + 8*(ParamCount + 2))
 +----------------+  
-|  Local Var 0   | - (48 + 8*(ParamCount + 1))
+|  Local/Array Slot 0 | - (48 + 8*(ParamCount + 1))
 +----------------+  
 |  Param N       | - (48 + 8*N)
 +----------------+  
@@ -128,6 +128,20 @@ movq main_frame_ptr(%rip), %r11
 movq -N(%r11), %rax      ; load global
 movq %rax, -N(%r11)      ; store global
 ```
+
+Static arrays reserve one 8-byte slot per element. The first element is stored at the variable's base offset, and element `Index` is addressed as:
+
+```assembly
+; after checking Low <= Index <= High
+subq $Low, %rax       ; zero-base the index
+imulq $8, %rax        ; scale to slot size
+movq %rbp, %r11       ; or main_frame_ptr(%rip) for globals from functions
+subq $BaseOffset, %r11
+subq %rax, %r11
+movq (%r11), %rax     ; load element
+```
+
+Out-of-range indexes branch to `array_bounds_error`, which calls `rt_error` with runtime error code 3.
 
 ### Arithmetic Operations
 

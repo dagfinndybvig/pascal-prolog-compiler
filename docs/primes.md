@@ -1,11 +1,11 @@
 # Prime Number Algorithms: From Basic to Optimized
 
 > [!WARNING]
-> This project implements only a **fragment of Pascal**. It supports **integer-only arithmetic** and a focused feature subset that is just enough to do interesting work with prime-number programs.
+> This project implements only a **fragment of Pascal**. The prime examples use the compiler's integer arithmetic subset, even though the language now also supports booleans, chars, and static arrays.
 >
 > It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
 
-This document explores various approaches to prime number generation, from the most basic to highly optimized, all implemented within the constraints of our integer-only Pascal compiler.
+This document explores various approaches to prime number generation, from the most basic to highly optimized, all implemented within the integer-arithmetic constraints used by these examples.
 
 ## Table of Contents
 
@@ -294,7 +294,7 @@ The square root calculation uses integer arithmetic to avoid floating-point oper
 This collection demonstrates:
 
 1. **Mathematical progression**: From basic to sophisticated algorithms
-2. **Constraint handling**: Working within integer-only, no floating-point environment
+2. **Constraint handling**: Working within integer arithmetic and no floating-point environment
 3. **Performance optimization**: Reducing complexity from O(n) to O(√n)
 4. **Algorithm diversity**: Multiple approaches to the same problem
 

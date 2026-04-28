@@ -1,14 +1,14 @@
 # Mathematical Verification Report
 
 > [!WARNING]
-> This project implements only a **fragment of Pascal**. It supports **integer-only arithmetic** and a focused feature subset that is just enough to do interesting work with prime-number programs.
+> This project implements only a **fragment of Pascal**. It supports integer arithmetic plus typed booleans, chars, and static arrays, while remaining focused on small algorithmic programs.
 >
 > It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
 
 ## Status
 **Result:** PASS
 **Date:** 2026-04-28
-**Version:** v1.4.4
+**Version:** v1.5.0
 
 This verification is reproducible from files in this release package.
 
@@ -26,7 +26,7 @@ The script:
 3. Checks count-based variants up to 46000.
 4. Runs the comprehensive feature test with fixed input.
 5. Runs backend hardening regression programs generated at verification time.
-6. Runs semantic hardening and function/global-access regressions generated at verification time.
+6. Runs semantic hardening, function/global-access, datatype, and array regressions generated at verification time.
 
 ## Verified Results
 
@@ -84,6 +84,14 @@ Verified additional regression checks in `scripts/verify_math.py`:
   - Confirms functions can read and write global variables.
 - `function_global_shadowing`
   - Confirms function parameters shadow globals with the same name.
+- `boolean_char_scalars`
+  - Confirms boolean conditions, char values, and scalar function returns.
+- `type_mismatch_rejected`
+  - Confirms typed assignments reject incompatible scalar values.
+- `static_arrays_and_char_buffers`
+  - Confirms static integer arrays and fixed-size `array of char` output.
+- `array_bounds_check`
+  - Confirms out-of-range array access exits through runtime bounds handling.
 
 All listed checks currently pass.
 
@@ -95,4 +103,4 @@ All listed checks currently pass.
 
 ## Conclusion
 
-The prime-number examples are mathematically correct for their documented ranges, and the verification process is reproducible directly from this release. The verification suite now also includes backend safety and stress regressions that pass in the current workspace state.
+The prime-number examples are mathematically correct for their documented ranges, and the verification process is reproducible directly from this release. The verification suite now also includes backend safety, stress, datatype, and array regressions that pass in the current workspace state.

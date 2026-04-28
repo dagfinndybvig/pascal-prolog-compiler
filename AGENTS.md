@@ -7,16 +7,17 @@
 This is a **Pascal compiler written in SWI-Prolog** that compiles a subset of Pascal to native x86-64 assembly. It's an educational compiler focused on core compiler construction concepts.
 
 **Key characteristics:**
-- Integer-only arithmetic (32-bit signed)
+- Typed scalars: `integer`, `boolean`, and `char`
+- Static arrays with runtime bounds checks; `array[...] of char` works as fixed-size text output
 - Operators: `+`, `-`, `*`, `/`, `mod`, comparisons (`=`, `<>`, `<`, `<=`, `>`, `>=`)
 - Compiles to x86-64 assembly via GCC
 - Uses Prolog DCGs for parsing
-- **Functions supported**: Integer functions with up to 6 parameters, recursion
+- **Functions supported**: Scalar functions with up to 6 scalar parameters, recursion
 - Functions can read and write global variables; parameters and locals shadow globals
 - Prime number algorithms are the primary test cases
 
-**Version**: 1.4.4 (2026-04-23) - Fixed function semantic checking, local variable codegen, ABI preservation, and function global access
-**Previous**: 1.4.3 (2026-04-22) - Added `mod` operator, fixed uninitialized function return values
+**Version**: 1.5.0 (2026-04-28) - Added typed declarations, booleans, chars, static arrays, bounds checks, and char-array text buffers
+**Previous**: 1.4.4 (2026-04-23) - Fixed function semantic checking, local variable codegen, ABI preservation, and function global access
 
 ## Quick Start
 
@@ -155,12 +156,14 @@ Test completed successfully!
 
 **Never forget these constraints:**
 
-1. **Integer-only**: No floating-point. Division truncates toward zero (`7/2 = 3`, `-7/2 = -3`)
-2. **No arrays or records** - only simple variables and control flow
-3. **No procedures** - functions only, must return integer
-4. **String literals are output-only** - no string variables or operations
-5. **32-bit signed integers** - overflow behavior is undefined
-6. **Maximum 6 function parameters** - x86-64 calling convention limit
+1. **No floating-point**: integer division truncates toward zero (`7/2 = 3`, `-7/2 = -3`)
+2. **Arrays are static only**: fixed bounds, scalar element types, no array parameters/returns
+3. **No records or user-defined types**
+4. **No procedures** - functions only, must return a scalar value
+5. **String literals are output-only**; fixed-size text uses `array[...] of char`
+6. **32-bit signed integers** - overflow behavior is undefined
+7. **Maximum 6 function parameters** - x86-64 calling convention limit
+8. **No pointers yet** - future pointer work should be typed, not raw integer-address arithmetic
 
 ## File Organization
 
@@ -178,6 +181,8 @@ Test completed successfully!
 ├── examples/
 │   ├── comprehensive_test.pas  # Main test suite
 │   ├── global_function_demo.pas # Function read/write access to globals
+│   ├── boolean_char_demo.pas    # Boolean and char scalar example
+│   ├── array_demo.pas           # Static array and char-buffer example
 │   └── primes/                 # Prime algorithm examples
 │       ├── basic/
 │       ├── optimized/
@@ -195,6 +200,7 @@ Test completed successfully!
 
 ## Version History
 
+- **v1.5.0** (2026-04-28): Added typed declarations, booleans, chars, static arrays, array bounds checks, and fixed-size char-array text buffers
 - **v1.4.4** (2026-04-23): Fixed function semantic checking, function local lowering/codegen, mangled local handling, main ABI preservation, and function access to globals
 - **v1.4.3** (2026-04-22): Added `mod` operator support, fixed uninitialized function return values (now default to 0)
 - **v1.4.2** (2026-04-22): Fixed nested call argument clobbering, function-local variable codegen support, and call-site stack alignment

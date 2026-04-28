@@ -1,7 +1,7 @@
 # Prime Number Algorithm Progression
 
 > [!WARNING]
-> This project implements only a **fragment of Pascal**. It supports **integer-only arithmetic** and a focused feature subset that is just enough to do interesting work with prime-number programs.
+> This project implements only a **fragment of Pascal**. These algorithm examples focus on integer arithmetic, while the compiler also supports booleans, chars, and static arrays.
 >
 > It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
 
