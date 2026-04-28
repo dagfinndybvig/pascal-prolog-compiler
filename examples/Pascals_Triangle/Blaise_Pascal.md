@@ -8,20 +8,20 @@ Blaise Pascal was a French mathematician, physicist, inventor, philosopher, and 
 - Born to Étienne Pascal, a tax collector and mathematician, and Antoinette Bégon
 - Showed mathematical prodigy from early age - at 12 he was working on geometry
 - His father moved the family to Paris in 1631 to further Blaise's education
-- At 16, he wrote a significant treatise on projective geometry, "Essay pour les coniques"
+- At 16, he wrote a significant treatise on projective geometry, "Essai pour les coniques" (1640)
 
 ### Scientific and Mathematical Contributions
 
 #### Mathematics
 - **Projective Geometry**: Developed essential theorems at age 16
 - **Probability Theory**: Correspondence with Pierre de Fermat laid foundations for modern probability
-- **Pascal's Triangle**: Systematically studied the arithmetic triangle (though known earlier in China and Persia)
+- **Pascal's Triangle**: Systematically studied the arithmetic triangle (though it was known earlier in India, Persia, and China)
 - **Pascal's Wager**: Philosophical argument about belief in God using probability concepts
 
 #### Physics
 - **Pascal's Law**: Principle of fluid mechanics stating pressure change is transmitted equally
-- **Hydrodynamics**: Invented the syringe and hydraulic press
-- **Barometer Experiments**: Confirmed Torricelli's work on atmospheric pressure
+- **Hydrodynamics**: Invented the syringe and articulated the principle that underlies the hydraulic press (the practical hydraulic press itself was later built by Joseph Bramah in 1795)
+- **Barometer Experiments**: Confirmed Torricelli's work on atmospheric pressure (the famous Puy de Dôme experiment of 1648 was carried out on Pascal's behalf by his brother-in-law Florin Périer)
 
 #### Computing
 - **Pascaline (1642)**: Invented one of the first mechanical calculators at age 19
@@ -39,14 +39,14 @@ Blaise Pascal was a French mathematician, physicist, inventor, philosopher, and 
 
 ### Niklaus Wirth (1934-2024)
 - Swiss computer scientist born in Winterthur, Switzerland
-- Studied at ETH Zurich, University of Laval, and University of California, Berkeley
+- Studied at ETH Zurich, Université Laval (Quebec), and the University of California, Berkeley
 - Professor at ETH Zurich from 1968 to 1999
 
 ### Creation of Pascal
 - Developed Pascal programming language in 1970
 - Named in honor of Blaise Pascal to recognize his contributions to computing
 - Designed as a language for teaching structured programming
-- Influenced by ALGOL 60 (which Wirth also contributed to)
+- Influenced by ALGOL 60; Wirth later co-designed ALGOL W (with Tony Hoare) as a proposed successor
 
 ### Key Features of Pascal
 - **Structured Programming**: Emphasized code organization with procedures and functions
@@ -78,10 +78,10 @@ Row 4:1   4   6   4   1
 #### Key Patterns
 - **Symmetry**: C(n,k) = C(n,n-k)
 - **Sum of Rows**: Sum of row n = 2^n
-- **Hockey Stick Pattern**: Sum of diagonals = next number below
+- **Hockey Stick Identity**: The sum of entries down a diagonal, ∑ᵢ₌ᵣⁿ C(i, r), equals C(n+1, r+1) — the entry just off the end of the diagonal
 - **Fibonacci Numbers**: Appear as sums of shallow diagonals
 - **Powers of 2**: Found in row sums
-- **Powers of 11**: First few rows represent powers of 11
+- **Powers of 11**: The first few rows read as powers of 11 (1, 11, 121, 1331, 14641); from row 5 onward the pattern breaks because of carries
 
 ### Mathematical Applications
 
