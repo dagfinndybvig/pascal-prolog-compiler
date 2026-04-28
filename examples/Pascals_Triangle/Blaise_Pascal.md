@@ -113,7 +113,7 @@ The program `full_binomial.pas` demonstrates:
 1. **Recursive Function**: `binomialCoefficient(n, k)` calculates C(n,k) using recursion
 2. **Base Cases**: C(n,0) = C(n,n) = 1
 3. **Recursive Case**: C(n,k) = C(n-1,k-1) + C(n-1,k)
-4. **Main Program**: Tests the function with sample values
+4. **Main Program**: Prints rows 0 through 6 of Pascal's Triangle
 
 ### Code Analysis
 
@@ -121,9 +121,9 @@ The program `full_binomial.pas` demonstrates:
 function binomialCoefficient(n, k: integer): integer;
 begin
   if k = 0 or k = n then
-    binomialCoefficient := 1  // Base case: edges of triangle are always 1
+    binomialCoefficient := 1  { Base case: edges of triangle are always 1 }
   else
-    binomialCoefficient := binomialCoefficient(n-1, k-1) + binomialCoefficient(n-1, k)  // Recursive case
+    binomialCoefficient := binomialCoefficient(n-1, k-1) + binomialCoefficient(n-1, k)  { Recursive case }
 end;
 ```
 
@@ -135,18 +135,24 @@ end;
 4. **Efficiency**: This implementation has exponential time complexity O(2^n)
 
 ### Example Calculation
-For C(2,1):
-- C(2,1) = C(1,0) + C(1,1)
-- C(1,0) = 1 (base case)
-- C(1,1) = 1 (base case)
-- Result: 1 + 1 = 2
+For C(6,3):
+- C(6,3) = C(5,2) + C(5,3)
+- C(5,2) = 10
+- C(5,3) = 10
+- Result: 10 + 10 = 20
 
 ### Program Output
 ```
-2
+1
+1 1
+1 2 1
+1 3 3 1
+1 4 6 4 1
+1 5 10 10 5 1
+1 6 15 20 15 6 1
 ```
 
-This represents C(2,1) = 2, which is the middle element of row 2 in Pascal's Triangle.
+This represents rows 0 through 6 of Pascal's Triangle. The final row includes C(6,3) = 20 in the middle.
 
 ### Computational Considerations
 

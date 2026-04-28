@@ -8,8 +8,19 @@ begin
     binomialCoefficient := binomialCoefficient(n-1, k-1) + binomialCoefficient(n-1, k)
 end;
 
-var result: integer;
+var
+  row, col, value: integer;
+
 begin
-  result := binomialCoefficient(2, 1);
-  writeln(result);
+  for row := 0 to 6 do
+  begin
+    for col := 0 to row do
+    begin
+      value := binomialCoefficient(row, col);
+      if col < row then
+        write(value, ' ')
+      else
+        writeln(value)
+    end
+  end
 end.

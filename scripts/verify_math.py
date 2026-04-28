@@ -192,6 +192,26 @@ def main():
         "tail": comp_proc.stdout.splitlines()[-4:],
     }
 
+    pascal_triangle_proc = run([str(BIN_DIR / "full_binomial")])
+    checks["pascal_triangle_demo"] = {
+        "returncode": pascal_triangle_proc.returncode,
+        "stdout_lines": pascal_triangle_proc.stdout.splitlines(),
+        "expected_stdout_lines": [
+            "1",
+            "1 1",
+            "1 2 1",
+            "1 3 3 1",
+            "1 4 6 4 1",
+            "1 5 10 10 5 1",
+            "1 6 15 20 15 6 1",
+        ],
+    }
+    checks["pascal_triangle_demo"]["pass"] = (
+        pascal_triangle_proc.returncode == 0
+        and checks["pascal_triangle_demo"]["stdout_lines"]
+        == checks["pascal_triangle_demo"]["expected_stdout_lines"]
+    )
+
     div_zero_source = """program div_zero_check;
 var
   a, b, c: integer;

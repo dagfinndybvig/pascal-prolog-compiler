@@ -16,7 +16,7 @@ The `full_binomial.pas` program demonstrates:
 1. **Recursive function implementation** of binomial coefficient calculation
 2. **Base case handling** for Pascal's Triangle edges (always 1)
 3. **Recursive decomposition** following the triangle's mathematical structure
-4. **Pascal language features**: functions, conditionals, recursion
+4. **Pascal language features**: functions, conditionals, recursion, nested `for` loops, and mixed `write`/`writeln` output
 
 ## How to Run (Standalone Instructions)
 
@@ -49,29 +49,39 @@ swipl -q -s pascal_compiler.pl -- asm examples/Pascals_Triangle/full_binomial.pa
 ## Expected Output
 
 ```
-2
+1
+1 1
+1 2 1
+1 3 3 1
+1 4 6 4 1
+1 5 10 10 5 1
+1 6 15 20 15 6 1
 ```
 
-This represents C(2,1) = 2, the middle element of row 2 in Pascal's Triangle.
+This prints rows 0 through 6 of Pascal's Triangle.
 
 ### Understanding the Output
 
-The program calculates the binomial coefficient C(2,1) which equals 2. In Pascal's Triangle:
+The program calculates each binomial coefficient C(row,col) using the recursive function and prints each row:
 
 ```
-Row 0:    1
-Row 1:   1 1
-Row 2:  1 2 1  ← C(2,1) = 2 is the middle number here
+Row 0: 1
+Row 1: 1 1
+Row 2: 1 2 1
+Row 3: 1 3 3 1
+Row 4: 1 4 6 4 1
+Row 5: 1 5 10 10 5 1
+Row 6: 1 6 15 20 15 6 1
 ```
 
 ### Extending the Program
 
 To generate more of Pascal's Triangle, you could modify the program to:
-1. Add a loop to calculate and display multiple rows
-2. Create a procedure to print formatted triangle output
+1. Increase the upper bound in `for row := 0 to 6 do`
+2. Create a procedure to print more formatted triangle output
 3. Implement memoization to optimize the recursive calculations
 
-The current implementation focuses on demonstrating the core recursive algorithm.
+The current implementation intentionally keeps the recursive algorithm visible rather than optimizing it away.
 
 ## Mathematical Background
 
@@ -100,9 +110,9 @@ This example demonstrates:
 
 ### Main Project Resources
 If you want to explore the full Pascal-to-x86-64 compiler project:
-- Main project: [../README.md](../README.md)
+- Main project: [../../README.md](../../README.md)
 - Compiler source: [../../src/](../../src/)
-- More examples: [../](.)
+- More examples: [../](../)
 
 ### External Resources
 - [Pascal Programming Language](https://en.wikipedia.org/wiki/Pascal_(programming_language))
