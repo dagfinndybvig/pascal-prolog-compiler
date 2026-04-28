@@ -128,6 +128,11 @@ check_stmt(if(Cond, Then, Else), Vars, FuncSigs) :-
 check_stmt(while(Cond, Body), Vars, FuncSigs) :-
     check_expr(Cond, Vars, FuncSigs, boolean),
     check_stmt(Body, Vars, FuncSigs).
+check_stmt(for_loop(Name, Start, End, _Dir, Body), Vars, FuncSigs) :-
+    ensure_declared(Name, Vars, integer),
+    check_expr(Start, Vars, FuncSigs, integer),
+    check_expr(End, Vars, FuncSigs, integer),
+    check_stmt(Body, Vars, FuncSigs).
 check_stmt(writeln(expr(Expr)), Vars, FuncSigs) :-
     check_expr(Expr, Vars, FuncSigs, Type),
     ensure_writable_type(Type).

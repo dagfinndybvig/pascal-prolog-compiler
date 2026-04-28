@@ -93,6 +93,19 @@ lower_stmt(if(Cond, Then, Else), Env, CounterIn, CounterOut, ir_if(IRCond, IRThe
 lower_stmt(while(Cond, Body), Env, CounterIn, CounterOut, ir_while(IRCond, IRBody), AddedVars) :-
     lower_expr(Cond, Env, IRCond),
     lower_stmt(Body, Env, CounterIn, CounterOut, IRBody, AddedVars).
+lower_stmt(for_loop(Name, Start, End, Dir, Body), Env, CounterIn, CounterOut,
+           ir_block([ir_assign(MappedName, IRStart),
+                     ir_while(ir_bin(CmpOp, ir_var(MappedName), IREnd),
+                              ir_block([IRBody,
+                                        ir_assign(MappedName,
+                                                  ir_bin(StepOp, ir_var(MappedName), ir_int(1)))]))]),
+           AddedVars) :-
+    map_name(Name, Env, MappedName),
+    lookup_type(Name, Env, integer),
+    lower_expr(Start, Env, IRStart, integer),
+    lower_expr(End, Env, IREnd, integer),
+    for_ops(Dir, CmpOp, StepOp),
+    lower_stmt(Body, Env, CounterIn, CounterOut, IRBody, AddedVars).
 lower_stmt(writeln(expr(Expr)), Env, Counter, Counter, IRStmt, []) :-
     lower_expr(Expr, Env, IRExpr, Type),
     output_stmt(writeln, Type, IRExpr, IRStmt).
@@ -184,6 +197,9 @@ lowered_bin_type(Op, integer, integer, integer) :-
     memberchk(Op, ['+', '-', '*', '/', mod]),
     !.
 lowered_bin_type(_, _, _, boolean).
+
+for_ops(to, '<=', '+').
+for_ops(downto, '>=', '-').
 
 lower_exprs([], _, []).
 lower_exprs([Expr|Rest], Env, [IRExpr|IRRest]) :-

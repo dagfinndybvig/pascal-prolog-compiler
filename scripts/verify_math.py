@@ -771,6 +771,22 @@ end.
         array_params_result, ["10", "20", "30", "60"]
     )
 
+    for_loop_source = """program for_loop_check;
+var i, sum: integer;
+begin
+  sum := 0;
+  for i := 1 to 10 do
+    sum := sum + i;
+  writeln(sum);
+  for i := 3 downto 1 do
+    writeln(i)
+end.
+"""
+    for_loop_result = build_and_run_source(for_loop_source, "regression_for_loop")
+    checks["for_loop"] = check_expected_stdout_lines(
+        for_loop_result, ["55", "3", "2", "1"]
+    )
+
     result = {
         "build_results": build_results,
         "checks": checks,

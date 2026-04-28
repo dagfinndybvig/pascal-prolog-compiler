@@ -1,15 +1,15 @@
 <img width="1880" height="515" alt="image" src="https://github.com/user-attachments/assets/0c40b246-bb09-4c59-80ee-e9eafc54bde0" />
 
-# Pascal-Prolog Assembly Backend - Release Version 1.8.0
+# Pascal-Prolog Assembly Backend - Release Version 1.9.0
 
 > [!WARNING]
-> This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`) plus static arrays, procedures, and `var` parameters (including arrays passed by reference), while still intentionally omitting full ISO Pascal features.
+> This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`) plus static arrays, procedures, `var` parameters (including arrays passed by reference), and `for` loops, while still intentionally omitting full ISO Pascal features.
 >
 > It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
 
 ## 📦 Pascal-Prolog Assembly Backend Release
 
-**Version**: 1.8.0
+**Version**: 1.9.0
 **Release Date**: 2026-04-28
 **License**: Unlicense (Public Domain)
 
@@ -25,7 +25,20 @@ This is now a **complete standalone release** of the Pascal-Prolog compiler with
 - ✅ Full documentation
 - ✅ Minimal, clean distribution
 
-## 🆕 What's New In v1.8.0
+## 🆕 What's New In v1.9.0
+
+### `for` loops
+
+Pascal-style counted loops are now supported in both ascending and descending forms:
+
+- ✅ `for i := S to E do stmt` — increments `i` until it exceeds `E`
+- ✅ `for i := S downto E do stmt` — decrements `i` until it falls below `E`
+- ✅ The loop variable must be a declared `integer`; both bounds are integer expressions
+- ⚠️ The end-bound expression is re-evaluated each iteration; avoid side-effecting expressions there
+
+See `examples/for_loop_demo.pas`.
+
+## 🆕 Previous: v1.8.0
 
 ### `var` array parameters
 

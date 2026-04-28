@@ -122,6 +122,9 @@ keyword_or_ident(then, kw(then)) :- !.
 keyword_or_ident(else, kw(else)) :- !.
 keyword_or_ident(while, kw(while)) :- !.
 keyword_or_ident(do, kw(do)) :- !.
+keyword_or_ident(for, kw(for)) :- !.
+keyword_or_ident(to, kw(to)) :- !.
+keyword_or_ident(downto, kw(downto)) :- !.
 keyword_or_ident(writeln, kw(writeln)) :- !.
 keyword_or_ident(write, kw(write)) :- !.
 keyword_or_ident(readln, kw(readln)) :- !.

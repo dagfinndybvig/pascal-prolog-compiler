@@ -213,6 +213,16 @@ statement(while(Cond, Body)) -->
     keyword(do),
     statement(Body),
     !.
+statement(for_loop(Name, Start, End, Dir, Body)) -->
+    keyword(for),
+    [tok(ident(Name), _, _)],
+    symbol(:=),
+    expression(Start),
+    for_direction(Dir),
+    expression(End),
+    keyword(do),
+    statement(Body),
+    !.
 statement(writeln(Arg)) -->
     keyword(writeln),
     symbol('('),
@@ -303,6 +313,9 @@ optional_else(Else) -->
     statement(Else).
 optional_else(block([], [])) -->
     [].
+
+for_direction(to) --> keyword(to), !.
+for_direction(downto) --> keyword(downto).
 
 expression(Expr) -->
     disjunction(Expr).
