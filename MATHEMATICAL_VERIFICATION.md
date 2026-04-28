@@ -26,7 +26,7 @@ The script:
 3. Checks count-based variants up to 46000.
 4. Runs the comprehensive feature test with fixed input.
 5. Runs backend hardening regression programs generated at verification time.
-6. Runs semantic hardening, function/global-access, datatype, and array regressions generated at verification time.
+6. Runs semantic hardening, function/global-access, declaration-order, datatype, and array regressions generated at verification time.
 
 ## Verified Results
 
@@ -59,7 +59,7 @@ Expected count of primes <= 46000: **4761**
 
 ### 5. Comprehensive Program Behavior
 - `examples/comprehensive_test.pas` executes correctly and produces expected arithmetic, control-flow, relational, I/O, and string-output behavior.
-- `examples/global_function_demo.pas` builds as part of the example sweep and demonstrates function read/write access to a global variable.
+- `examples/global_function_demo.pas` and `examples/global_var_before_function_demo.pas` build as part of the example sweep and demonstrate function read/write access to a global variable in both supported top-level declaration orders.
 
 ### 6. Backend Safety and Correctness Regressions
 Verified additional regression checks in `scripts/verify_math.py`:
@@ -82,10 +82,14 @@ Verified additional regression checks in `scripts/verify_math.py`:
   - Confirms parameter/local collisions fail with a duplicate-declaration diagnostic.
 - `function_global_access`
   - Confirms functions can read and write global variables.
+- `var_before_function_order`
+  - Confirms global `var` sections may appear before function declarations while preserving function access to globals.
 - `function_global_shadowing`
   - Confirms function parameters shadow globals with the same name.
 - `boolean_char_scalars`
   - Confirms boolean conditions, char values, and scalar function returns.
+- `boolean_operators`
+  - Confirms `and`, `or`, and `not` evaluate correctly in main and function expressions.
 - `type_mismatch_rejected`
   - Confirms typed assignments reject incompatible scalar values.
 - `static_arrays_and_char_buffers`
@@ -103,4 +107,4 @@ All listed checks currently pass.
 
 ## Conclusion
 
-The prime-number examples are mathematically correct for their documented ranges, and the verification process is reproducible directly from this release. The verification suite now also includes backend safety, stress, datatype, and array regressions that pass in the current workspace state.
+The prime-number examples are mathematically correct for their documented ranges, and the verification process is reproducible directly from this release. The verification suite now also includes backend safety, stress, declaration-order, datatype, and array regressions that pass in the current workspace state.

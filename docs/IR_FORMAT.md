@@ -149,7 +149,7 @@ Calls a function with the given arguments.
 ir_unary(Operator, Expression)
 ```
 
-Supported operators: `'-'` (negation)
+Supported operators: `'-'` (negation), `not` (boolean negation)
 
 ### Binary Operation
 
@@ -157,7 +157,7 @@ Supported operators: `'-'` (negation)
 ir_bin(Operator, LeftExpression, RightExpression)
 ```
 
-Supported operators: `'+'`, `'-'`, `'*'`, `'/'`, `mod`, `'='`, `'<>'`, `'<'`, `'<='`, `'>'`, `'>='`. Arithmetic operators require integers; comparisons produce booleans.
+Supported operators: `'+'`, `'-'`, `'*'`, `'/'`, `mod`, `and`, `or`, `'='`, `'<>'`, `'<'`, `'<='`, `'>'`, `'>='`. Arithmetic operators require integers; boolean operators require booleans; comparisons produce booleans.
 
 ## Example IR
 

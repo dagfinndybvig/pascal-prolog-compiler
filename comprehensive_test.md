@@ -1,11 +1,11 @@
 # Comprehensive Test Documentation
 
 > [!WARNING]
-> This project implements only a **fragment of Pascal**. It supports **integer-only arithmetic** and a focused feature subset that is just enough to do interesting work with prime-number programs.
+> This project implements only a **fragment of Pascal**. It supports integer arithmetic, typed booleans and chars, static arrays, and a focused feature subset that is just enough to do interesting work with prime-number programs.
 >
 > It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
 
-This document describes the comprehensive test program that demonstrates the compiler's core arithmetic, control-flow, scoped-variable, I/O, and string-output behavior. Additional examples and generated regressions cover functions, `mod`, semantic errors, and global access from functions.
+This document describes the comprehensive test program that demonstrates the compiler's core arithmetic, control-flow, scoped-variable, I/O, and string-output behavior. Additional examples and generated regressions cover functions, `mod`, boolean operators, chars, arrays, semantic errors, declaration order, and global access from functions.
 
 ## Test Program: `comprehensive_test.pas`
 

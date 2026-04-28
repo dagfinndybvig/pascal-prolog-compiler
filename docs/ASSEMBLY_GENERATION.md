@@ -186,6 +186,10 @@ sete %al           ; Set %al based on comparison
 movzbq %al, %rax   ; Zero-extend to %rax
 ```
 
+### Boolean Operations
+
+Boolean values are represented as normalized integers: `0` for false and `1` for true. Generated `and` and `or` expressions normalize both operands before applying byte-level boolean operations, and `not` compares against zero before producing a normalized result.
+
 ## Error Handling
 
 ### Stack Overflow
@@ -218,7 +222,7 @@ je division_by_zero
 2. **Text Section**: Executable code
 3. **Main Function**: Program entry point
 4. **Generated Functions**: User-defined functions
-5. **Error Handlers**: Stack overflow and division by zero handlers
+5. **Error Handlers**: Stack overflow, division by zero, and array-bounds handlers
 
 ### Assembly Generation Process
 
@@ -236,7 +240,7 @@ The generated code follows the System V AMD64 ABI:
 - **Calling Convention**: First 6 parameters in registers, rest on stack
 - **Stack Alignment**: 16-byte alignment before function calls
 - **Register Preservation**: Callee-saved registers are preserved in generated functions and generated `main`
-- **Return Values**: Integer results in `%rax`
+- **Return Values**: Scalar results in `%rax`
 - **Global Access**: Generated `main` records `%rbp` in `main_frame_ptr`; functions use it to read and write global variables
 
 ## Optimization Notes

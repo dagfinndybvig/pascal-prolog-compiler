@@ -1,7 +1,7 @@
 # Pascal-Prolog Compiler Audit Report
 
 **Date:** 2026-04-28
-**Version:** 1.4.4
+**Version:** 1.5.0
 **Auditor:** Code Review
 
 ---
@@ -20,6 +20,9 @@ This educational Pascal-to-x86-64 compiler is well-structured with a clean pipel
 - ✅ Function parameter/local duplicate declarations are rejected
 - ✅ Generated `main` now preserves callee-saved registers
 - ✅ Functions can now read and write global variables
+- ✅ Boolean operators (`and`, `or`, `not`) are supported
+- ✅ Typed booleans, chars, static arrays, and array bounds checks are supported
+- ✅ Global `var` sections can appear before functions or after functions
 - ✅ Top-level compiler errors use explicit user-facing messages
 - ✅ Unsafe printf-style runtime formatting entry point removed
 
@@ -129,10 +132,10 @@ The following are documented limitations:
 | Feature | Status | Notes |
 |---------|--------|-------|
 | `mod` operator | ✅ **Supported** | Added in v1.4.3 |
-| `and`/`or`/`not` | ❌ Not supported | Boolean operators |
-| Arrays | ❌ Not supported | Significant work required |
+| `and`/`or`/`not` | ✅ **Supported** | Boolean operators added in v1.5.0 |
+| Static arrays | ✅ **Supported** | Fixed bounds with runtime bounds checks |
 | Records | ❌ Not supported | Significant work required |
-| Forward declarations | ❌ Not supported | Needed for mutual recursion |
+| Separate forward declarations | ❌ Not supported | Mutual recursion works between fully defined functions |
 | Procedures (void) | ❌ Not supported | Functions only |
 | Real/float | ❌ Not supported | Integer only |
 
@@ -160,7 +163,7 @@ The following are documented limitations:
 
 4. **Testing:**
    - Comprehensive test suite (`verify_math.py`)
-   - 32 example programs covering various cases
+   - 45 example programs covering various cases
    - Prime number algorithms as realistic test cases
 
 ### ⚠️ Areas for Improvement
@@ -204,7 +207,7 @@ The following are documented limitations:
 ## 5. Test Results Summary
 
 ```
-Build Tests:    32/32 passed ✅
+Build Tests:    45/45 passed ✅
 Prime Tests:    All match expected output ✅
 Math Tests:     All pass ✅
 Division Signs: Correct (-7/2 = -3) ✅
@@ -212,6 +215,8 @@ Scope Tests:    Correct (1221 output) ✅
 Functions:      Recursion works ✅
 Semantics:      Duplicate functions, excessive parameters, and param/local collisions rejected ✅
 Globals:        Function read/write and shadowing behavior verified ✅
+Datatypes:      Boolean operators, chars, static arrays, and bounds checks verified ✅
+Decl Order:     Global vars before functions and after functions verified ✅
 ```
 
 ---
@@ -238,13 +243,16 @@ Globals:        Function read/write and shadowing behavior verified ✅
     - Functions can read and write global variables.
     - Parameters and locals continue to shadow globals.
 
+5. **✅ Added typed scalar and array support:**
+   - Booleans, chars, static arrays, boolean operators, and array bounds checks are implemented.
+
+6. **✅ Relaxed top-level declaration order:**
+   - Global `var` sections may appear before functions or after functions.
+
 ### Long Term (Low Priority)
 
-5. **Add boolean operators:**
-   - `and`, `or`, `not`
-
-6. **Forward declarations:**
-   - Enable mutual recursion patterns
+7. **Separate forward declarations:**
+   - Add prototype-only declarations if the compiler grows toward a larger Pascal subset.
 
 ---
 
@@ -258,6 +266,7 @@ All critical issues identified in the audit have been resolved:
 - ✅ Function return values now default to 0
 - ✅ `mod` operator support added
 - ✅ Function/global access works
+- ✅ Boolean operators, chars, static arrays, and declaration-order improvements work
 - ✅ Semantic edge cases fail early with clear diagnostics
 - ✅ Generated `main` preserves callee-saved registers
 

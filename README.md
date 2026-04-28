@@ -414,7 +414,7 @@ This release supports a **practical subset** of Pascal focused on core programmi
   - **Modulo**: Remainder of integer division (e.g., `17 mod 5 = 2`)
   - **No floating-point**: All operations work exclusively with integers
 - **Control Flow**: `if-then-else`, `while-do` statements
-- **Booleans**: `boolean`, `true`, `false`; `if` and `while` conditions are boolean
+- **Booleans**: `boolean`, `true`, `false`, `and`, `or`, `not`; `if` and `while` conditions are boolean
 - **Chars**: `char` variables, character literals, comparisons, and character I/O
 - **Static arrays**: fixed bounds, indexed load/store, runtime bounds checks
 - **Character buffers**: `array[...] of char` can be printed as fixed-size text
@@ -427,7 +427,7 @@ This release supports a **practical subset** of Pascal focused on core programmi
 - **String Literals**: Output-only string literals (no string variables)
 - **Nested Blocks**: Local variable scoping with proper shadowing
 - **Relational Operators**: `=`, `<>`, `<`, `<=`, `>`, `>=` (typed comparisons)
-- **Unary Operators**: `+` (implicit), `-` (negation)
+- **Unary Operators**: `+` (implicit), `-` (integer negation), `not` (boolean negation)
 - **Functions**: Scalar functions with up to 6 scalar parameters
   - **Recursion**: Fully supported with proper register preservation
   - **Return values**: Pascal-style (`funcname := value`)
@@ -438,7 +438,7 @@ This release supports a **practical subset** of Pascal focused on core programmi
 #### ❌ Not Yet Implemented
 - Records
 - Procedures (void functions - all functions must return a scalar value)
-- Forward declarations (functions must be defined before use)
+- Separate forward declarations/prototypes
 - Dynamic string variables or string expressions
 - Floating-point numbers
 - Pointers and pointer arithmetic
@@ -690,8 +690,8 @@ swipl -q -s pascal_compiler.pl -- build-asm <source.pas> <output>
 
 - **Stack Overflow**: Generated code does not include OS-level guard-page stack overflow protection
 - **Division by Zero**: Detected and handled through a validated runtime error path
-- **Memory Safety**: No bounds checking on variables or stack usage
-- **Input Validation**: Limited to integer input validation
+- **Memory Safety**: Static array accesses include runtime bounds checks; ordinary scalar variables and stack growth do not have OS-level guard-page checks
+- **Input Validation**: Limited to integer and char input validation
 
 ### Not Suitable For
 
