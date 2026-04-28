@@ -123,9 +123,10 @@ lower_stmt(write(expr(Expr)), Env, Counter, Counter, IRStmt, []) :-
     output_stmt(write, Type, IRExpr, IRStmt).
 lower_stmt(write(str(Text)), _Env, Counter, Counter, ir_write_str(Text), []).
 
-% Enhanced write statements for stdlib
-lower_stmt(write(Expr, Text), Env, Counter, Counter, ir_write_int_str(IRExpr, StringContent), []) :-
-    lower_expr(Expr, Env, IRExpr, integer),
+% Legacy two-argument write forms lower to the same primitive writes as write_multi/1.
+lower_stmt(write(Expr, Text), Env, Counter, Counter, ir_block([IRExprStmt, ir_write_str(StringContent)]), []) :-
+    lower_expr(Expr, Env, IRExpr, Type),
+    output_stmt(write, Type, IRExpr, IRExprStmt),
     extract_string_content(Text, StringContent).
 
 extract_string_content(str(Text), Text) :- !.
@@ -133,8 +134,9 @@ extract_string_content(Text, Text).
 
 normalize_string_literal(str(Text), str(Text)) :- !.
 normalize_string_literal(Text, str(Text)).
-lower_stmt(write(Text, Expr), Env, Counter, Counter, ir_write_str_int(StringContent, IRExpr), []) :-
-    lower_expr(Expr, Env, IRExpr, integer),
+lower_stmt(write(Text, Expr), Env, Counter, Counter, ir_block([ir_write_str(StringContent), IRExprStmt]), []) :-
+    lower_expr(Expr, Env, IRExpr, Type),
+    output_stmt(write, Type, IRExpr, IRExprStmt),
     extract_string_content(Text, StringContent).
 lower_stmt(write_int_str_int(Expr1, Text, Expr2), Env, Counter, Counter, ir_write_int_str_int(IRExpr1, StringContent, IRExpr2), []) :-
     lower_expr(Expr1, Env, IRExpr1, integer),

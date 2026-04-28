@@ -48,6 +48,7 @@ See `examples/case_demo.pas`.
 
 - ✅ `writeln('x=', x, ' y=', y)` prints all parts on one line followed by a newline
 - ✅ `write(a, ' ', b, ' ', c)` prints all parts without a trailing newline
+- ✅ `write(flag, ' ', letter)` handles boolean and char expressions in mixed output
 - ✅ Each argument may be a string literal or any writable expression (`integer`, `boolean`, `char`, or `array[...] of char`)
 - ✅ Lowered to the existing single-argument write/writeln IR ops, with the last arg of a `writeln` getting the line-ending behavior
 
@@ -237,8 +238,8 @@ end.
 Build and run it with:
 
 ```bash
-swipl -q -s pascal_compiler.pl -- build-asm examples/global_function_demo.pas global_function_demo
-./global_function_demo
+swipl -q -s pascal_compiler.pl -- build-asm examples/global_var_before_function_demo.pas global_var_before_function_demo
+./global_var_before_function_demo
 ```
 
 ---
@@ -249,9 +250,9 @@ swipl -q -s pascal_compiler.pl -- build-asm examples/global_function_demo.pas gl
 
 - ✅ **Added `mod` operator**: Integer modulo operation now supported (`a mod b`)
 - ✅ **Fixed uninitialized function returns**: Functions without explicit return now return 0 instead of garbage values
-- ✅ **Enhanced write functionality**: Extended runtime library with safe formatting helpers
-  - `rt_write_int_str()`, `rt_write_str_int()`, `rt_write_int_str_int()`
-  - Enables better output formatting while maintaining compiler compatibility
+- ✅ **Write formatting groundwork**: Added early runtime helpers for simple formatted output.
+  - Modern Pascal source should use the core multi-argument `write`/`writeln` syntax added in v1.10.0.
+  - The compiler lowers mixed output arguments to primitive typed writes, so `integer`, `boolean`, `char`, string literals, and `array[...] of char` output stay consistent.
 
 ### Example: Using the `mod` operator
 ```pascal
@@ -271,21 +272,27 @@ begin
 end.
 ```
 
-### Example: Using Enhanced Write Functions
+### Example: Write Formatting
 ```pascal
 program enhanced_write_demo;
 
-{ Note: These functions are available in the runtime library }
-{ and can be called directly from assembly or through Pascal wrappers }
+var
+  flag: boolean;
+  letter: char;
 
 begin
+  flag := true;
+  letter := 'Z';
+
   { Basic write still works }
   writeln(42);  { Outputs: 42 }
-  
-  { Enhanced write functions with new syntax }
+
+  { Multi-argument write/writeln is core Pascal syntax as of v1.10.0 }
   write(42, ' is the answer');  { Outputs: 42 is the answer }
   write('Result: ', 100);       { Outputs: Result: 100 }
   write('Value: ', 42);         { Outputs: Value: 42 }
+  writeln('');
+  writeln('Flag and letter: ', flag, ' ', letter)  { Outputs: Flag and letter: 1 Z }
 end.
 ```
 
@@ -622,7 +629,7 @@ end.
    - ABI-safe stack alignment at generated call sites
    - Division by zero runtime detection
    - Explicit runtime error handlers and termination
-   - Enhanced write functions for better output formatting
+   - Typed `write`/`writeln` output for integers, booleans, chars, string literals, and char arrays
 
 3. **Robust and Tested**
     - Comprehensive verification suite with example builds and targeted regressions

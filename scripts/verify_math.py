@@ -808,18 +808,23 @@ end.
     )
 
     multi_arg_source = """program multi_arg_check;
-var x, y: integer;
+var x, y: integer; b: boolean; c: char;
 begin
   x := 7;
   y := 3;
+  b := true;
+  c := 'Z';
   writeln('x=', x, ' y=', y);
   writeln('sum=', x + y);
+  write(b, ' bool'); writeln('');
+  write('char ', c); writeln('');
   write('hi '); writeln('there')
 end.
 """
     multi_arg_result = build_and_run_source(multi_arg_source, "regression_multi_arg")
     checks["multi_arg_writeln"] = check_expected_stdout_lines(
-        multi_arg_result, ["x=7 y=3", "sum=10", "hi there"]
+        multi_arg_result,
+        ["x=7 y=3", "sum=10", "1 bool", "char Z", "hi there"],
     )
 
     case_source = """program case_check;

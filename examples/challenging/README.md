@@ -14,6 +14,9 @@ This directory contains test programs designed to stress-test specific aspects o
 | `collatz.pas` | 3n+1 sequence | Complex conditional logic, odd/even detection |
 | `palindrome.pas` | Palindrome number check | Digit extraction, number reconstruction |
 | `factorial_overflow.pas` | Factorial with overflow detection | Overflow detection via division verification |
+| `tower_of_hanoi_simple.pas` | Tower of Hanoi move count | Recursion, exponential recurrence |
+| `tower_of_hanoi_final.pas` | Tower of Hanoi move counts for several sizes | Recursion, helper functions |
+| `tower_of_hanoi_enhanced.pas` | Tower of Hanoi with formatted output | Recursion, mixed text/integer output |
 
 ### Compiler Stress Tests
 
@@ -77,7 +80,7 @@ swipl -q -s pascal_compiler.pl -- build-asm examples/challenging/isqrt_newton.pa
 ### expr_register_stress.pas
 ```
 -36
-21
+55
 ```
 
 ### factorial_overflow.pas
@@ -99,6 +102,25 @@ swipl -q -s pascal_compiler.pl -- build-asm examples/challenging/isqrt_newton.pa
 2004310016
 ```
 (Note: 13! and beyond overflow 32-bit signed integers)
+
+### tower_of_hanoi_simple.pas
+```
+7
+```
+
+### tower_of_hanoi_final.pas
+```
+3
+7
+7
+15
+31
+```
+
+### tower_of_hanoi_enhanced.pas
+```
+Tower of Hanoi with 3 disks requires 7 moves
+```
 
 ## Notes
 

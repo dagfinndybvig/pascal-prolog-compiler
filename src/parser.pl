@@ -244,7 +244,22 @@ statement(writeln_multi([A,B|Rest])) -->
     writeln_args([A,B|Rest]),
     symbol(')'),
     !.
-% Enhanced write statements for stdlib - must come BEFORE basic write to match first
+
+statement(write(Arg)) -->
+    keyword(write),
+    symbol('('),
+    writeln_args([Arg|RestArgs]),
+    { RestArgs == [] },
+    symbol(')'),
+    !.
+statement(write_multi([A,B|Rest])) -->
+    keyword(write),
+    symbol('('),
+    writeln_args([A,B|Rest]),
+    symbol(')'),
+    !.
+
+% Legacy two-argument write forms kept for compatibility with older ASTs.
 statement(write(Expr, Text)) -->
     keyword(write),
     symbol('('),
@@ -259,21 +274,6 @@ statement(write(Text, Expr)) -->
     string_literal(Text),
     symbol(','),
     expression(Expr),
-    symbol(')'),
-    !.
-
-% Basic write statement - must come after enhanced versions
-statement(write(Arg)) -->
-    keyword(write),
-    symbol('('),
-    writeln_args([Arg|RestArgs]),
-    { RestArgs == [] },
-    symbol(')'),
-    !.
-statement(write_multi([A,B|Rest])) -->
-    keyword(write),
-    symbol('('),
-    writeln_args([A,B|Rest]),
     symbol(')'),
     !.
 

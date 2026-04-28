@@ -76,6 +76,10 @@ ir_while(Condition, BodyStatement)
 
 Executes BodyStatement repeatedly while Condition evaluates to true.
 
+### Case Statement Lowering
+
+Pascal `case` statements do not have a distinct IR node. They are lowered to chained `ir_if` statements that compare the selector expression against each label in order. The selector is re-evaluated for each label comparison, so avoid side-effecting selector expressions.
+
 ### Block
 
 ```prolog
@@ -95,12 +99,11 @@ ir_write_int(Expression)         % Write integer without newline
 ir_write_char(Expression)        % Write char without newline
 ir_write_char_array(Name, Low, High)
 ir_write_str(String)            % Write string literal without newline
-ir_write_int_str(Expression, String)
-ir_write_str_int(String, Expression)
-ir_write_int_str_int(Expression, String, Expression)
 ir_readln(VariableName)         % Read integer from input
 ir_readln_char(VariableName)    % Read char from input
 ```
+
+Multi-argument `write` and `writeln` statements are lowered to `ir_block/1` sequences of these primitive typed write operations. Boolean output uses the integer write primitive and prints `0` or `1`; char output uses the char primitive. Legacy helper IR nodes such as `ir_write_int_str/2`, `ir_write_str_int/2`, and `ir_write_int_str_int/3` may still be accepted by the backend, but they are not the normal lowering path for Pascal source.
 
 ## IR Expression Types
 

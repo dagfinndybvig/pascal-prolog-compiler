@@ -13,11 +13,11 @@ begin
   result := (((a + b) * (c + d)) - ((e + f) * (g + h))) /
             (((a - b) + (c - d)) * ((e - f) + (g - h)));
 
-  writeln(result);  { Expected: 5 }
+  writeln(result);  { Expected: -36 }
 
   { Another deep nesting }
   result := a + b * c - d / e + f * g - h +
             a * (b + c * (d - e / (f + g * h)));
 
-  writeln(result)   { Expected: 45 }
+  writeln(result)   { Expected: 55 }
 end.

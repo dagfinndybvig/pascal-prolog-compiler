@@ -153,9 +153,11 @@ check_stmt(write(expr(Expr)), Vars, FuncSigs) :-
     ensure_writable_type(Type).
 check_stmt(write(str(_)), _, _).
 check_stmt(write(Expr, _), Vars, FuncSigs) :-
-    check_expr(Expr, Vars, FuncSigs, integer).
+    check_expr(Expr, Vars, FuncSigs, Type),
+    ensure_writable_type(Type).
 check_stmt(write(_, Expr), Vars, FuncSigs) :-
-    check_expr(Expr, Vars, FuncSigs, integer).
+    check_expr(Expr, Vars, FuncSigs, Type),
+    ensure_writable_type(Type).
 check_stmt(readln(Name), Vars, _) :-
     ensure_declared(Name, Vars, Type),
     ensure_readable_type(Type).
