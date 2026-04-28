@@ -698,6 +698,50 @@ end.
         "pass": proc_as_expr_proc.returncode != 0,
     }
 
+    var_params_source = """program var_params_check;
+var
+  a, b: integer;
+procedure swap(var x, y: integer);
+var t: integer;
+begin t := x; x := y; y := t end;
+begin
+  a := 3;
+  b := 9;
+  swap(a, b);
+  writeln(a);
+  writeln(b)
+end.
+"""
+    var_params_result = build_and_run_source(var_params_source, "regression_var_params")
+    checks["var_params_swap"] = check_expected_stdout_lines(
+        var_params_result, ["9", "3"]
+    )
+
+    var_param_literal_source = """program var_param_literal_check;
+procedure inc(var v: integer);
+begin v := v + 1 end;
+begin
+  inc(42)
+end.
+"""
+    var_param_literal_path = BIN_DIR / "var_param_literal_check.pas"
+    var_param_literal_path.write_text(var_param_literal_source)
+    var_param_literal_proc = run(
+        [
+            "swipl",
+            "-q",
+            "-s",
+            "pascal_compiler.pl",
+            "--",
+            "check",
+            str(var_param_literal_path.relative_to(ROOT)),
+        ]
+    )
+    checks["var_param_literal_rejected"] = {
+        "returncode": var_param_literal_proc.returncode,
+        "pass": var_param_literal_proc.returncode != 0,
+    }
+
     result = {
         "build_results": build_results,
         "checks": checks,

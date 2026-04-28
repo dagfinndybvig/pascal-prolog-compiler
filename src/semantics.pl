@@ -9,9 +9,14 @@ check_program(program(_, Funcs, Vars, Block)) :-
 
 decl_name(decl(Name, _), Name).
 decl_name(param(Name, _), Name).
+decl_name(param_var(Name, _), Name).
 
 decl_type(decl(_, Type), Type).
 decl_type(param(_, Type), Type).
+decl_type(param_var(_, Type), Type).
+
+param_spec(param(_, Type), spec(value, Type)).
+param_spec(param_var(_, Type), spec(var_ref, Type)).
 
 decl_env_entry(Decl, Name-Type) :-
     decl_name(Decl, Name),
@@ -46,14 +51,14 @@ check_funcs(Funcs, GlobalEnv, FuncSigs) :-
     check_all_func_bodies(Funcs, GlobalEnv, FuncSigs).
 
 collect_func_sigs([], []).
-collect_func_sigs([func(Name, Params, ReturnType, _LocalVars, _Body)|Rest], [func_sig(Name, ParamTypes, ReturnType)|RestSigs]) :-
+collect_func_sigs([func(Name, Params, ReturnType, _LocalVars, _Body)|Rest], [func_sig(Name, ParamSpecs, ReturnType)|RestSigs]) :-
     length(Params, ParamCount),
     ensure_param_limit(Name, ParamCount),
     ensure_return_type(ReturnType),
     ensure_scalar_decls(Params),
     decl_names(Params, ParamNames),
     ensure_no_duplicates([Name|ParamNames]),
-    findall(Type, member(param(_, Type), Params), ParamTypes),
+    maplist(param_spec, Params, ParamSpecs),
     collect_func_sigs(Rest, RestSigs).
 
 ensure_return_type(void) :- !.
@@ -133,14 +138,14 @@ check_stmt(readln(Name), Vars, _) :-
 check_stmt(block(LocalVars, Stmts), Vars, FuncSigs) :-
     check_block(block(LocalVars, Stmts), Vars, FuncSigs).
 check_stmt(proc_call(Name, Args), Vars, FuncSigs) :-
-    ensure_function_declared(Name, FuncSigs, ParamTypes, _ReturnType),
+    ensure_function_declared(Name, FuncSigs, ParamSpecs, _ReturnType),
     length(Args, ActualArity),
-    length(ParamTypes, ExpectedArity),
+    length(ParamSpecs, ExpectedArity),
     (   ActualArity = ExpectedArity
     ->  true
     ;   throw(error(wrong_arity(Name, ExpectedArity, ActualArity), context(semantics/check_stmt, 'Procedure called with incorrect number of arguments')))
     ),
-    check_exprs(Args, ParamTypes, Vars, FuncSigs).
+    check_call_args(Args, ParamSpecs, Name, Vars, FuncSigs).
 
 check_expr(int(_), _, _, integer).
 check_expr(bool(_), _, _, boolean).
@@ -151,18 +156,18 @@ check_expr(array_ref(Name, IndexExpr), Vars, FuncSigs, ElementType) :-
     ensure_declared(Name, Vars, array(_Low, _High, ElementType)),
     check_expr(IndexExpr, Vars, FuncSigs, integer).
 check_expr(call(Name, Args), Vars, FuncSigs, ReturnType) :-
-    ensure_function_declared(Name, FuncSigs, ParamTypes, ReturnType),
+    ensure_function_declared(Name, FuncSigs, ParamSpecs, ReturnType),
     (   ReturnType == void
     ->  throw(error(procedure_used_as_expression(Name), context(semantics/check_expr, 'Procedures do not return a value and cannot appear in expressions')))
     ;   true
     ),
     length(Args, ActualArity),
-    length(ParamTypes, ExpectedArity),
+    length(ParamSpecs, ExpectedArity),
     (   ActualArity = ExpectedArity
     ->  true
     ;   throw(error(wrong_arity(Name, ExpectedArity, ActualArity), context(semantics/check_expr, 'Function called with incorrect number of arguments')))
     ),
-    check_exprs(Args, ParamTypes, Vars, FuncSigs).
+    check_call_args(Args, ParamSpecs, Name, Vars, FuncSigs).
 check_expr(unary('-', Expr), Vars, FuncSigs, integer) :-
     check_expr(Expr, Vars, FuncSigs, integer).
 check_expr(unary(not, Expr), Vars, FuncSigs, boolean) :-
@@ -188,6 +193,24 @@ check_exprs([], [], _, _).
 check_exprs([Expr|Rest], [Type|Types], Vars, FuncSigs) :-
     check_expr(Expr, Vars, FuncSigs, Type),
     check_exprs(Rest, Types, Vars, FuncSigs).
+
+check_call_args([], [], _, _, _).
+check_call_args([Arg|Rest], [spec(value, Type)|SpecRest], FuncName, Vars, FuncSigs) :-
+    check_expr(Arg, Vars, FuncSigs, Type),
+    check_call_args(Rest, SpecRest, FuncName, Vars, FuncSigs).
+check_call_args([Arg|Rest], [spec(var_ref, Type)|SpecRest], FuncName, Vars, FuncSigs) :-
+    ensure_var_ref_arg(Arg, Type, FuncName, Vars),
+    check_call_args(Rest, SpecRest, FuncName, Vars, FuncSigs).
+
+ensure_var_ref_arg(var(Name), Type, _FuncName, Vars) :-
+    !,
+    ensure_declared(Name, Vars, ActualType),
+    (   ActualType == Type
+    ->  true
+    ;   throw(error(type_mismatch(Type, ActualType), context(semantics/ensure_var_ref_arg, 'var argument has wrong type')))
+    ).
+ensure_var_ref_arg(Arg, _Type, FuncName, _Vars) :-
+    throw(error(var_arg_not_lvalue(FuncName, Arg), context(semantics/ensure_var_ref_arg, 'var parameter requires a variable argument'))).
 
 ensure_declared(Name, Vars, Type) :-
     (   memberchk(Name-ActualType, Vars)

@@ -1,15 +1,15 @@
 <img width="1880" height="515" alt="image" src="https://github.com/user-attachments/assets/0c40b246-bb09-4c59-80ee-e9eafc54bde0" />
 
-# Pascal-Prolog Assembly Backend - Release Version 1.6.0
+# Pascal-Prolog Assembly Backend - Release Version 1.7.0
 
 > [!WARNING]
-> This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`) plus static arrays and procedures, while still intentionally omitting full ISO Pascal features.
+> This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`) plus static arrays, procedures, and `var` parameters, while still intentionally omitting full ISO Pascal features.
 >
 > It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
 
 ## 📦 Pascal-Prolog Assembly Backend Release
 
-**Version**: 1.6.0
+**Version**: 1.7.0
 **Release Date**: 2026-04-28
 **License**: Unlicense (Public Domain)
 
@@ -25,7 +25,21 @@ This is now a **complete standalone release** of the Pascal-Prolog compiler with
 - ✅ Full documentation
 - ✅ Minimal, clean distribution
 
-## 🆕 What's New In v1.6.0
+## 🆕 What's New In v1.7.0
+
+### `var` parameters (pass by reference)
+
+Procedures and functions may now declare parameters as `var`, causing the caller's variable to be passed by reference and mutated by the callee.
+
+- ✅ **`var` keyword in parameter lists**: `procedure swap(var a, b: integer);`
+- ✅ **Mixed `var` and value parameters**: segments may alternate freely
+- ✅ **Type and l-value checking**: only declared variables of the matching type may be passed for a `var` parameter; literals and expressions are rejected
+- ✅ **Works in functions and procedures**: e.g. `function bump(var slot: integer): integer;`
+- ✅ **Stable through recursion and chained calls**
+
+See `examples/var_params_demo.pas`.
+
+## 🆕 Previous: v1.6.0
 
 ### Procedures
 
@@ -452,7 +466,7 @@ This release supports a **practical subset** of Pascal focused on core programmi
 
 #### ❌ Not Yet Implemented
 - Records
-- `var` (by-reference) parameters
+- `var` (by-reference) parameters for arrays
 - Array parameters
 - Separate forward declarations/prototypes
 - Dynamic string variables or string expressions

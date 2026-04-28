@@ -173,6 +173,10 @@ prolog:message(error(unsupported_type(Type), context(_, Detail))) -->
     [ 'unsupported type: ~w (~w)'-[Type, Detail] ].
 prolog:message(error(invalid_array_bounds(Low, High), context(_, Detail))) -->
     [ 'invalid array bounds: ~d..~d (~w)'-[Low, High, Detail] ].
+prolog:message(error(var_arg_not_lvalue(FuncName, Arg), context(_, Detail))) -->
+    [ 'var parameter for ~w received non-variable argument ~w (~w)'-[FuncName, Arg, Detail] ].
+prolog:message(error(procedure_used_as_expression(Name), context(_, Detail))) -->
+    [ 'procedure ~w cannot be used in an expression (~w)'-[Name, Detail] ].
 
 usage :-
     writeln("Usage:"),

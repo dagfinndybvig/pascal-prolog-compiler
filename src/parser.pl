@@ -72,13 +72,34 @@ proc_decl(func(Name, [], void, LocalVars, Body)) -->
     symbol(';').
 
 params(Params) -->
+    param_segment(First),
+    param_segments_rest(Rest),
+    !,
+    { append(First, Rest, Params) }.
+params([]) -->
+    [].
+
+param_segments_rest(Params) -->
+    symbol(';'),
+    !,
+    param_segment(First),
+    param_segments_rest(Rest),
+    { append(First, Rest, Params) }.
+param_segments_rest([]) -->
+    [].
+
+param_segment(Params) -->
+    keyword(var),
+    !,
     ident_list(Names),
     symbol(':'),
     type_spec(Type),
-    { make_params(Names, Type, Params) },
-    !.
-params([]) -->
-    [].
+    { make_var_params(Names, Type, Params) }.
+param_segment(Params) -->
+    ident_list(Names),
+    symbol(':'),
+    type_spec(Type),
+    { make_params(Names, Type, Params) }.
 
 declarations(Vars) -->
     keyword(var),
@@ -128,6 +149,10 @@ scalar_type_spec(char) -->
 make_params([], _, []).
 make_params([Name|Names], Type, [param(Name, Type)|Params]) :-
     make_params(Names, Type, Params).
+
+make_var_params([], _, []).
+make_var_params([Name|Names], Type, [param_var(Name, Type)|Params]) :-
+    make_var_params(Names, Type, Params).
 
 make_decls([], _, []).
 make_decls([Name|Names], Type, [decl(Name, Type)|Decls]) :-

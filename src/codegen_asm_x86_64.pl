@@ -126,9 +126,11 @@ init_var_offsets([Var|Vars], Offset) :-
 
 storage_name(decl(Name, _), Name) :- !.
 storage_name(param(Name, _), Name) :- !.
+storage_name(param_var(Name, _), Name) :- !.
 storage_name(Name, Name).
 
 param_name(param(Name, _), Name) :- !.
+param_name(param_var(Name, _), Name) :- !.
 param_name(Name, Name).
 
 local_storage_name(decl(Name, _), Name) :- !.
@@ -136,7 +138,12 @@ local_storage_name(Name, Name).
 
 storage_type(decl(_, Type), Type) :- !.
 storage_type(param(_, Type), Type) :- !.
+storage_type(param_var(_, Type), Type) :- !.
 storage_type(_, integer).
+
+is_var_param(Name, Params) :-
+    member(param_var(Name, _), Params),
+    !.
 
 array_type_slots(array(Low, High, _), Slots) :-
     !,
@@ -585,6 +592,9 @@ asm_expr(ir_char(Code), Assembly) :-
 asm_expr(ir_var(Name), Assembly) :-
     var_offset(Name, Offset),
     format(atom(Assembly), "\tmovq -~d(%rbp), %rax\n", [Offset]).
+asm_expr(ir_addr_of(Name), Assembly) :-
+    var_offset(Name, Offset),
+    format(atom(Assembly), "\tleaq -~d(%rbp), %rax\n", [Offset]).
 asm_expr(ir_array_load(Name, Low, High, IndexExpr), Assembly) :-
     asm_array_load(Name, Low, High, IndexExpr, Assembly).
 asm_expr(ir_call(Name, Args), Assembly) :-
@@ -940,7 +950,10 @@ asm_func_store(Name, FuncName, Params, Locals, Assembly) :-
     (   func_global_var(Name, FuncName, Params, Locals, Offset)
     ->  format(atom(Assembly), "\tmovq main_frame_ptr(%rip), %r11\n\tmovq %rax, -~d(%r11)\n", [Offset])
     ;   func_var_offset(Name, FuncName, Params, Locals, Offset),
-        format(atom(Assembly), "\tmovq %rax, ~d(%rbp)\n", [Offset])
+        (   is_var_param(Name, Params)
+        ->  format(atom(Assembly), "\tmovq ~d(%rbp), %r11\n\tmovq %rax, (%r11)\n", [Offset])
+        ;   format(atom(Assembly), "\tmovq %rax, ~d(%rbp)\n", [Offset])
+        )
     ).
 
 func_array_base(Name, FuncName, Params, Locals, FrameReg, BaseOffset) :-
@@ -1015,7 +1028,19 @@ asm_expr_func(ir_var(Name), FuncName, Params, Locals, Assembly) :-
     (   func_global_var(Name, FuncName, Params, Locals, Offset)
     ->  format(atom(Assembly), "\tmovq main_frame_ptr(%rip), %r11\n\tmovq -~d(%r11), %rax\n", [Offset])
     ;   func_var_offset(Name, FuncName, Params, Locals, Offset),
-        format(atom(Assembly), "\tmovq ~d(%rbp), %rax\n", [Offset])
+        (   is_var_param(Name, Params)
+        ->  format(atom(Assembly), "\tmovq ~d(%rbp), %r11\n\tmovq (%r11), %rax\n", [Offset])
+        ;   format(atom(Assembly), "\tmovq ~d(%rbp), %rax\n", [Offset])
+        )
+    ).
+asm_expr_func(ir_addr_of(Name), FuncName, Params, Locals, Assembly) :-
+    (   func_global_var(Name, FuncName, Params, Locals, Offset)
+    ->  format(atom(Assembly), "\tmovq main_frame_ptr(%rip), %rax\n\tsubq $~d, %rax\n", [Offset])
+    ;   func_var_offset(Name, FuncName, Params, Locals, Offset),
+        (   is_var_param(Name, Params)
+        ->  format(atom(Assembly), "\tmovq ~d(%rbp), %rax\n", [Offset])
+        ;   format(atom(Assembly), "\tleaq ~d(%rbp), %rax\n", [Offset])
+        )
     ).
 asm_expr_func(ir_array_load(Name, Low, High, IndexExpr), FuncName, Params, Locals, Assembly) :-
     asm_array_load_func(Name, Low, High, IndexExpr, FuncName, Params, Locals, Assembly).

@@ -2,27 +2,38 @@
 
 :- discontiguous lower_stmt/6.
 :- dynamic func_return_type/2.
+:- dynamic func_param_modes/2.
 
 lower_program(program(Name, Funcs, Vars, Block), ir_program(Name, IRFuncs, AllVars, IRStmts)) :-
-    init_func_return_types(Funcs),
+    init_func_metadata(Funcs),
     vars_env(Vars, GlobalEnv),
     lower_funcs(Funcs, GlobalEnv, IRFuncs),
     lower_block(Block, GlobalEnv, 0, _CounterOut, IRStmts, LocalVars),
     append(Vars, LocalVars, AllVars).
 
-init_func_return_types(Funcs) :-
+init_func_metadata(Funcs) :-
     retractall(func_return_type(_, _)),
-    forall(member(func(FuncName, _Params, ReturnType, _LocalVars, _Body), Funcs),
-           assertz(func_return_type(FuncName, ReturnType))).
+    retractall(func_param_modes(_, _)),
+    forall(member(func(FuncName, Params, ReturnType, _LocalVars, _Body), Funcs),
+           ( assertz(func_return_type(FuncName, ReturnType)),
+             param_modes(Params, Modes),
+             assertz(func_param_modes(FuncName, Modes)) )).
+
+param_modes([], []).
+param_modes([param(_, _)|Rest], [value|ModeRest]) :- param_modes(Rest, ModeRest).
+param_modes([param_var(_, _)|Rest], [var_ref|ModeRest]) :- param_modes(Rest, ModeRest).
 
 decl_name(decl(Name, _), Name).
 decl_name(param(Name, _), Name).
+decl_name(param_var(Name, _), Name).
 
 decl_type(decl(_, Type), Type).
 decl_type(param(_, Type), Type).
+decl_type(param_var(_, Type), Type).
 
 rename_decl(decl(_, Type), MappedName, decl(MappedName, Type)).
 rename_decl(param(_, Type), MappedName, param(MappedName, Type)).
+rename_decl(param_var(_, Type), MappedName, param_var(MappedName, Type)).
 
 vars_env([], []).
 vars_env([Decl|Vars], [Name-MappedName-Type|EnvTail]) :-
@@ -120,7 +131,8 @@ lower_stmt(readln(Name), Env, Counter, Counter, IRStmt, []) :-
 lower_stmt(block(LocalVars, Stmts), Env, CounterIn, CounterOut, ir_block(IRStmts), AddedVars) :-
     lower_block(block(LocalVars, Stmts), Env, CounterIn, CounterOut, IRStmts, AddedVars).
 lower_stmt(proc_call(Name, Args), Env, Counter, Counter, ir_proc_call(Name, IRArgs), []) :-
-    lower_exprs(Args, Env, IRArgs).
+    func_param_modes(Name, Modes),
+    lower_call_args(Args, Modes, Env, IRArgs).
 
 output_stmt(writeln, char, IRExpr, ir_writeln_char(IRExpr)) :- !.
 output_stmt(writeln, array(Low, High, char), ir_var(Name), ir_writeln_char_array(Name, Low, High)) :- !.
@@ -157,7 +169,8 @@ lower_expr(array_ref(Name, IndexExpr), Env, ir_array_load(MappedName, Low, High,
     lower_expr(IndexExpr, Env, IRIndex, integer).
 lower_expr(call(Name, Args), Env, ir_call(Name, IRArgs), Type) :-
     func_return_type(Name, Type),
-    lower_exprs(Args, Env, IRArgs).
+    func_param_modes(Name, Modes),
+    lower_call_args(Args, Modes, Env, IRArgs).
 lower_expr(unary('-', Expr), Env, ir_unary('-', IRExpr), integer) :-
     lower_expr(Expr, Env, IRExpr, integer).
 lower_expr(unary(not, Expr), Env, ir_unary(not, IRExpr), boolean) :-
@@ -176,3 +189,11 @@ lower_exprs([], _, []).
 lower_exprs([Expr|Rest], Env, [IRExpr|IRRest]) :-
     lower_expr(Expr, Env, IRExpr, _),
     lower_exprs(Rest, Env, IRRest).
+
+lower_call_args([], [], _, []).
+lower_call_args([Arg|Rest], [value|ModeRest], Env, [IRArg|IRRest]) :-
+    lower_expr(Arg, Env, IRArg, _),
+    lower_call_args(Rest, ModeRest, Env, IRRest).
+lower_call_args([var(Name)|Rest], [var_ref|ModeRest], Env, [ir_addr_of(MappedName)|IRRest]) :-
+    map_name(Name, Env, MappedName),
+    lower_call_args(Rest, ModeRest, Env, IRRest).
