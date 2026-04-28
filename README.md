@@ -32,6 +32,7 @@ This is now a **complete standalone release** of the Pascal-Prolog compiler with
 The compiler now has an explicit type system across parsing, semantic checking, IR lowering, and x86-64 code generation.
 
 - ✅ **Typed declarations and function signatures**: variables, parameters, and return values carry declared types internally
+- ✅ **Flexible top-level declaration order**: global `var` sections may appear before functions or after functions
 - ✅ **Boolean scalars and operators**: `boolean`, `true`, `false`, `and`, `or`, `not`, boolean function parameters/returns, and boolean conditions
 - ✅ **Char scalars**: `char` variables, parameters/returns, character literals such as `'A'`, and character I/O
 - ✅ **Static arrays**: fixed-bound arrays such as `array[1..5] of integer`
@@ -128,19 +129,19 @@ end.
 
 ### Example: Function Accessing a Global Variable
 
-See `examples/global_function_demo.pas` for a complete program where a function reads and updates a global variable:
+See `examples/global_var_before_function_demo.pas` for a complete program where a function reads and updates a global variable declared before the function:
 
 ```pascal
-program global_function_demo;
+program global_var_before_function_demo;
+
+var
+  counter: integer;
 
 function add_counter(value: integer): integer;
 begin
   counter := counter + value;
   add_counter := counter
 end;
-
-var
-  counter: integer;
 
 begin
   counter := 10;
@@ -432,6 +433,7 @@ This release supports a **practical subset** of Pascal focused on core programmi
   - **Return values**: Pascal-style (`funcname := value`)
   - **Expression calls**: `add(3, multiply(2, 4))`
   - **Global access**: Functions can read and write global variables
+  - **Top-level order**: Global `var` sections may be declared before functions or after functions
 
 #### ❌ Not Yet Implemented
 - Records
@@ -497,7 +499,7 @@ end.
 
 ### Global Variable Function Example
 
-`examples/global_function_demo.pas` demonstrates function access to a global variable. The `add_counter` function updates the global `counter` and returns the new value:
+`examples/global_function_demo.pas` and `examples/global_var_before_function_demo.pas` demonstrate function access to a global variable. The `add_counter` function updates the global `counter` and returns the new value:
 
 ```bash
 swipl -q -s pascal_compiler.pl -- build-asm examples/global_function_demo.pas global_function_demo

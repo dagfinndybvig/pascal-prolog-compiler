@@ -16,11 +16,17 @@ program(program(Name, Funcs, Vars, Block)) -->
     keyword(program),
     identifier(Name),
     symbol(';'),
-    func_declarations(Funcs),
-    declarations(Vars),
+    top_level_declarations(Funcs, Vars),
     block(Block),
     symbol('.'),
     [tok(eof, _, _)].
+
+top_level_declarations(Funcs, Vars) -->
+    declarations(Vars),
+    func_declarations(Funcs).
+top_level_declarations(Funcs, Vars) -->
+    func_declarations(Funcs),
+    declarations(Vars).
 
 func_declarations(Funcs) -->
     keyword(function),

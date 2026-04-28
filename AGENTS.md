@@ -14,6 +14,7 @@ This is a **Pascal compiler written in SWI-Prolog** that compiles a subset of Pa
 - Uses Prolog DCGs for parsing
 - **Functions supported**: Scalar functions with up to 6 scalar parameters, recursion
 - Functions can read and write global variables; parameters and locals shadow globals
+- Top-level global `var` sections may appear before functions or after functions
 - Prime number algorithms are the primary test cases
 
 **Version**: 1.5.0 (2026-04-28) - Added typed declarations, booleans, chars, static arrays, bounds checks, and char-array text buffers

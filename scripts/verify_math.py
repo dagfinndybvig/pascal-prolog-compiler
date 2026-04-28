@@ -440,6 +440,29 @@ end.
         ["7", "6", "6"],
     )
 
+    var_before_function_source = """program var_before_function_check;
+var
+  g: integer;
+function addg(x: integer): integer;
+begin
+  g := g + x;
+  addg := g
+end;
+begin
+  g := 10;
+  writeln(addg(5));
+  writeln(g)
+end.
+"""
+    var_before_function_result = build_and_run_source(
+        var_before_function_source,
+        "regression_var_before_function",
+    )
+    checks["var_before_function_order"] = check_expected_stdout_lines(
+        var_before_function_result,
+        ["15", "15"],
+    )
+
     global_shadow_source = """program function_global_shadow;
 function f(g: integer): integer;
 begin
