@@ -49,6 +49,10 @@ void rt_write_str(const char *value) {
     printf("%s", value);
 }
 
+void rt_write_newline(void) {
+    printf("\n");
+}
+
 void rt_error(int code, const char *message) {
     fprintf(stderr, "runtime error %d: %s", code, message);
     exit(code);

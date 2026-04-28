@@ -89,6 +89,22 @@ type_spec(boolean) -->
     keyword(boolean).
 type_spec(char) -->
     keyword(char).
+type_spec(array(Low, High, ElementType)) -->
+    keyword(array),
+    symbol('['),
+    [tok(int(Low), _, _)],
+    symbol('..'),
+    [tok(int(High), _, _)],
+    symbol(']'),
+    keyword(of),
+    scalar_type_spec(ElementType).
+
+scalar_type_spec(integer) -->
+    keyword(integer).
+scalar_type_spec(boolean) -->
+    keyword(boolean).
+scalar_type_spec(char) -->
+    keyword(char).
 
 make_params([], _, []).
 make_params([Name|Names], Type, [param(Name, Type)|Params]) :-
@@ -213,6 +229,14 @@ statement(readln(Name)) -->
     identifier(Name),
     symbol(')'),
     !.
+statement(assign_index(Name, IndexExpr, Expr)) -->
+    identifier(Name),
+    symbol('['),
+    expression(IndexExpr),
+    symbol(']'),
+    symbol(':='),
+    expression(Expr),
+    !.
 statement(assign(Name, Expr)) -->
     identifier(Name),
     symbol(':='),
@@ -305,6 +329,12 @@ primary(call(Name, Args)) -->
     symbol('('),
     expr_list(Args),
     symbol(')'),
+    !.
+primary(array_ref(Name, IndexExpr)) -->
+    identifier(Name),
+    symbol('['),
+    expression(IndexExpr),
+    symbol(']'),
     !.
 primary(var(Name)) -->
     identifier(Name),

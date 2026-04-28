@@ -68,6 +68,11 @@ lower_stmts([Stmt|Rest], Env, CounterIn, CounterOut, [IRStmt|IRRest], AddedVars)
 lower_stmt(assign(Name, Expr), Env, Counter, Counter, ir_assign(MappedName, IRExpr), []) :-
     map_name(Name, Env, MappedName),
     lower_expr(Expr, Env, IRExpr).
+lower_stmt(assign_index(Name, IndexExpr, Expr), Env, Counter, Counter, ir_array_store(MappedName, Low, High, IRIndex, IRExpr), []) :-
+    map_name(Name, Env, MappedName),
+    lookup_type(Name, Env, array(Low, High, _ElementType)),
+    lower_expr(IndexExpr, Env, IRIndex, integer),
+    lower_expr(Expr, Env, IRExpr, _).
 lower_stmt(if(Cond, Then, Else), Env, CounterIn, CounterOut, ir_if(IRCond, IRThen, IRElse), AddedVars) :-
     lower_expr(Cond, Env, IRCond),
     lower_stmt(Then, Env, CounterIn, CounterThen, IRThen, AddedThen),
@@ -115,8 +120,10 @@ lower_stmt(block(LocalVars, Stmts), Env, CounterIn, CounterOut, ir_block(IRStmts
     lower_block(block(LocalVars, Stmts), Env, CounterIn, CounterOut, IRStmts, AddedVars).
 
 output_stmt(writeln, char, IRExpr, ir_writeln_char(IRExpr)) :- !.
+output_stmt(writeln, array(Low, High, char), ir_var(Name), ir_writeln_char_array(Name, Low, High)) :- !.
 output_stmt(writeln, _, IRExpr, ir_writeln_int(IRExpr)).
 output_stmt(write, char, IRExpr, ir_write_char(IRExpr)) :- !.
+output_stmt(write, array(Low, High, char), ir_var(Name), ir_write_char_array(Name, Low, High)) :- !.
 output_stmt(write, _, IRExpr, ir_write_int(IRExpr)).
 
 input_stmt(char, MappedName, ir_readln_char(MappedName)) :- !.
@@ -141,6 +148,10 @@ lower_expr(char(Code), _Env, ir_char(Code), char).
 lower_expr(var(Name), Env, ir_var(MappedName), Type) :-
     map_name(Name, Env, MappedName),
     lookup_type(Name, Env, Type).
+lower_expr(array_ref(Name, IndexExpr), Env, ir_array_load(MappedName, Low, High, IRIndex), ElementType) :-
+    map_name(Name, Env, MappedName),
+    lookup_type(Name, Env, array(Low, High, ElementType)),
+    lower_expr(IndexExpr, Env, IRIndex, integer).
 lower_expr(call(Name, Args), Env, ir_call(Name, IRArgs), Type) :-
     func_return_type(Name, Type),
     lower_exprs(Args, Env, IRArgs).

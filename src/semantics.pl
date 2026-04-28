@@ -2,6 +2,7 @@
 
 check_program(program(_, Funcs, Vars, Block)) :-
     ensure_no_duplicate_decls(Vars),
+    ensure_valid_decls(Vars),
     decls_env(Vars, GlobalEnv),
     check_funcs(Funcs, GlobalEnv, FuncSigs),
     check_block(Block, GlobalEnv, FuncSigs).
@@ -48,6 +49,8 @@ collect_func_sigs([], []).
 collect_func_sigs([func(Name, Params, ReturnType, _LocalVars, _Body)|Rest], [func_sig(Name, ParamTypes, ReturnType)|RestSigs]) :-
     length(Params, ParamCount),
     ensure_param_limit(Name, ParamCount),
+    ensure_scalar_type(ReturnType),
+    ensure_scalar_decls(Params),
     decl_names(Params, ParamNames),
     ensure_no_duplicates([Name|ParamNames]),
     findall(Type, member(param(_, Type), Params), ParamTypes),
@@ -71,6 +74,8 @@ check_all_func_bodies([], _, _).
 check_all_func_bodies([func(Name, Params, ReturnType, LocalVars, Body)|Rest], GlobalEnv, FuncSigs) :-
     ensure_no_duplicate_decls(Params),
     ensure_no_duplicate_decls(LocalVars),
+    ensure_scalar_decls(Params),
+    ensure_valid_decls(LocalVars),
     decl_names(Params, ParamNames),
     decl_names(LocalVars, LocalNames),
     append([Name|ParamNames], LocalNames, FuncScopeNames),
@@ -89,8 +94,14 @@ check_stmts([Stmt|Rest], Vars, FuncSigs) :-
 
 check_stmt(assign(Name, Expr), Vars, FuncSigs) :-
     ensure_declared(Name, Vars, TargetType),
+    ensure_not_array(TargetType),
     check_expr(Expr, Vars, FuncSigs, ExprType),
     ensure_assignable(TargetType, ExprType).
+check_stmt(assign_index(Name, IndexExpr, Expr), Vars, FuncSigs) :-
+    ensure_declared(Name, Vars, array(_Low, _High, ElementType)),
+    check_expr(IndexExpr, Vars, FuncSigs, integer),
+    check_expr(Expr, Vars, FuncSigs, ExprType),
+    ensure_assignable(ElementType, ExprType).
 check_stmt(if(Cond, Then, Else), Vars, FuncSigs) :-
     check_expr(Cond, Vars, FuncSigs, boolean),
     check_stmt(Then, Vars, FuncSigs),
@@ -121,6 +132,9 @@ check_expr(bool(_), _, _, boolean).
 check_expr(char(_), _, _, char).
 check_expr(var(Name), Vars, _, Type) :-
     ensure_declared(Name, Vars, Type).
+check_expr(array_ref(Name, IndexExpr), Vars, FuncSigs, ElementType) :-
+    ensure_declared(Name, Vars, array(_Low, _High, ElementType)),
+    check_expr(IndexExpr, Vars, FuncSigs, integer).
 check_expr(call(Name, Args), Vars, FuncSigs, ReturnType) :-
     ensure_function_declared(Name, FuncSigs, ParamTypes, ReturnType),
     length(Args, ActualArity),
@@ -178,12 +192,49 @@ ensure_assignable(Expected, Actual) :-
 ensure_writable_type(integer).
 ensure_writable_type(boolean).
 ensure_writable_type(char).
+ensure_writable_type(array(_, _, char)).
 
 ensure_readable_type(integer).
 ensure_readable_type(char).
 
+ensure_valid_decls([]).
+ensure_valid_decls([Decl|Decls]) :-
+    decl_type(Decl, Type),
+    ensure_valid_type(Type),
+    ensure_valid_decls(Decls).
+
+ensure_scalar_decls([]).
+ensure_scalar_decls([Decl|Decls]) :-
+    decl_type(Decl, Type),
+    ensure_scalar_type(Type),
+    ensure_scalar_decls(Decls).
+
+ensure_valid_type(integer).
+ensure_valid_type(boolean).
+ensure_valid_type(char).
+ensure_valid_type(array(Low, High, ElementType)) :-
+    integer(Low),
+    integer(High),
+    (   Low =< High
+    ->  true
+    ;   throw(error(invalid_array_bounds(Low, High), context(semantics/ensure_valid_type, 'Array lower bound must not exceed upper bound')))
+    ),
+    ensure_scalar_type(ElementType).
+
+ensure_scalar_type(integer).
+ensure_scalar_type(boolean).
+ensure_scalar_type(char).
+ensure_scalar_type(Type) :-
+    throw(error(unsupported_type(Type), context(semantics/ensure_scalar_type, 'Only scalar types are supported here'))).
+
+ensure_not_array(array(_, _, _)) :-
+    !,
+    throw(error(type_mismatch(scalar, array), context(semantics/ensure_not_array, 'Array values require indexed element access'))).
+ensure_not_array(_).
+
 check_block(block(LocalVars, Stmts), VarsInScope, FuncSigs) :-
     ensure_no_duplicate_decls(LocalVars),
+    ensure_valid_decls(LocalVars),
     decls_env(LocalVars, LocalEnv),
     append(LocalEnv, VarsInScope, ScopeVars),
     check_stmts(Stmts, ScopeVars, FuncSigs).

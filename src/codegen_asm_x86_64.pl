@@ -16,13 +16,15 @@
     asm_overflow_message/1, % asm_overflow_message(-Message)
     asm_stack_frame/2, % asm_stack_frame(+TotalSize, -Assembly)
     asm_main_epilogue/1, % asm_main_epilogue(-Assembly)
-    total_stack_size/2, % total_stack_size(+VarCount, -TotalSize)
+    total_stack_size/2, % total_stack_size(+VarsOrVarCount, -TotalSize)
     init_register_allocator/0, % init_register_allocator
     allocate_register/1, % allocate_register(-Register)
     free_register/1, % free_register(+Register)
     get_temp_register/1, % get_temp_register(-Register)
     asm_division_by_zero_handler/1, % asm_division_by_zero_handler(-Handler)
-    asm_div_by_zero_message/1 % asm_div_by_zero_message(-Message)
+    asm_div_by_zero_message/1, % asm_div_by_zero_message(-Message)
+    asm_array_bounds_handler/1, % asm_array_bounds_handler(-Handler)
+    asm_array_bounds_message/1 % asm_array_bounds_message(-Message)
 ]).
 
 % Counter for generating unique labels
@@ -118,7 +120,8 @@ init_var_offsets([], _).
 init_var_offsets([Var|Vars], Offset) :-
     storage_name(Var, Name),
     assert(var_offset(Name, Offset)),
-    NextOffset is Offset + 8,
+    storage_slots(Var, Slots),
+    NextOffset is Offset + (Slots * 8),
     init_var_offsets(Vars, NextOffset).
 
 storage_name(decl(Name, _), Name) :- !.
@@ -130,6 +133,32 @@ param_name(Name, Name).
 
 local_storage_name(decl(Name, _), Name) :- !.
 local_storage_name(Name, Name).
+
+storage_type(decl(_, Type), Type) :- !.
+storage_type(param(_, Type), Type) :- !.
+storage_type(_, integer).
+
+array_type_slots(array(Low, High, _), Slots) :-
+    !,
+    Slots is High - Low + 1.
+array_type_slots(_, 1).
+
+storage_slots(Storage, Slots) :-
+    storage_type(Storage, Type),
+    array_type_slots(Type, Slots).
+
+storage_slots_before([], _, 0).
+storage_slots_before([_|_], 1, 0) :- !.
+storage_slots_before([Storage|Rest], Index, SlotsBefore) :-
+    Index > 1,
+    storage_slots(Storage, Slots),
+    NextIndex is Index - 1,
+    storage_slots_before(Rest, NextIndex, RestSlots),
+    SlotsBefore is Slots + RestSlots.
+
+storage_slot_count(Storages, Count) :-
+    findall(Slots, (member(Storage, Storages), storage_slots(Storage, Slots)), SlotCounts),
+    sum_list(SlotCounts, Count).
 
 % Generate assembly for different IR statements
 generate_asm(ir_writeln_str(String), Assembly) :-
@@ -143,6 +172,10 @@ generate_asm(ir_write_int(_Expr), Assembly) :-
 generate_asm(ir_writeln_char(_Expr), Assembly) :-
     format(atom(Assembly), "", []).
 generate_asm(ir_write_char(_Expr), Assembly) :-
+    format(atom(Assembly), "", []).
+generate_asm(ir_writeln_char_array(_, _, _), Assembly) :-
+    format(atom(Assembly), "", []).
+generate_asm(ir_write_char_array(_, _, _), Assembly) :-
     format(atom(Assembly), "", []).
 
 % Enhanced write statements for stdlib - data section
@@ -161,6 +194,8 @@ generate_asm(ir_readln_char(_Name), Assembly) :-
     format(atom(Assembly), "", []).
 generate_asm(ir_assign(_VarName, _Expr), Assembly) :-
     format(atom(Assembly), "", []).
+generate_asm(ir_array_store(_, _, _, _, _), Assembly) :-
+    format(atom(Assembly), "", []).
 generate_asm(ir_if(_, ThenStmt, ElseStmt), Assembly) :-
     generate_asm(ThenStmt, ThenData),
     generate_asm(ElseStmt, ElseData),
@@ -175,6 +210,12 @@ generate_asm(IR, _) :-
 
 % Calculate total stack frame size needed
 % Main stores callee-saved registers at -8..-40 and variables from -48 down.
+total_stack_size(Vars, TotalSize) :-
+    is_list(Vars),
+    !,
+    storage_slot_count(Vars, SlotCount),
+    RawSize is 40 + (SlotCount * 8),
+    align_16(RawSize, TotalSize).
 total_stack_size(VarCount, TotalSize) :-
     RawSize is 40 + (VarCount * 8),
     align_16(RawSize, TotalSize).
@@ -192,6 +233,10 @@ generate_asm_text(ir_writeln_char(Expr), Assembly) :-
     asm_writeln_char_text(Expr, Assembly).
 generate_asm_text(ir_write_char(Expr), Assembly) :-
     asm_write_char_text(Expr, Assembly).
+generate_asm_text(ir_writeln_char_array(Name, Low, High), Assembly) :-
+    asm_char_array_text(Name, Low, High, true, Assembly).
+generate_asm_text(ir_write_char_array(Name, Low, High), Assembly) :-
+    asm_char_array_text(Name, Low, High, false, Assembly).
 generate_asm_text(ir_readln(Name), Assembly) :-
     asm_readln_text(Name, Assembly).
 generate_asm_text(ir_readln_char(Name), Assembly) :-
@@ -208,6 +253,8 @@ generate_asm_text(ir_write_format(_, _, _, _), _) :-
     throw(error(unsupported_write_format, context(codegen/generate_asm_text, 'printf-style formatting is not exposed by the Pascal frontend'))).
 generate_asm_text(ir_assign(VarName, Expr), Assembly) :-
     asm_assign(VarName, Expr, Assembly).
+generate_asm_text(ir_array_store(Name, Low, High, IndexExpr, Expr), Assembly) :-
+    asm_array_store(Name, Low, High, IndexExpr, Expr, Assembly).
 generate_asm_text(ir_block(Stmts), Assembly) :-
     asm_stmt_list(Stmts, StmtCode),
     format(atom(Assembly), "~w", [StmtCode]).
@@ -294,6 +341,12 @@ asm_division_by_zero_handler(
 % Division by zero message
 asm_div_by_zero_message("div_zero_msg:\n\t.asciz \"Division by zero error\\n\"\n"):- !.
 
+% Array bounds error handler
+asm_array_bounds_handler(
+    "array_bounds_error:\n\tmovq $3, %rdi\n\tleaq array_bounds_msg(%rip), %rsi\n\tmovq %rsp, %r11\n\tandq $-16, %rsp\n\tsubq $16, %rsp\n\tmovq %r11, 8(%rsp)\n\tcall rt_error\n\tmovq 8(%rsp), %rsp\n\tint $3\n\tud2\n"):- !.
+
+asm_array_bounds_message("array_bounds_msg:\n\t.asciz \"Array index out of bounds\\n\"\n"):- !.
+
 % Generate assembly for writeln_str
 asm_writeln_str(String, DataSection) :-
     asm_string_data(String, DataSection).
@@ -341,6 +394,29 @@ asm_write_char_text(Expr, TextSection) :-
         atom(TextSection),
         "~w\tmovl %eax, %edi\n~w",
         [ExprCode, CallCode]
+    ).
+
+asm_char_array_text(Name, Low, High, WithNewline, TextSection) :-
+    var_offset(Name, BaseOffset),
+    asm_char_array_elements(BaseOffset, Low, High, Low, ElementCode),
+    (   WithNewline == true
+    ->  asm_call_instruction(rt_write_newline, NewlineCode)
+    ;   NewlineCode = ""
+    ),
+    format(atom(TextSection), "~w~w", [ElementCode, NewlineCode]).
+
+asm_char_array_elements(_, Current, High, _, "") :-
+    Current > High,
+    !.
+asm_char_array_elements(BaseOffset, Current, High, Low, Assembly) :-
+    ElementOffset is BaseOffset + ((Current - Low) * 8),
+    asm_call_instruction(rt_write_char, CallCode),
+    Next is Current + 1,
+    asm_char_array_elements(BaseOffset, Next, High, Low, Rest),
+    format(
+        atom(Assembly),
+        "\tmovq -~d(%rbp), %rax\n\tmovl %eax, %edi\n~w~w",
+        [ElementOffset, CallCode, Rest]
     ).
 
 % Enhanced write functions for stdlib
@@ -397,6 +473,34 @@ asm_assign(VarName, Expr, Assembly) :-
     asm_expr(Expr, ExprCode),
     var_offset(VarName, Offset),
     format(atom(Assembly), "~w\tmovq %rax, -~d(%rbp)\n", [ExprCode, Offset]).
+
+asm_array_load(Name, Low, High, IndexExpr, Assembly) :-
+    asm_expr(IndexExpr, IndexCode),
+    asm_array_index_check(Low, High, CheckCode),
+    var_offset(Name, BaseOffset),
+    format(
+        atom(Assembly),
+        "~w~w\tmovq %rax, %r10\n\tmovq %rbp, %r11\n\tsubq $~d, %r11\n\tsubq %r10, %r11\n\tmovq (%r11), %rax\n",
+        [IndexCode, CheckCode, BaseOffset]
+    ).
+
+asm_array_store(Name, Low, High, IndexExpr, Expr, Assembly) :-
+    asm_expr(IndexExpr, IndexCode),
+    asm_array_index_check(Low, High, CheckCode),
+    asm_expr(Expr, ExprCode),
+    var_offset(Name, BaseOffset),
+    format(
+        atom(Assembly),
+        "~w~w\tmovq %rax, %r10\n\tpushq %r10\n~w\tpopq %r10\n\tmovq %rbp, %r11\n\tsubq $~d, %r11\n\tsubq %r10, %r11\n\tmovq %rax, (%r11)\n",
+        [IndexCode, CheckCode, ExprCode, BaseOffset]
+    ).
+
+asm_array_index_check(Low, High, Assembly) :-
+    format(
+        atom(Assembly),
+        "\tcmpq $~d, %rax\n\tjl array_bounds_error\n\tcmpq $~d, %rax\n\tjg array_bounds_error\n\tsubq $~d, %rax\n\timulq $8, %rax\n",
+        [Low, High, Low]
+    ).
 
 asm_string_data(String, DataSection) :-
     ensure_string_label(String, Label, IsNew),
@@ -470,6 +574,8 @@ asm_expr(ir_char(Code), Assembly) :-
 asm_expr(ir_var(Name), Assembly) :-
     var_offset(Name, Offset),
     format(atom(Assembly), "\tmovq -~d(%rbp), %rax\n", [Offset]).
+asm_expr(ir_array_load(Name, Low, High, IndexExpr), Assembly) :-
+    asm_array_load(Name, Low, High, IndexExpr, Assembly).
 asm_expr(ir_call(Name, Args), Assembly) :-
     length(Args, ArgCount),
     (   ArgCount > 6
@@ -619,8 +725,8 @@ generate_func_asm(ir_func(Name, Params, _ReturnType, Locals, Stmts), Stream) :-
     format(Stream, "\tmovq %rsp, %rbp\n", []),
     % Allocate stack space for parameters, locals, return value, and callee-saved registers
     length(Params, ParamCount),
-    length(Locals, LocalCount),
-    TotalVars is ParamCount + LocalCount + 1,  % +1 for return value (function name)
+    storage_slot_count(Locals, LocalSlotCount),
+    TotalVars is ParamCount + LocalSlotCount + 1,  % +1 for return value (function name)
     % Layout at negative offsets from %rbp:
     % -8 to -40: saved callee-saved registers (5 * 8 = 40 bytes)
     % -48: return value (function name)
@@ -687,6 +793,8 @@ generate_func_asm_text(ir_assign(VarName, Expr), FuncName, Params, Locals, Assem
     asm_expr_func(Expr, FuncName, Params, Locals, ExprCode),
     asm_func_store(VarName, FuncName, Params, Locals, StoreCode),
     format(atom(Assembly), "~w~w", [ExprCode, StoreCode]).
+generate_func_asm_text(ir_array_store(Name, Low, High, IndexExpr, Expr), FuncName, Params, Locals, Assembly) :-
+    asm_array_store_func(Name, Low, High, IndexExpr, Expr, FuncName, Params, Locals, Assembly).
 generate_func_asm_text(ir_writeln_int(Expr), FuncName, Params, Locals, Assembly) :-
     asm_expr_func(Expr, FuncName, Params, Locals, ExprCode),
     asm_call_instruction(rt_writeln_int, CallCode),
@@ -703,6 +811,10 @@ generate_func_asm_text(ir_write_char(Expr), FuncName, Params, Locals, Assembly) 
     asm_expr_func(Expr, FuncName, Params, Locals, ExprCode),
     asm_call_instruction(rt_write_char, CallCode),
     format(atom(Assembly), "~w\tmovl %eax, %edi\n~w", [ExprCode, CallCode]).
+generate_func_asm_text(ir_writeln_char_array(Name, Low, High), FuncName, Params, Locals, Assembly) :-
+    asm_char_array_text_func(Name, Low, High, true, FuncName, Params, Locals, Assembly).
+generate_func_asm_text(ir_write_char_array(Name, Low, High), FuncName, Params, Locals, Assembly) :-
+    asm_char_array_text_func(Name, Low, High, false, FuncName, Params, Locals, Assembly).
 generate_func_asm_text(ir_writeln_str(Text), _, _, _, Assembly) :-
     asm_writeln_str_text(Text, Assembly).
 generate_func_asm_text(ir_write_str(Text), _, _, _, Assembly) :-
@@ -767,7 +879,8 @@ func_var_offset(Name, _, Params, Locals, Offset) :-
     ),
     !,
     length(Params, ParamCount),
-    Offset is -48 - ((ParamCount + Index) * 8).
+    storage_slots_before(Locals, Index, PriorLocalSlots),
+    Offset is -48 - ((ParamCount + PriorLocalSlots + 1) * 8).
 func_var_offset(Name, _, _, _, _) :-
     throw(error(unknown_function_variable(Name), _)).
 
@@ -785,6 +898,67 @@ asm_func_store(Name, FuncName, Params, Locals, Assembly) :-
         format(atom(Assembly), "\tmovq %rax, ~d(%rbp)\n", [Offset])
     ).
 
+func_array_base(Name, FuncName, Params, Locals, FrameReg, BaseOffset) :-
+    (   func_global_var(Name, FuncName, Params, Locals, BaseOffset)
+    ->  FrameReg = main
+    ;   func_var_offset(Name, FuncName, Params, Locals, Offset),
+        BaseOffset is -Offset,
+        FrameReg = local
+    ).
+
+asm_array_frame_setup(main, Setup) :-
+    !,
+    Setup = "\tmovq main_frame_ptr(%rip), %r11\n".
+asm_array_frame_setup(local, Setup) :-
+    Setup = "\tmovq %rbp, %r11\n".
+
+asm_array_load_func(Name, Low, High, IndexExpr, FuncName, Params, Locals, Assembly) :-
+    asm_expr_func(IndexExpr, FuncName, Params, Locals, IndexCode),
+    asm_array_index_check(Low, High, CheckCode),
+    func_array_base(Name, FuncName, Params, Locals, FrameReg, BaseOffset),
+    asm_array_frame_setup(FrameReg, FrameSetup),
+    format(
+        atom(Assembly),
+        "~w~w\tmovq %rax, %r10\n~w\tsubq $~d, %r11\n\tsubq %r10, %r11\n\tmovq (%r11), %rax\n",
+        [IndexCode, CheckCode, FrameSetup, BaseOffset]
+    ).
+
+asm_array_store_func(Name, Low, High, IndexExpr, Expr, FuncName, Params, Locals, Assembly) :-
+    asm_expr_func(IndexExpr, FuncName, Params, Locals, IndexCode),
+    asm_array_index_check(Low, High, CheckCode),
+    asm_expr_func(Expr, FuncName, Params, Locals, ExprCode),
+    func_array_base(Name, FuncName, Params, Locals, FrameReg, BaseOffset),
+    asm_array_frame_setup(FrameReg, FrameSetup),
+    format(
+        atom(Assembly),
+        "~w~w\tmovq %rax, %r10\n\tpushq %r10\n~w\tpopq %r10\n~w\tsubq $~d, %r11\n\tsubq %r10, %r11\n\tmovq %rax, (%r11)\n",
+        [IndexCode, CheckCode, ExprCode, FrameSetup, BaseOffset]
+    ).
+
+asm_char_array_text_func(Name, Low, High, WithNewline, FuncName, Params, Locals, Assembly) :-
+    func_array_base(Name, FuncName, Params, Locals, FrameReg, BaseOffset),
+    asm_array_frame_setup(FrameReg, FrameSetup),
+    asm_char_array_elements_func(BaseOffset, Low, High, Low, FrameSetup, ElementCode),
+    (   WithNewline == true
+    ->  asm_call_instruction(rt_write_newline, NewlineCode)
+    ;   NewlineCode = ""
+    ),
+    format(atom(Assembly), "~w~w", [ElementCode, NewlineCode]).
+
+asm_char_array_elements_func(_, Current, High, _, _, "") :-
+    Current > High,
+    !.
+asm_char_array_elements_func(BaseOffset, Current, High, Low, FrameSetup, Assembly) :-
+    ElementOffset is BaseOffset + ((Current - Low) * 8),
+    asm_call_instruction(rt_write_char, CallCode),
+    Next is Current + 1,
+    asm_char_array_elements_func(BaseOffset, Next, High, Low, FrameSetup, Rest),
+    format(
+        atom(Assembly),
+        "~w\tmovq -~d(%r11), %rax\n\tmovl %eax, %edi\n~w~w",
+        [FrameSetup, ElementOffset, CallCode, Rest]
+    ).
+
 % Expression evaluation within function context
 asm_expr_func(ir_int(N), _, _, _, Assembly) :-
     format(atom(Assembly), "\tmovq $~d, %rax\n", [N]).
@@ -798,6 +972,8 @@ asm_expr_func(ir_var(Name), FuncName, Params, Locals, Assembly) :-
     ;   func_var_offset(Name, FuncName, Params, Locals, Offset),
         format(atom(Assembly), "\tmovq ~d(%rbp), %rax\n", [Offset])
     ).
+asm_expr_func(ir_array_load(Name, Low, High, IndexExpr), FuncName, Params, Locals, Assembly) :-
+    asm_array_load_func(Name, Low, High, IndexExpr, FuncName, Params, Locals, Assembly).
 asm_expr_func(ir_call(Name, Args), FuncName, Params, Locals, Assembly) :-
     length(Args, ArgCount),
     (   ArgCount > 6

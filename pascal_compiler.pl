@@ -90,8 +90,7 @@ runtime_paths(RuntimeCPath, RuntimeIncludeDir) :-
 write_asm_file(AsmPath, ir_program(_, Funcs, Vars, IRStmts)) :-
     open(AsmPath, write, Stream),
     init_var_offsets(Vars),
-    length(Vars, VarCount),
-    total_stack_size(VarCount, TotalSize),
+    total_stack_size(Vars, TotalSize),
     asm_header(Header),
     write(Stream, Header),
     % Generate data section for main program
@@ -138,6 +137,10 @@ write_asm_file(AsmPath, ir_program(_, Funcs, Vars, IRStmts)) :-
     write(Stream, DivZeroHandler),
     asm_div_by_zero_message(DivZeroMsg),
     write(Stream, DivZeroMsg),
+    asm_array_bounds_handler(ArrayBoundsHandler),
+    write(Stream, ArrayBoundsHandler),
+    asm_array_bounds_message(ArrayBoundsMsg),
+    write(Stream, ArrayBoundsMsg),
     close(Stream).
 
 expect_success(exit(0)) :- !.
@@ -166,6 +169,10 @@ prolog:message(error(unsupported_write_format, context(_, Detail))) -->
     [ 'unsupported write format (~w)'-[Detail] ].
 prolog:message(error(type_mismatch(Expected, Actual), context(_, Detail))) -->
     [ 'type mismatch: expected ~w, got ~w (~w)'-[Expected, Actual, Detail] ].
+prolog:message(error(unsupported_type(Type), context(_, Detail))) -->
+    [ 'unsupported type: ~w (~w)'-[Type, Detail] ].
+prolog:message(error(invalid_array_bounds(Low, High), context(_, Detail))) -->
+    [ 'invalid array bounds: ~d..~d (~w)'-[Low, High, Detail] ].
 
 usage :-
     writeln("Usage:"),

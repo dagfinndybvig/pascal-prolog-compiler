@@ -9,6 +9,7 @@ void rt_writeln_str(const char *value);
 void rt_write_int(int value);
 void rt_write_char(int value);
 void rt_write_str(const char *value);
+void rt_write_newline(void);
 void rt_error(int code, const char *message);
 
 /* Enhanced write functions */

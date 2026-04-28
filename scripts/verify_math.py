@@ -514,6 +514,65 @@ end.
         and "type mismatch" in type_mismatch_output,
     }
 
+    array_source = """program array_check;
+var
+  a: array[1..4] of integer;
+  text: array[1..3] of char;
+  i: integer;
+  sum: integer;
+begin
+  a[1] := 4;
+  a[2] := 6;
+  a[3] := 8;
+  a[4] := 10;
+  i := 1;
+  sum := 0;
+  while i <= 4 do
+  begin
+    sum := sum + a[i];
+    i := i + 1
+  end;
+  writeln(sum);
+  text[1] := 'O';
+  text[2] := 'K';
+  text[3] := '?';
+  writeln(text)
+end.
+"""
+    array_result = build_and_run_source(
+        array_source,
+        "regression_static_arrays",
+    )
+    checks["static_arrays_and_char_buffers"] = check_expected_stdout_lines(
+        array_result,
+        ["28", "OK?"],
+    )
+
+    bounds_source = """program array_bounds_check;
+var
+  a: array[1..2] of integer;
+begin
+  a[0] := 1
+end.
+"""
+    bounds_result = build_and_run_source(bounds_source, "regression_array_bounds")
+    if bounds_result["build_ok"]:
+        bounds_run = bounds_result["run"]
+        checks["array_bounds_check"] = {
+            "build_ok": True,
+            "returncode": bounds_run["returncode"],
+            "stderr": bounds_run["stderr"],
+            "pass": bounds_run["returncode"] == 3
+            and "Array index out of bounds" in bounds_run["stderr"],
+        }
+    else:
+        checks["array_bounds_check"] = {
+            "build_ok": False,
+            "build_returncode": bounds_result["build_returncode"],
+            "build_stderr": bounds_result["build_stderr"],
+            "pass": False,
+        }
+
     result = {
         "build_results": build_results,
         "checks": checks,
