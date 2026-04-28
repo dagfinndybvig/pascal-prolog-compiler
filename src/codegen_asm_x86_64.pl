@@ -15,6 +15,7 @@
     asm_stack_overflow_handler/1, % asm_stack_overflow_handler(-Handler)
     asm_overflow_message/1, % asm_overflow_message(-Message)
     asm_stack_frame/2, % asm_stack_frame(+TotalSize, -Assembly)
+    asm_main_epilogue/1, % asm_main_epilogue(-Assembly)
     total_stack_size/2, % total_stack_size(+VarCount, -TotalSize)
     init_register_allocator/0, % init_register_allocator
     allocate_register/1, % allocate_register(-Register)
@@ -110,7 +111,7 @@ init_var_offsets(Vars) :-
     retractall(string_label(_, _)),
     assert(label_counter(0)),
     assert(string_counter(0)),
-    init_var_offsets(Vars, 16),  % Start from 16 for proper alignment
+    init_var_offsets(Vars, 48),  % Main saves callee-saved regs at -8..-40
     init_register_allocator.  % Initialize register allocator
 
 init_var_offsets([], _).
@@ -136,8 +137,8 @@ generate_asm(ir_write_str_int(Text, _Expr), Assembly) :-
     asm_string_data(Text, Assembly).
 generate_asm(ir_write_int_str_int(_Expr1, Text, _Expr2), Assembly) :-
     asm_string_data(Text, Assembly).
-generate_asm(ir_write_format(Text, _Expr1, _Expr2, _Expr3), Assembly) :-
-    asm_string_data(Text, Assembly).
+generate_asm(ir_write_format(_, _, _, _), _) :-
+    throw(error(unsupported_write_format, context(codegen/generate_asm, 'printf-style formatting is not exposed by the Pascal frontend'))).
 
 generate_asm(ir_readln(_Name), Assembly) :-
     format(atom(Assembly), "", []).
@@ -156,10 +157,10 @@ generate_asm(IR, _) :-
     throw(error(unsupported_ir_for_asm_data(IR), _)).
 
 % Calculate total stack frame size needed
-% Variables are stored at offsets starting from 16, increasing by 8 for each var
-% So we need to find the maximum offset used
+% Main stores callee-saved registers at -8..-40 and variables from -48 down.
 total_stack_size(VarCount, TotalSize) :-
-    TotalSize is 16 + (VarCount * 8).  % 16 + 8 bytes per additional var
+    RawSize is 40 + (VarCount * 8),
+    align_16(RawSize, TotalSize).
 
 % Generate assembly for text section
 generate_asm_text(ir_writeln_str(String), Assembly) :-
@@ -180,8 +181,8 @@ generate_asm_text(ir_write_str_int(Text, Expr), Assembly) :-
     asm_write_str_int_text(Text, Expr, Assembly).
 generate_asm_text(ir_write_int_str_int(Expr1, Text, Expr2), Assembly) :-
     asm_write_int_str_int_text(Expr1, Text, Expr2, Assembly).
-generate_asm_text(ir_write_format(Text, Expr1, Expr2, Expr3), Assembly) :-
-    asm_write_format_text(Text, Expr1, Expr2, Expr3, Assembly).
+generate_asm_text(ir_write_format(_, _, _, _), _) :-
+    throw(error(unsupported_write_format, context(codegen/generate_asm_text, 'printf-style formatting is not exposed by the Pascal frontend'))).
 generate_asm_text(ir_assign(VarName, Expr), Assembly) :-
     asm_assign(VarName, Expr, Assembly).
 generate_asm_text(ir_block(Stmts), Assembly) :-
@@ -232,7 +233,7 @@ next_label(Prefix, Label) :-
 
 
 % Assembly header
-asm_header(".data\n"):- !.
+asm_header(".data\nmain_frame_ptr:\n\t.quad 0\n"):- !.
 
 asm_footer(".text\n\t.global main\nmain:\n\tpushq %rbp\n\tmovq %rsp, %rbp\n"):- !.
 
@@ -246,12 +247,15 @@ asm_call_instruction(FuncName, Assembly) :-
 
 % Generate stack frame
 asm_stack_frame(TotalSize, Assembly) :-
-    (   TotalSize =:= 0
-    ->  SafeSize = 16  % Minimal stack frame for alignment
-    ;   SafeSize = TotalSize
-    ),
-    % Ensure 16-byte stack alignment for function calls
-    format(atom(Assembly), "\tsubq $~d, %rsp\n\tandq $-16, %rsp\n", [SafeSize]).
+    format(
+        atom(Assembly),
+        "\tsubq $~d, %rsp\n\tmovq %rbx, -8(%rbp)\n\tmovq %r12, -16(%rbp)\n\tmovq %r13, -24(%rbp)\n\tmovq %r14, -32(%rbp)\n\tmovq %r15, -40(%rbp)\n\tmovq %rbp, main_frame_ptr(%rip)\n",
+        [TotalSize]
+    ).
+
+asm_main_epilogue(
+    "\tmovq -8(%rbp), %rbx\n\tmovq -16(%rbp), %r12\n\tmovq -24(%rbp), %r13\n\tmovq -32(%rbp), %r14\n\tmovq -40(%rbp), %r15\n\tmovq $0, %rax\n\tleave\n\tret\n"
+):- !.
 
 % Stack overflow handler
 asm_stack_overflow_handler(
@@ -328,18 +332,6 @@ asm_write_int_str_int_text(Expr1, String, Expr2, TextSection) :-
         atom(TextSection),
         "~w\tmovl %eax, %edi\n\tleaq ~w(%rip), %rdx\n~w\tmovl %eax, %esi\n~w",
         [ExprCode1, Label, ExprCode2, CallCode]
-    ).
-
-asm_write_format_text(String, Expr1, Expr2, Expr3, TextSection) :-
-    asm_string_label(String, Label),
-    asm_expr(Expr1, ExprCode1),
-    asm_expr(Expr2, ExprCode2),
-    asm_expr(Expr3, ExprCode3),
-    asm_call_instruction(rt_write_format, CallCode),
-    format(
-        atom(TextSection),
-        "~w\tleaq ~w(%rip), %rdi\n\tmovl %eax, %esi\n~w\tmovl %eax, %edx\n~w\tmovl %eax, %ecx\n~w",
-        [ExprCode1, Label, ExprCode2, ExprCode3, CallCode]
     ).
 
 asm_readln_text(VarName, Assembly) :-
@@ -639,8 +631,8 @@ align_16(N, Aligned) :-
 % Generate assembly for statements within a function (with proper variable mapping)
 generate_func_asm_text(ir_assign(VarName, Expr), FuncName, Params, Locals, Assembly) :-
     asm_expr_func(Expr, FuncName, Params, Locals, ExprCode),
-    func_var_offset(VarName, FuncName, Params, Locals, Offset),
-    format(atom(Assembly), "~w\tmovq %rax, ~d(%rbp)\n", [ExprCode, Offset]).
+    asm_func_store(VarName, FuncName, Params, Locals, StoreCode),
+    format(atom(Assembly), "~w~w", [ExprCode, StoreCode]).
 generate_func_asm_text(ir_writeln_int(Expr), FuncName, Params, Locals, Assembly) :-
     asm_expr_func(Expr, FuncName, Params, Locals, ExprCode),
     asm_call_instruction(rt_writeln_int, CallCode),
@@ -654,9 +646,9 @@ generate_func_asm_text(ir_writeln_str(Text), _, _, _, Assembly) :-
 generate_func_asm_text(ir_write_str(Text), _, _, _, Assembly) :-
     asm_write_str_text(Text, Assembly).
 generate_func_asm_text(ir_readln(Name), FuncName, Params, Locals, Assembly) :-
-    func_var_offset(Name, FuncName, Params, Locals, Offset),
     asm_call_instruction(rt_readln_int, CallCode),
-    format(atom(Assembly), "~w\tmovslq %eax, %rax\n\tmovq %rax, ~d(%rbp)\n", [CallCode, Offset]).
+    asm_func_store(Name, FuncName, Params, Locals, StoreCode),
+    format(atom(Assembly), "~w\tmovslq %eax, %rax\n~w", [CallCode, StoreCode]).
 generate_func_asm_text(ir_if(Cond, ThenStmt, ElseStmt), FuncName, Params, Locals, Assembly) :-
     next_label(if_else, ElseLabel),
     next_label(if_end, EndLabel),
@@ -710,12 +702,29 @@ func_var_offset(Name, _, Params, Locals, Offset) :-
 func_var_offset(Name, _, _, _, _) :-
     throw(error(unknown_function_variable(Name), _)).
 
+func_global_var(Name, FuncName, Params, Locals, Offset) :-
+    atom(Name),
+    Name \== FuncName,
+    \+ memberchk(Name, Params),
+    \+ memberchk(local(_, Name), Locals),
+    var_offset(Name, Offset).
+
+asm_func_store(Name, FuncName, Params, Locals, Assembly) :-
+    (   func_global_var(Name, FuncName, Params, Locals, Offset)
+    ->  format(atom(Assembly), "\tmovq main_frame_ptr(%rip), %r11\n\tmovq %rax, -~d(%r11)\n", [Offset])
+    ;   func_var_offset(Name, FuncName, Params, Locals, Offset),
+        format(atom(Assembly), "\tmovq %rax, ~d(%rbp)\n", [Offset])
+    ).
+
 % Expression evaluation within function context
 asm_expr_func(ir_int(N), _, _, _, Assembly) :-
     format(atom(Assembly), "\tmovq $~d, %rax\n", [N]).
 asm_expr_func(ir_var(Name), FuncName, Params, Locals, Assembly) :-
-    func_var_offset(Name, FuncName, Params, Locals, Offset),
-    format(atom(Assembly), "\tmovq ~d(%rbp), %rax\n", [Offset]).
+    (   func_global_var(Name, FuncName, Params, Locals, Offset)
+    ->  format(atom(Assembly), "\tmovq main_frame_ptr(%rip), %r11\n\tmovq -~d(%r11), %rax\n", [Offset])
+    ;   func_var_offset(Name, FuncName, Params, Locals, Offset),
+        format(atom(Assembly), "\tmovq ~d(%rbp), %rax\n", [Offset])
+    ).
 asm_expr_func(ir_call(Name, Args), FuncName, Params, Locals, Assembly) :-
     length(Args, ArgCount),
     (   ArgCount > 6

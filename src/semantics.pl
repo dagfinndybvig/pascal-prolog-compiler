@@ -18,25 +18,43 @@ has_duplicate([_|Rest], Dup) :-
 
 check_funcs(Funcs, GlobalVars, FuncSigs) :-
     collect_func_sigs(Funcs, FuncSigs),
+    ensure_no_duplicate_functions(FuncSigs),
     check_all_func_bodies(Funcs, GlobalVars, FuncSigs).
 
 collect_func_sigs([], []).
 collect_func_sigs([func(Name, Params, _LocalVars, _Body)|Rest], [(Name, ParamCount)|RestSigs]) :-
     length(Params, ParamCount),
+    ensure_param_limit(Name, ParamCount),
     ensure_no_duplicates([Name|Params]),
     collect_func_sigs(Rest, RestSigs).
+
+ensure_no_duplicate_functions(FuncSigs) :-
+    findall(Name, member((Name, _), FuncSigs), Names),
+    (   msort(Names, Sorted),
+        has_duplicate(Sorted, Dup)
+    ->  throw(error(duplicate_function(Dup), context(semantics/ensure_no_duplicate_functions, 'Function declared more than once')))
+    ;   true
+    ).
+
+ensure_param_limit(Name, Count) :-
+    (   Count =< 6
+    ->  true
+    ;   throw(error(too_many_parameters(Name, Count), context(semantics/ensure_param_limit, 'Functions support at most 6 parameters')))
+    ).
 
 check_all_func_bodies([], _, _).
 check_all_func_bodies([func(Name, Params, LocalVars, Body)|Rest], GlobalVars, FuncSigs) :-
     ensure_no_duplicates([Name|Params]),
-    ensure_no_duplicates(LocalVars),
     append([Name|Params], LocalVars, FuncScope),
-    check_block(Body, FuncScope, FuncSigs),
+    ensure_no_duplicates(FuncScope),
+    append(FuncScope, GlobalVars, VarsInScope),
+    check_block(Body, VarsInScope, FuncSigs),
     check_all_func_bodies(Rest, GlobalVars, FuncSigs).
 
 check_all_func_bodies([func(Name, Params, Body)|Rest], GlobalVars, FuncSigs) :-
     ensure_no_duplicates([Name|Params]),
-    check_block(Body, [Name|Params], FuncSigs),
+    append([Name|Params], GlobalVars, VarsInScope),
+    check_block(Body, VarsInScope, FuncSigs),
     check_all_func_bodies(Rest, GlobalVars, FuncSigs).
 
 check_stmts([], _, _).

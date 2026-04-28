@@ -12,9 +12,10 @@ This is a **Pascal compiler written in SWI-Prolog** that compiles a subset of Pa
 - Compiles to x86-64 assembly via GCC
 - Uses Prolog DCGs for parsing
 - **Functions supported**: Integer functions with up to 6 parameters, recursion
+- Functions can read and write global variables; parameters and locals shadow globals
 - Prime number algorithms are the primary test cases
 
-**Version**: 1.4.4 (2026-04-23) - Fixed function semantic checking and local variable codegen bugs
+**Version**: 1.4.4 (2026-04-23) - Fixed function semantic checking, local variable codegen, ABI preservation, and function global access
 **Previous**: 1.4.3 (2026-04-22) - Added `mod` operator, fixed uninitialized function return values
 
 ## Quick Start
@@ -117,7 +118,7 @@ cat test.s
 - Register state tracked dynamically via `available_registers/1`
 
 ### Assembly Output
-- Stack frame: 16 + 8*N bytes (16-byte aligned)
+- Main stack frame reserves callee-saved register slots, then variable slots (16-byte aligned)
 - Variables stored at negative offsets from `%rbp`
 - Runtime error handlers included: `division_by_zero`
 - Generated calls use ABI-safe `%rsp` alignment wrappers
@@ -193,7 +194,7 @@ Test completed successfully!
 
 ## Version History
 
-- **v1.4.4** (2026-04-23): Fixed function semantic checking bug - `collect_func_sigs/2` now correctly handles `func/4` AST terms; fixed IR generation to properly merge function locals with block locals; fixed codegen to handle mangled local variable names
+- **v1.4.4** (2026-04-23): Fixed function semantic checking, function local lowering/codegen, mangled local handling, main ABI preservation, and function access to globals
 - **v1.4.3** (2026-04-22): Added `mod` operator support, fixed uninitialized function return values (now default to 0)
 - **v1.4.2** (2026-04-22): Fixed nested call argument clobbering, function-local variable codegen support, and call-site stack alignment
 - **v1.4.1** (2026-04-22): Fixed function semantic checking bug - separated signature collection from body checking to enable mutual recursion

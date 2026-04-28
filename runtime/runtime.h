@@ -12,7 +12,6 @@ void rt_error(int code, const char *message);
 void rt_write_int_str(int value, const char *text);
 void rt_write_str_int(const char *text, int value);
 void rt_write_int_str_int(int value1, const char *text, int value2);
-void rt_write_format(const char *format, int arg1, int arg2, int arg3);
 
 /* String conversion functions */
 void rt_int_to_buffer(int value, char *buffer, int buffer_size);

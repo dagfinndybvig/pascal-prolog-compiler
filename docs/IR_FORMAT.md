@@ -39,6 +39,8 @@ Local variables are name-mangled to avoid collisions:
 - Local variables: `local(Counter, OriginalName)` where Counter is a unique integer
 - Function return values: use the function name as the variable name
 
+Functions can reference global variables by their original names. Parameter and local mappings take precedence, so parameters and locals shadow globals.
+
 ## IR Statement Types
 
 ### Assignment
@@ -80,6 +82,9 @@ ir_writeln_int(Expression)      % Write integer with newline
 ir_writeln_str(String)          % Write string literal with newline
 ir_write_int(Expression)         % Write integer without newline
 ir_write_str(String)            % Write string literal without newline
+ir_write_int_str(Expression, String)
+ir_write_str_int(String, Expression)
+ir_write_int_str_int(Expression, String, Expression)
 ir_readln(VariableName)         % Read integer from input
 ```
 
@@ -123,7 +128,7 @@ Supported operators: `'-'` (negation)
 ir_bin(Operator, LeftExpression, RightExpression)
 ```
 
-Supported operators: `'+'`, `'-'`, `'*'`, `'/'`, `'='`, `'<>'`, `'<'`, `'<='`, `'>'`, `'>='`
+Supported operators: `'+'`, `'-'`, `'*'`, `'/'`, `mod`, `'='`, `'<>'`, `'<'`, `'<='`, `'>'`, `'>='`
 
 ## Example IR
 

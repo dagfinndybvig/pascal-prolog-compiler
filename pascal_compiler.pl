@@ -121,7 +121,8 @@ write_asm_file(AsmPath, ir_program(_, Funcs, Vars, IRStmts)) :-
         fail
     ;   true
     ),
-    write(Stream, "\tmovq $0, %rax\n\tleave\n\tret\n"),
+    asm_main_epilogue(MainEpilogue),
+    write(Stream, MainEpilogue),
     % Generate function code
     (   member(Func, Funcs),
         once(generate_func_asm(Func, Stream)),
@@ -142,6 +143,27 @@ write_asm_file(AsmPath, ir_program(_, Funcs, Vars, IRStmts)) :-
 expect_success(exit(0)) :- !.
 expect_success(Status) :-
     throw(error(gcc_failed(Status), _)).
+
+:- multifile prolog:message//1.
+
+prolog:message(error(duplicate_declaration(Name), context(_, Detail))) -->
+    [ 'duplicate declaration: ~w (~w)'-[Name, Detail] ].
+prolog:message(error(duplicate_function(Name), context(_, Detail))) -->
+    [ 'duplicate function: ~w (~w)'-[Name, Detail] ].
+prolog:message(error(too_many_parameters(Name, Count), context(_, Detail))) -->
+    [ 'too many parameters for function ~w: ~d (maximum 6; ~w)'-[Name, Count, Detail] ].
+prolog:message(error(too_many_arguments(Name, Count), _)) -->
+    [ 'too many arguments for function ~w: ~d (maximum 6)'-[Name, Count] ].
+prolog:message(error(wrong_arity(Name, Expected, Actual), context(_, Detail))) -->
+    [ 'wrong arity for function ~w: expected ~d, got ~d (~w)'-[Name, Expected, Actual, Detail] ].
+prolog:message(error(undeclared_variable(Name), context(_, Detail))) -->
+    [ 'undeclared variable: ~w (~w)'-[Name, Detail] ].
+prolog:message(error(undeclared_function(Name), context(_, Detail))) -->
+    [ 'undeclared function: ~w (~w)'-[Name, Detail] ].
+prolog:message(error(gcc_failed(Status), _)) -->
+    [ 'gcc failed: ~w'-[Status] ].
+prolog:message(error(unsupported_write_format, context(_, Detail))) -->
+    [ 'unsupported write format (~w)'-[Detail] ].
 
 usage :-
     writeln("Usage:"),

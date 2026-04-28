@@ -34,6 +34,10 @@ Fixed critical bugs affecting programs with functions and local variables.
 - ✅ **Fixed semantic checker function handling**: `collect_func_sigs/2` now correctly handles `func/4` AST terms (matching parser output)
 - ✅ **Fixed IR generation for function locals**: Function-level local variables now properly merged with block-level locals during IR lowering
 - ✅ **Fixed codegen mangled name handling**: Code generator now correctly resolves `local(Counter, Name)` mangled variable references
+- ✅ **Hardened semantic validation**: Duplicate function names, excessive parameter lists, and parameter/local name collisions are now rejected clearly
+- ✅ **Improved ABI preservation**: Generated `main` now saves and restores callee-saved registers used by expression evaluation
+- ✅ **Added global access from functions**: Functions can now read and write global variables while local names and parameters still shadow globals
+- ✅ **Hardened runtime formatting surface**: Removed the unused printf-style runtime helper
 
 ### Example: Functions with Local Variables
 ```pascal
@@ -60,8 +64,8 @@ end.
 
 - ✅ **Added `mod` operator**: Integer modulo operation now supported (`a mod b`)
 - ✅ **Fixed uninitialized function returns**: Functions without explicit return now return 0 instead of garbage values
-- ✅ **Enhanced write functionality**: Extended runtime library with formatting functions
-  - `rt_write_int_str()`, `rt_write_str_int()`, `rt_write_int_str_int()`, `rt_write_format()`
+- ✅ **Enhanced write functionality**: Extended runtime library with safe formatting helpers
+  - `rt_write_int_str()`, `rt_write_str_int()`, `rt_write_int_str_int()`
   - Enables better output formatting while maintaining compiler compatibility
 
 ### Example: Using the `mod` operator
@@ -314,7 +318,6 @@ This release supports a **practical subset** of Pascal focused on core programmi
   - `rt_write_int_str(value, text)`: Write integer followed by string
   - `rt_write_str_int(text, value)`: Write string followed by integer
   - `rt_write_int_str_int(val1, text, val2)`: Write integer, string, integer
-  - `rt_write_format(format, arg1, arg2, arg3)`: printf-style formatting
 - **String Literals**: Output-only string literals (no string variables)
 - **Nested Blocks**: Local variable scoping with proper shadowing
 - **Relational Operators**: `=`, `<>`, `<`, `<=`, `>`, `>=` (integer comparisons only)
@@ -323,6 +326,7 @@ This release supports a **practical subset** of Pascal focused on core programmi
   - **Recursion**: Fully supported with proper register preservation
   - **Return values**: Pascal-style (`funcname := value`)
   - **Expression calls**: `add(3, multiply(2, 4))`
+  - **Global access**: Functions can read and write global variables
 
 #### ❌ Not Yet Implemented
 - Arrays and records
@@ -419,8 +423,9 @@ end.
    - Enhanced write functions for better output formatting
 
 3. **Robust and Tested**
-    - Comprehensive test suite (10+ test cases)
+    - Comprehensive verification suite with example builds and targeted regressions
     - Edge case coverage (large numbers, complex expressions)
+    - Function global access and semantic error regressions
     - Consistent results across multiple prime implementations
 
 ### Compilation Pipeline
@@ -508,8 +513,8 @@ swipl -q -s pascal_compiler.pl -- build-asm examples/comprehensive_test.pas comp
    - Stack pointer is restored after each generated call
 
 2. **Dynamic Stack Sizing**
-   - Calculates exact stack needs: `16 + 8*N` bytes
-   - Minimal 16-byte frame for zero-variable programs
+   - Calculates exact stack needs for variables plus saved callee-saved registers
+   - Main reserves stack slots for `%rbx` and `%r12-%r15`
    - 16-byte alignment for System V ABI compliance
 
 3. **Register Allocation**

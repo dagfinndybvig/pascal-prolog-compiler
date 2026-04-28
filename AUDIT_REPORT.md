@@ -1,7 +1,7 @@
 # Pascal-Prolog Compiler Audit Report
 
-**Date:** 2026-04-22  
-**Version:** 1.4.3  
+**Date:** 2026-04-28
+**Version:** 1.4.4
 **Auditor:** Code Review
 
 ---
@@ -10,11 +10,18 @@
 
 This educational Pascal-to-x86-64 compiler is well-structured with a clean pipeline architecture (Lexer → Parser → Semantics → IR → Codegen). The codebase shows good separation of concerns and follows Prolog conventions. Most features work correctly including arithmetic, control flow, functions with up to 6 parameters, recursion, and proper register allocation.
 
-**Overall Status:** ✅ **All critical issues resolved**
+**Overall Status:** ✅ **Current audit findings addressed**
 
 **Fixes Applied:**
 - ✅ Function return values now default to 0 (was returning garbage)
 - ✅ Added `mod` operator support
+- ✅ Duplicate function declarations are rejected before code generation
+- ✅ Function declarations are limited to the supported 6 parameters
+- ✅ Function parameter/local duplicate declarations are rejected
+- ✅ Generated `main` now preserves callee-saved registers
+- ✅ Functions can now read and write global variables
+- ✅ Top-level compiler errors use explicit user-facing messages
+- ✅ Unsafe printf-style runtime formatting entry point removed
 
 ---
 
@@ -33,7 +40,7 @@ This educational Pascal-to-x86-64 compiler is well-structured with a clean pipel
 | `pascal_compiler.pl` | CLI entry point | ✅ Good |
 | `src/lexer.pl` | Tokenization | ✅ Good |
 | `src/parser.pl` | DCG-based parsing | ✅ Good |
-| `src/semantics.pl` | Scope/type checking | ⚠️ See issues |
+| `src/semantics.pl` | Scope/type checking | ✅ Good |
 | `src/ir.pl` | IR generation with name mangling | ✅ Good |
 | `src/codegen_asm_x86_64.pl` | x86-64 assembly generation | ✅ Good |
 | `runtime/runtime.c` | C runtime library | ✅ Good |
@@ -58,7 +65,7 @@ end;
 
 **Root Cause:** The semantic checker (`semantics.pl`) doesn't verify that functions assign to their name. The codegen allocates stack space for the return value but never initializes it.
 
-**Fix Applied:** Added initialization of return value slot to 0 in `codegen_asm_x86_64.pl`, line 508:
+**Fix Applied:** Added initialization of the return-value stack slot in the function prologue:
 ```prolog
 format(Stream, "\tmovq $0, -48(%rbp)\n", [])
 ```
@@ -67,36 +74,36 @@ format(Stream, "\tmovq $0, -48(%rbp)\n", [])
 
 ---
 
-### 🟡 MEDIUM: No Global Variable Access from Functions
+### 🟡 MEDIUM: No Global Variable Access from Functions ✅ FIXED
 
-**Issue:** Functions cannot access global variables due to grammar ordering.
+**Issue:** Functions could not access global variables.
 
-**Root Cause:** Grammar requires `func_declarations` before `declarations`, so global variables aren't in scope when functions are parsed.
+**Root Cause:** Function semantic checking and function code generation scoped functions to their return slot, parameters, and locals.
 
-**Workaround:** Pass all needed data as parameters.
+**Prior Workaround:** Pass all needed data as parameters.
 
-**Recommendation:** Document this as an architectural limitation or restructure grammar to allow global access.
+**Fix Applied:** Function semantic checking now includes globals after function-local names, so parameters and locals still shadow globals. Code generation records `main`'s frame pointer and uses it for function reads/writes of true global variables.
 
 ---
 
-### 🟡 MEDIUM: Error Message Inconsistency
+### 🟡 MEDIUM: Error Message Inconsistency ✅ FIXED
 
 **Issue:** Error messages have inconsistent formatting and sometimes expose internal details.
 
 **Examples:**
 ```
-Unknown error term: undeclared_variable(b) (Variable not declared in current scope)
-Unknown error term: duplicate_declaration(a) (Variable or parameter declared multiple times)
-Unknown error term: too_many_arguments(foo,7)
+undeclared variable: b (Variable not declared in current scope)
+duplicate declaration: a (Variable or parameter declared multiple times)
+too many arguments for function foo: 7 (maximum 6)
 ```
 
 **Root Cause:** Custom error terms aren't uniformly handled by the top-level error printer.
 
-**Recommendation:** Standardize error handling with a `format_error/2` predicate.
+**Fix Applied:** Added `prolog:message//1` handlers in `pascal_compiler.pl` for known compiler error terms.
 
 ---
 
-### 🟢 LOW: Parameter Shadowing Not Detected at Parse Time
+### 🟢 LOW: Parameter Shadowing Not Detected Clearly ✅ FIXED
 
 **Issue:** Shadowing a parameter with a local variable fails with generic syntax error instead of clear message.
 
@@ -109,9 +116,9 @@ begin
 end;
 ```
 
-**Result:** Generic "Syntax error: invalid_pascal_program"
+**Result:** Clear duplicate-declaration error.
 
-**Note:** This IS caught by `ensure_no_duplicates/1` but the error handling obscures it.
+**Fix Applied:** Function semantic checking now validates the combined function name + parameters + local variable scope.
 
 ---
 
@@ -153,7 +160,7 @@ The following are documented limitations:
 
 4. **Testing:**
    - Comprehensive test suite (`verify_math.py`)
-   - 24 example programs covering various cases
+   - 32 example programs covering various cases
    - Prime number algorithms as realistic test cases
 
 ### ⚠️ Areas for Improvement
@@ -162,9 +169,9 @@ The following are documented limitations:
    - More inline comments in `codegen_asm_x86_64.pl`
    - Assembly generation logic is complex and could use explanation
 
-2. **Error handling:**
-   - Standardize error term format
-   - Add user-friendly error messages with line numbers
+2. **Diagnostics:**
+    - User-friendly messages now exist for known compiler errors
+    - Future improvement: add source line/column reporting to semantic errors
 
 3. **Code duplication:**
    - `asm_expr/2` and `asm_expr_func/6` share similar logic
@@ -177,7 +184,7 @@ The following are documented limitations:
 ### ✅ Safe Practices
 
 1. **No buffer overflows:** String handling uses proper escaping
-2. **No format string vulnerabilities:** Assembly uses `format/3` with controlled atoms
+2. **No format string vulnerabilities:** Assembly uses `format/3` with controlled atoms; the unsafe `rt_write_format` runtime helper has been removed
 3. **Input validation:** Scanner rejects unexpected characters
 4. **Division by zero:** Runtime check before `idivq`
 
@@ -197,12 +204,14 @@ The following are documented limitations:
 ## 5. Test Results Summary
 
 ```
-Build Tests:    24/24 passed ✅
+Build Tests:    32/32 passed ✅
 Prime Tests:    All match expected output ✅
 Math Tests:     All pass ✅
 Division Signs: Correct (-7/2 = -3) ✅
 Scope Tests:    Correct (1221 output) ✅
 Functions:      Recursion works ✅
+Semantics:      Duplicate functions, excessive parameters, and param/local collisions rejected ✅
+Globals:        Function read/write and shadowing behavior verified ✅
 ```
 
 ---
@@ -212,7 +221,7 @@ Functions:      Recursion works ✅
 ### ✅ Completed Fixes
 
 1. **✅ Fixed uninitialized function returns:**
-   - Added `format(Stream, "\tmovq $0, -48(%rbp)\n", [])` in function prologue
+   - Added initialization of the function return-value slot in the function prologue
    - Functions now safely return 0 if no explicit assignment made
 
 2. **✅ Added `mod` operator:**
@@ -220,27 +229,21 @@ Functions:      Recursion works ✅
    - Added code generation using `%rdx` remainder after `idivq`
    - Works in both main program and function contexts
 
-### Remaining Recommendations
+### Completed Hardening
 
-3. **Improve error messages:**
-   ```prolog
-   format_error(undeclared_variable(Name), Msg) :-
-       format(string(Msg), "Error: Variable '~w' not declared", [Name]).
-   ```
+3. **✅ Improved error messages:**
+    - Added user-facing messages for semantic, arity, GCC, and unsupported-format errors.
 
-4. **Document limitations:**
-   - Add explicit "Not Supported" section to AGENTS.md
-   - Better error messages for unsupported features
+4. **✅ Implemented global access from functions:**
+    - Functions can read and write global variables.
+    - Parameters and locals continue to shadow globals.
 
 ### Long Term (Low Priority)
 
-5. **Support global variable access from functions:**
-   - Restructure grammar or add second pass for global binding
-
-6. **Add boolean operators:**
+5. **Add boolean operators:**
    - `and`, `or`, `not`
 
-7. **Forward declarations:**
+6. **Forward declarations:**
    - Enable mutual recursion patterns
 
 ---
@@ -254,10 +257,13 @@ The Pascal-Prolog compiler is a **well-crafted educational compiler** that succe
 All critical issues identified in the audit have been resolved:
 - ✅ Function return values now default to 0
 - ✅ `mod` operator support added
+- ✅ Function/global access works
+- ✅ Semantic edge cases fail early with clear diagnostics
+- ✅ Generated `main` preserves callee-saved registers
 
 The compiler is now more robust and feature-complete for its intended educational purpose.
 
 ---
 
-*Report generated by code audit on 2026-04-22*  
-*Updated after fixes applied on 2026-04-22*
+*Report generated by code audit on 2026-04-28*
+*Updated after fixes applied on 2026-04-28*

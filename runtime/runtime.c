@@ -48,10 +48,6 @@ void rt_write_int_str_int(int value1, const char *text, int value2) {
     printf("%d%s%d", value1, text, value2);
 }
 
-void rt_write_format(const char *format, int arg1, int arg2, int arg3) {
-    printf(format, arg1, arg2, arg3);
-}
-
 /* String conversion functions */
 
 void rt_int_to_buffer(int value, char *buffer, int buffer_size) {

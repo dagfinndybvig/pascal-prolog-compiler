@@ -104,5 +104,5 @@ swipl -q -s pascal_compiler.pl -- build-asm examples/challenging/isqrt_newton.pa
 
 - All numbers are kept small (< 50000) to avoid 32-bit integer overflow
 - Programs use only integer arithmetic (no floating-point)
-- `mod` operation is simulated via: `a - (a / b) * b`
+- Some older examples intentionally simulate `mod` via `a - (a / b) * b`; the compiler also supports the native `mod` operator.
 - Division uses truncation toward zero semantics

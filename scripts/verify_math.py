@@ -335,6 +335,123 @@ end.
         ["100", "999", "100"],
     )
 
+    semantic_regressions = {
+        "duplicate_function_rejected": (
+            """program duplicate_function_check;
+function foo(x: integer): integer;
+begin
+  foo := x
+end;
+function foo(y: integer): integer;
+begin
+  foo := y + 1
+end;
+begin
+  writeln(foo(1))
+end.
+""",
+            "duplicate function",
+        ),
+        "too_many_parameters_rejected": (
+            """program too_many_parameters_check;
+function many(a,b,c,d,e,h,g: integer): integer;
+begin
+  many := a
+end;
+begin
+  writeln(1)
+end.
+""",
+            "too many parameters",
+        ),
+        "param_local_duplicate_rejected": (
+            """program param_local_duplicate_check;
+function foo(x: integer): integer;
+var
+  x: integer;
+begin
+  foo := x
+end;
+begin
+  writeln(foo(1))
+end.
+""",
+            "duplicate declaration",
+        ),
+    }
+
+    for name, (source, expected_message) in semantic_regressions.items():
+        pas_path = BIN_DIR / f"{name}.pas"
+        pas_path.write_text(source)
+        proc = run(
+            [
+                "swipl",
+                "-q",
+                "-s",
+                "pascal_compiler.pl",
+                "--",
+                "check",
+                str(pas_path.relative_to(ROOT)),
+            ]
+        )
+        combined_output = proc.stdout + proc.stderr
+        checks[name] = {
+            "returncode": proc.returncode,
+            "expected_failure": proc.returncode != 0,
+            "expected_message": expected_message in combined_output,
+            "pass": proc.returncode != 0 and expected_message in combined_output,
+        }
+
+    global_access_source = """program function_global_access_check;
+function addg(x: integer): integer;
+begin
+  addg := x + g
+end;
+function inc(): integer;
+begin
+  g := g + 1;
+  inc := g
+end;
+var
+  g: integer;
+begin
+  g := 5;
+  writeln(addg(2));
+  writeln(inc());
+  writeln(g)
+end.
+"""
+    global_access_result = build_and_run_source(
+        global_access_source,
+        "regression_function_global_access",
+    )
+    checks["function_global_access"] = check_expected_stdout_lines(
+        global_access_result,
+        ["7", "6", "6"],
+    )
+
+    global_shadow_source = """program function_global_shadow;
+function f(g: integer): integer;
+begin
+  f := g + 1
+end;
+var
+  g: integer;
+begin
+  g := 10;
+  writeln(f(3));
+  writeln(g)
+end.
+"""
+    global_shadow_result = build_and_run_source(
+        global_shadow_source,
+        "regression_function_global_shadow",
+    )
+    checks["function_global_shadowing"] = check_expected_stdout_lines(
+        global_shadow_result,
+        ["4", "10"],
+    )
+
     result = {
         "build_results": build_results,
         "checks": checks,

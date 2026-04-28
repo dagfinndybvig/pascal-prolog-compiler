@@ -29,7 +29,7 @@ The compiler uses the following x86-64 registers:
 ### Register Usage Rules
 
 - `%rax` is always used for expression results
-- Callee-saved registers are saved/restored in function prologues/epilogues
+- Callee-saved registers are saved/restored in function prologues/epilogues and in generated `main`
 - Parameter registers are used for function calls following System V ABI
 - Temporary registers are used for intermediate calculations
 
@@ -42,17 +42,27 @@ High Addresses
 +----------------+  
 |    ...         |  
 +----------------+  
-|  Local Var N   | - (16 + 8*N)
+|  Local Var N   | - (48 + 8*N)
 +----------------+  
 |    ...         |  
 +----------------+  
-|  Local Var 1   | - 24
+|  Local Var 1   | - 56
 +----------------+  
-|  Local Var 0   | - 16
+|  Local Var 0   | - 48
 +----------------+  
-|    %rbp        | - 8 (saved base pointer)
+|    %r15        | - 40
++----------------+
+|    %r14        | - 32
++----------------+
+|    %r13        | - 24
++----------------+
+|    %r12        | - 16
++----------------+
+|    %rbx        | - 8
++----------------+
+| saved %rbp     |  0
 +----------------+  
-|    %rip        |  0 (return address)
+| return address |  8
 +----------------+  
 |    ...         |  
 Low Addresses
@@ -65,15 +75,15 @@ High Addresses
 +----------------+  
 |    ...         |  
 +----------------+  
-|  Local Var N   | - (48 + 8*(ParamCount + LocalCount + N))
+|  Local Var N   | - (48 + 8*(ParamCount + N))
 +----------------+  
 |    ...         |  
 +----------------+  
-|  Local Var 1   | - (48 + 8*(ParamCount + LocalCount + 1))
+|  Local Var 1   | - (48 + 8*(ParamCount + 2))
 +----------------+  
-|  Local Var 0   | - (48 + 8*(ParamCount + LocalCount))
+|  Local Var 0   | - (48 + 8*(ParamCount + 1))
 +----------------+  
-|  Param N       | - (48 + 8*(ParamCount + N))
+|  Param N       | - (48 + 8*N)
 +----------------+  
 |    ...         |  
 +----------------+  
@@ -109,6 +119,14 @@ movq -N(%rbp), %rax
 
 ; Store %rax into variable at offset N from %rbp
 movq %rax, -N(%rbp)
+```
+
+Function access to globals uses the recorded `main` frame pointer:
+
+```assembly
+movq main_frame_ptr(%rip), %r11
+movq -N(%r11), %rax      ; load global
+movq %rax, -N(%r11)      ; store global
 ```
 
 ### Arithmetic Operations
@@ -182,7 +200,7 @@ je division_by_zero
 
 ### Generated Assembly Sections
 
-1. **Data Section**: String literals and constants
+1. **Data Section**: String literals and `main_frame_ptr`, which lets functions access globals stored in `main`'s frame
 2. **Text Section**: Executable code
 3. **Main Function**: Program entry point
 4. **Generated Functions**: User-defined functions
@@ -203,8 +221,9 @@ The generated code follows the System V AMD64 ABI:
 
 - **Calling Convention**: First 6 parameters in registers, rest on stack
 - **Stack Alignment**: 16-byte alignment before function calls
-- **Register Preservation**: Callee-saved registers preserved across calls
+- **Register Preservation**: Callee-saved registers are preserved in generated functions and generated `main`
 - **Return Values**: Integer results in `%rax`
+- **Global Access**: Generated `main` records `%rbp` in `main_frame_ptr`; functions use it to read and write global variables
 
 ## Optimization Notes
 

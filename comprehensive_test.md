@@ -5,11 +5,11 @@
 >
 > It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
 
-This document describes the comprehensive test program that demonstrates all currently implemented features of the Pascal-Prolog compiler's assembly backend.
+This document describes the comprehensive test program that demonstrates the compiler's core arithmetic, control-flow, scoped-variable, I/O, and string-output behavior. Additional examples and generated regressions cover functions, `mod`, semantic errors, and global access from functions.
 
 ## Test Program: `comprehensive_test.pas`
 
-The comprehensive test program exercises all implemented Pascal features:
+The comprehensive test program exercises core Pascal subset features:
 
 ### Features Tested:
 
@@ -172,7 +172,7 @@ This means validation now combines:
 
 ## Test Coverage Analysis
 
-This comprehensive test covers all features implemented in the current version:
+This comprehensive test covers the core features exercised by `examples/comprehensive_test.pas`:
 
 | Feature | Tested | Working |
 |---------|--------|---------|
@@ -188,4 +188,4 @@ This comprehensive test covers all features implemented in the current version:
 | Input operations | ✅ | ✅ |
 | Writeln statements | ✅ | ✅ |
 
-The test demonstrates that the assembly backend is fully functional and produces correct results for all implemented Pascal features.
+Together with the generated regressions and example programs run by `scripts/verify_math.py`, this test demonstrates that the assembly backend produces correct results for the supported Pascal subset.

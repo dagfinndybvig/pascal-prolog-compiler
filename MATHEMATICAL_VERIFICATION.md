@@ -6,9 +6,9 @@
 > It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
 
 ## Status
-**Result:** PASS  
-**Date:** 2026-04-17  
-**Version:** v1.3
+**Result:** PASS
+**Date:** 2026-04-28
+**Version:** v1.4.4
 
 This verification is reproducible from files in this release package.
 
@@ -26,6 +26,7 @@ The script:
 3. Checks count-based variants up to 46000.
 4. Runs the comprehensive feature test with fixed input.
 5. Runs backend hardening regression programs generated at verification time.
+6. Runs semantic hardening and function/global-access regressions generated at verification time.
 
 ## Verified Results
 
@@ -72,6 +73,16 @@ Verified additional regression checks in `scripts/verify_math.py`:
   - Confirms signed integer division truncation behavior is correct.
 - `nested_control_flow_scope`
   - Confirms nested loop/branch evaluation and scoped shadowing behavior.
+- `duplicate_function_rejected`
+  - Confirms duplicate function declarations fail before code generation.
+- `too_many_parameters_rejected`
+  - Confirms function declarations are limited to the supported six parameters.
+- `param_local_duplicate_rejected`
+  - Confirms parameter/local collisions fail with a duplicate-declaration diagnostic.
+- `function_global_access`
+  - Confirms functions can read and write global variables.
+- `function_global_shadowing`
+  - Confirms function parameters shadow globals with the same name.
 
 All listed checks currently pass.
 
