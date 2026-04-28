@@ -6,6 +6,8 @@
 > This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`) plus static arrays, procedures, `var` parameters (including arrays passed by reference), `for` loops, multi-argument `write`/`writeln`, and `case` statements, while still intentionally omitting full ISO Pascal features.
 >
 > It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
+>
+> It also serves as a personal **testbed for evaluating how well various AI coding agents can combine high-level work (Prolog DCG parsing, semantic analysis, IR design) with low-level work (x86-64 assembly generation, register allocation, calling conventions, runtime integration)** in a single project.
 
 ## 📦 Pascal-Prolog Assembly Backend Release
 
@@ -638,31 +640,57 @@ Pascal Source → AST → IR → x86-64 Assembly → Native Executable
 
 ```
 pascal-prolog-asm-release/
-├── pascal_compiler.pl          # Main compiler entry point
-├── src/                        # Compiler front-end + backend modules
-│   ├── lexer.pl                # Lexer
-│   ├── parser.pl               # Parser
-│   ├── semantics.pl            # Semantic checks
-│   ├── ir.pl                   # IR lowering
-│   └── codegen_asm_x86_64.pl   # x86-64 assembly generator
-├── examples/                    # Example Pascal programs
-│   ├── comprehensive_test.pas # Comprehensive test program
-│   ├── challenging/           # Challenging algorithms (recursion, etc.)
-│   └── primes/                 # Prime algorithm examples
-│       ├── basic/             # Basic prime algorithms
-│       ├── optimized/         # Optimized prime algorithms
-│       └── special/           # Specialized prime algorithms
-├── docs/                       # Documentation
-│   ├── primes.md              # Prime algorithm documentation
-│   ├── ALGORITHM_PROGRESSION.md # Algorithm evolution
-│   └── PERFORMANCE_COMPARISON.md # Performance analysis
-├── MATHEMATICAL_VERIFICATION.md # Mathematical correctness report
-├── runtime/                    # Runtime library
-│   ├── runtime.c               # Runtime functions
-│   ├── runtime.h               # Runtime headers
-│   └── (built at compile time) # No prebuilt objects in release
-├── README.md                   # This file
-└── UNLICENSE                   # License
+├── pascal_compiler.pl              # Main compiler entry point
+├── src/                            # Compiler front-end + backend modules
+│   ├── lexer.pl                    # Lexer
+│   ├── parser.pl                   # Parser (DCG)
+│   ├── semantics.pl                # Semantic checks
+│   ├── ir.pl                       # IR lowering
+│   └── codegen_asm_x86_64.pl       # x86-64 assembly generator
+├── runtime/                        # Runtime library (built at compile time)
+│   ├── runtime.c                   # Runtime functions
+│   └── runtime.h                   # Runtime headers
+├── examples/                       # Example Pascal programs
+│   ├── comprehensive_test.pas      # Comprehensive test program
+│   ├── array_demo.pas              # Static array and char-buffer demo
+│   ├── array_params_demo.pas       # var array parameter demo
+│   ├── boolean_char_demo.pas       # Boolean and char scalar demo
+│   ├── case_demo.pas               # case statement demo
+│   ├── for_loop_demo.pas           # for-to/downto loop demo
+│   ├── function_demo.pas           # Function demo
+│   ├── global_function_demo.pas    # Function read/write of globals
+│   ├── global_var_before_function_demo.pas
+│   ├── mod_demo.pas                # mod operator demo
+│   ├── mod_function_test.pas
+│   ├── multi_arg_write_demo.pas    # Multi-argument write/writeln
+│   ├── no_func_test.pas
+│   ├── procedures_demo.pas         # Procedure demo
+│   ├── procedures_recursive.pas    # Recursive procedure demo
+│   ├── simple_func_test.pas
+│   ├── test_functions.pas
+│   ├── test_local_vars.pas
+│   ├── var_params_demo.pas         # var (by-reference) parameter demo
+│   ├── challenging/                # Challenging algorithms (recursion, etc.)
+│   ├── datatypes/                  # Datatype showcase programs
+│   └── primes/                     # Prime algorithm examples
+│       ├── basic/                  # Basic prime algorithms
+│       ├── optimized/              # Optimized prime algorithms
+│       └── special/                # Specialized prime algorithms
+├── scripts/
+│   └── verify_math.py              # Mathematical verification suite
+├── docs/                           # Documentation
+│   ├── primes.md                   # Prime algorithm documentation
+│   ├── ALGORITHM_PROGRESSION.md    # Algorithm evolution
+│   ├── ASSEMBLY_GENERATION.md      # Assembly generation notes
+│   ├── IR_FORMAT.md                # IR format documentation
+│   └── PERFORMANCE_COMPARISON.md   # Performance analysis
+├── AGENTS.md                       # Guidelines for AI agents
+├── AUDIT_REPORT.md                 # Audit report
+├── MATHEMATICAL_VERIFICATION.md    # Mathematical correctness report
+├── TODO_GLOBAL_ACCESS.md           # Notes on global access work
+├── comprehensive_test.md           # Comprehensive test notes
+├── README.md                       # This file
+└── UNLICENSE                       # License
 ```
 
 ## 🧪 Testing
