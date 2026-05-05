@@ -27,6 +27,7 @@ var
 begin
   if sorted = nil then
   begin
+    { First element initializes the sorted chain. }
     item^.next := nil;
     sorted := item;
   end
@@ -34,6 +35,7 @@ begin
   begin
     if item^.key <= sorted^.key then
     begin
+      { Insert before current head of sorted list. }
       item^.next := sorted;
       sorted := item;
     end
@@ -42,6 +44,7 @@ begin
       prev := sorted;
       curr := sorted^.next;
 
+      { Walk until insertion point (first key >= item^.key) or list end. }
       while curr <> nil do
       begin
         if item^.key <= curr^.key then
@@ -53,6 +56,7 @@ begin
         end;
       end;
 
+      { Splice item after prev and before prev^.next. }
       item^.next := prev^.next;
       prev^.next := item;
     end;
@@ -68,6 +72,7 @@ begin
   sorted := nil;
   unsorted := h;
 
+  { Detach each node from unsorted and reinsert into sorted. }
   while unsorted <> nil do
   begin
     next_item := unsorted^.next;
@@ -100,6 +105,7 @@ var
   next_item: node_ptr;
 begin
   p := h;
+  { Keep next pointer before dispose so traversal remains valid. }
   while p <> nil do
   begin
     next_item := p^.next;
