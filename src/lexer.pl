@@ -112,6 +112,7 @@ keyword_or_ident(integer, kw(integer)) :- !.
 keyword_or_ident(boolean, kw(boolean)) :- !.
 keyword_or_ident(char, kw(char)) :- !.
 keyword_or_ident(array, kw(array)) :- !.
+keyword_or_ident(record, kw(record)) :- !.
 keyword_or_ident(of, kw(of)) :- !.
 keyword_or_ident(true, kw(true)) :- !.
 keyword_or_ident(false, kw(false)) :- !.

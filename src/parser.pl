@@ -138,6 +138,25 @@ type_spec(array(Low, High, ElementType)) -->
     symbol(']'),
     keyword(of),
     scalar_type_spec(ElementType).
+type_spec(record(Fields)) -->
+    keyword(record),
+    record_field_decls(Fields),
+    keyword(end).
+
+record_field_decls(Fields) -->
+    record_field_decl(First),
+    symbol(';'),
+    !,
+    record_field_decls(Rest),
+    { append(First, Rest, Fields) }.
+record_field_decls([]) -->
+    [].
+
+record_field_decl(Fields) -->
+    ident_list(Names),
+    symbol(':'),
+    type_spec(Type),
+    { make_field_decls(Names, Type, Fields) }.
 
 scalar_type_spec(integer) -->
     keyword(integer).
@@ -157,6 +176,10 @@ make_var_params([Name|Names], Type, [param_var(Name, Type)|Params]) :-
 make_decls([], _, []).
 make_decls([Name|Names], Type, [decl(Name, Type)|Decls]) :-
     make_decls(Names, Type, Decls).
+
+make_field_decls([], _, []).
+make_field_decls([Name|Names], Type, [field(Name, Type)|Decls]) :-
+    make_field_decls(Names, Type, Decls).
 
 ident_list([Name|Rest]) -->
     identifier(Name),
@@ -283,6 +306,14 @@ statement(readln(Name)) -->
     identifier(Name),
     symbol(')'),
     !.
+statement(readln_field(Name, Field)) -->
+    keyword(readln),
+    symbol('('),
+    identifier(Name),
+    symbol('.'),
+    identifier(Field),
+    symbol(')'),
+    !.
 statement(proc_call(Name, Args)) -->
     identifier(Name),
     symbol('('),
@@ -298,6 +329,13 @@ statement(assign_index(Name, IndexExpr, Expr)) -->
     symbol('['),
     expression(IndexExpr),
     symbol(']'),
+    symbol(':='),
+    expression(Expr),
+    !.
+statement(assign_field(Name, Field, Expr)) -->
+    identifier(Name),
+    symbol('.'),
+    identifier(Field),
     symbol(':='),
     expression(Expr),
     !.
@@ -482,6 +520,11 @@ primary(call(Name, Args)) -->
     expr_list(Args),
     symbol(')'),
     !.
+primary(field_ref(Name, Field)) -->
+    identifier(Name),
+    symbol('.'),
+    identifier(Field),
+    !.
 primary(array_ref(Name, IndexExpr)) -->
     identifier(Name),
     symbol('['),
@@ -543,6 +586,5 @@ string_literal(Text) -->
 peek_keyword(K, [tok(kw(K), _, _)|Tokens], [tok(kw(K), _, _)|Tokens]).
 
 peek_proc_call_end([tok(sym(';'), L, C)|T], [tok(sym(';'), L, C)|T]).
-peek_proc_call_end([tok(sym('.'), L, C)|T], [tok(sym('.'), L, C)|T]).
 peek_proc_call_end([tok(kw(end), L, C)|T], [tok(kw(end), L, C)|T]).
 peek_proc_call_end([tok(kw(else), L, C)|T], [tok(kw(else), L, C)|T]).

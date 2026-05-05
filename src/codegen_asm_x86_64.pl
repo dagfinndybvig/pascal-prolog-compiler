@@ -145,14 +145,25 @@ is_var_param(Name, Params) :-
     member(param_var(Name, _), Params),
     !.
 
-array_type_slots(array(Low, High, _), Slots) :-
+type_slots(array(Low, High, ElementType), Slots) :-
     !,
-    Slots is High - Low + 1.
-array_type_slots(_, 1).
+    Length is High - Low + 1,
+    type_slots(ElementType, ElementSlots),
+    Slots is Length * ElementSlots.
+type_slots(record(Fields), Slots) :-
+    !,
+    record_fields_slots(Fields, Slots).
+type_slots(_, 1).
+
+record_fields_slots([], 0).
+record_fields_slots([field(_, FieldType)|Rest], Slots) :-
+    type_slots(FieldType, ThisSlots),
+    record_fields_slots(Rest, RestSlots),
+    Slots is ThisSlots + RestSlots.
 
 storage_slots(Storage, Slots) :-
     storage_type(Storage, Type),
-    array_type_slots(Type, Slots).
+    type_slots(Type, Slots).
 
 storage_slots_before([], _, 0).
 storage_slots_before([_|_], 1, 0) :- !.
@@ -203,6 +214,8 @@ generate_asm(ir_assign(_VarName, _Expr), Assembly) :-
     format(atom(Assembly), "", []).
 generate_asm(ir_array_store(_, _, _, _, _), Assembly) :-
     format(atom(Assembly), "", []).
+generate_asm(ir_record_field_store(_, _, _), Assembly) :-
+    format(atom(Assembly), "", []).
 generate_asm(ir_proc_call(_, _), Assembly) :-
     format(atom(Assembly), "", []).
 generate_asm(ir_if(_, ThenStmt, ElseStmt), Assembly) :-
@@ -250,6 +263,10 @@ generate_asm_text(ir_readln(Name), Assembly) :-
     asm_readln_text(Name, Assembly).
 generate_asm_text(ir_readln_char(Name), Assembly) :-
     asm_readln_char_text(Name, Assembly).
+generate_asm_text(ir_record_field_readln(Name, SlotOffset), Assembly) :-
+    asm_record_field_readln_text(Name, SlotOffset, Assembly).
+generate_asm_text(ir_record_field_readln_char(Name, SlotOffset), Assembly) :-
+    asm_record_field_readln_char_text(Name, SlotOffset, Assembly).
 
 % Enhanced write statements for stdlib
 generate_asm_text(ir_write_int_str(Expr, Text), Assembly) :-
@@ -264,6 +281,8 @@ generate_asm_text(ir_assign(VarName, Expr), Assembly) :-
     asm_assign(VarName, Expr, Assembly).
 generate_asm_text(ir_array_store(Name, Low, High, IndexExpr, Expr), Assembly) :-
     asm_array_store(Name, Low, High, IndexExpr, Expr, Assembly).
+generate_asm_text(ir_record_field_store(Name, SlotOffset, Expr), Assembly) :-
+    asm_record_field_store(Name, SlotOffset, Expr, Assembly).
 generate_asm_text(ir_proc_call(Name, Args), Assembly) :-
     length(Args, ArgCount),
     (   ArgCount > 6
@@ -487,6 +506,26 @@ asm_readln_char_text(VarName, Assembly) :-
         [CallCode, Offset]
     ).
 
+asm_record_field_readln_text(Name, SlotOffset, Assembly) :-
+    var_offset(Name, BaseOffset),
+    FieldOffset is BaseOffset + (SlotOffset * 8),
+    asm_call_instruction(rt_readln_int, CallCode),
+    format(
+        atom(Assembly),
+        "~w\tmovslq %eax, %rax\n\tmovq %rax, -~d(%rbp)\n",
+        [CallCode, FieldOffset]
+    ).
+
+asm_record_field_readln_char_text(Name, SlotOffset, Assembly) :-
+    var_offset(Name, BaseOffset),
+    FieldOffset is BaseOffset + (SlotOffset * 8),
+    asm_call_instruction(rt_readln_char, CallCode),
+    format(
+        atom(Assembly),
+        "~w\tmovslq %eax, %rax\n\tmovq %rax, -~d(%rbp)\n",
+        [CallCode, FieldOffset]
+    ).
+
 asm_assign(VarName, Expr, Assembly) :-
     asm_expr(Expr, ExprCode),
     var_offset(VarName, Offset),
@@ -512,6 +551,17 @@ asm_array_store(Name, Low, High, IndexExpr, Expr, Assembly) :-
         "~w~w\tmovq %rax, %r10\n\tpushq %r10\n~w\tpopq %r10\n\tmovq %rbp, %r11\n\tsubq $~d, %r11\n\tsubq %r10, %r11\n\tmovq %rax, (%r11)\n",
         [IndexCode, CheckCode, ExprCode, BaseOffset]
     ).
+
+asm_record_field_load(Name, SlotOffset, Assembly) :-
+    var_offset(Name, BaseOffset),
+    FieldOffset is BaseOffset + (SlotOffset * 8),
+    format(atom(Assembly), "\tmovq -~d(%rbp), %rax\n", [FieldOffset]).
+
+asm_record_field_store(Name, SlotOffset, Expr, Assembly) :-
+    asm_expr(Expr, ExprCode),
+    var_offset(Name, BaseOffset),
+    FieldOffset is BaseOffset + (SlotOffset * 8),
+    format(atom(Assembly), "~w\tmovq %rax, -~d(%rbp)\n", [ExprCode, FieldOffset]).
 
 asm_array_index_check(Low, High, Assembly) :-
     format(
@@ -595,6 +645,12 @@ asm_expr(ir_var(Name), Assembly) :-
 asm_expr(ir_addr_of(Name), Assembly) :-
     var_offset(Name, Offset),
     format(atom(Assembly), "\tleaq -~d(%rbp), %rax\n", [Offset]).
+asm_expr(ir_record_field_addr(Name, SlotOffset), Assembly) :-
+    var_offset(Name, BaseOffset),
+    FieldOffset is BaseOffset + (SlotOffset * 8),
+    format(atom(Assembly), "\tleaq -~d(%rbp), %rax\n", [FieldOffset]).
+asm_expr(ir_record_field_load(Name, SlotOffset), Assembly) :-
+    asm_record_field_load(Name, SlotOffset, Assembly).
 asm_expr(ir_array_load(Name, Low, High, IndexExpr), Assembly) :-
     asm_array_load(Name, Low, High, IndexExpr, Assembly).
 asm_expr(ir_call(Name, Args), Assembly) :-
@@ -841,6 +897,8 @@ generate_func_asm_text(ir_assign(VarName, Expr), FuncName, Params, Locals, Assem
     format(atom(Assembly), "~w~w", [ExprCode, StoreCode]).
 generate_func_asm_text(ir_array_store(Name, Low, High, IndexExpr, Expr), FuncName, Params, Locals, Assembly) :-
     asm_array_store_func(Name, Low, High, IndexExpr, Expr, FuncName, Params, Locals, Assembly).
+generate_func_asm_text(ir_record_field_store(Name, SlotOffset, Expr), FuncName, Params, Locals, Assembly) :-
+    asm_record_field_store_func(Name, SlotOffset, Expr, FuncName, Params, Locals, Assembly).
 generate_func_asm_text(ir_writeln_int(Expr), FuncName, Params, Locals, Assembly) :-
     asm_expr_func(Expr, FuncName, Params, Locals, ExprCode),
     asm_call_instruction(rt_writeln_int, CallCode),
@@ -873,6 +931,10 @@ generate_func_asm_text(ir_readln_char(Name), FuncName, Params, Locals, Assembly)
     asm_call_instruction(rt_readln_char, CallCode),
     asm_func_store(Name, FuncName, Params, Locals, StoreCode),
     format(atom(Assembly), "~w\tmovslq %eax, %rax\n~w", [CallCode, StoreCode]).
+generate_func_asm_text(ir_record_field_readln(Name, SlotOffset), FuncName, Params, Locals, Assembly) :-
+    asm_record_field_readln_func(Name, SlotOffset, rt_readln_int, FuncName, Params, Locals, Assembly).
+generate_func_asm_text(ir_record_field_readln_char(Name, SlotOffset), FuncName, Params, Locals, Assembly) :-
+    asm_record_field_readln_func(Name, SlotOffset, rt_readln_char, FuncName, Params, Locals, Assembly).
 generate_func_asm_text(ir_if(Cond, ThenStmt, ElseStmt), FuncName, Params, Locals, Assembly) :-
     next_label(if_else, ElseLabel),
     next_label(if_end, EndLabel),
@@ -977,6 +1039,30 @@ asm_array_frame_setup(local, BaseOffset, Setup) :-
 asm_array_frame_setup(var_array, SlotOffset, Setup) :-
     format(atom(Setup), "\tmovq ~d(%rbp), %r11\n", [SlotOffset]).
 
+func_record_field_addr(Name, SlotOffset, FuncName, Params, Locals, AddrCode) :-
+    (   func_global_var(Name, FuncName, Params, Locals, BaseOffset)
+    ->  FieldOffset is BaseOffset + (SlotOffset * 8),
+        format(atom(AddrCode), "\tmovq main_frame_ptr(%rip), %r11\n\tsubq $~d, %r11\n", [FieldOffset])
+    ;   func_var_offset(Name, FuncName, Params, Locals, Offset),
+        (   is_var_param(Name, Params)
+        ->  Delta is SlotOffset * 8,
+            format(atom(AddrCode), "\tmovq ~d(%rbp), %r11\n\tsubq $~d, %r11\n", [Offset, Delta])
+        ;   BaseOffset is -Offset,
+            FieldOffset is BaseOffset + (SlotOffset * 8),
+            format(atom(AddrCode), "\tmovq %rbp, %r11\n\tsubq $~d, %r11\n", [FieldOffset])
+        )
+    ).
+
+asm_record_field_store_func(Name, SlotOffset, Expr, FuncName, Params, Locals, Assembly) :-
+    asm_expr_func(Expr, FuncName, Params, Locals, ExprCode),
+    func_record_field_addr(Name, SlotOffset, FuncName, Params, Locals, AddrCode),
+    format(atom(Assembly), "~w~w\tmovq %rax, (%r11)\n", [ExprCode, AddrCode]).
+
+asm_record_field_readln_func(Name, SlotOffset, RuntimeCall, FuncName, Params, Locals, Assembly) :-
+    asm_call_instruction(RuntimeCall, CallCode),
+    func_record_field_addr(Name, SlotOffset, FuncName, Params, Locals, AddrCode),
+    format(atom(Assembly), "~w\tmovslq %eax, %rax\n~w\tmovq %rax, (%r11)\n", [CallCode, AddrCode]).
+
 asm_array_load_func(Name, Low, High, IndexExpr, FuncName, Params, Locals, Assembly) :-
     asm_expr_func(IndexExpr, FuncName, Params, Locals, IndexCode),
     asm_array_index_check(Low, High, CheckCode),
@@ -1069,6 +1155,12 @@ asm_expr_func(ir_addr_of(Name), FuncName, Params, Locals, Assembly) :-
         ;   format(atom(Assembly), "\tleaq ~d(%rbp), %rax\n", [Offset])
         )
     ).
+asm_expr_func(ir_record_field_addr(Name, SlotOffset), FuncName, Params, Locals, Assembly) :-
+    func_record_field_addr(Name, SlotOffset, FuncName, Params, Locals, AddrCode),
+    format(atom(Assembly), "~w\tmovq %r11, %rax\n", [AddrCode]).
+asm_expr_func(ir_record_field_load(Name, SlotOffset), FuncName, Params, Locals, Assembly) :-
+    func_record_field_addr(Name, SlotOffset, FuncName, Params, Locals, AddrCode),
+    format(atom(Assembly), "~w\tmovq (%r11), %rax\n", [AddrCode]).
 asm_expr_func(ir_array_load(Name, Low, High, IndexExpr), FuncName, Params, Locals, Assembly) :-
     asm_array_load_func(Name, Low, High, IndexExpr, FuncName, Params, Locals, Assembly).
 asm_expr_func(ir_call(Name, Args), FuncName, Params, Locals, Assembly) :-

@@ -85,6 +85,11 @@ lower_stmt(assign_index(Name, IndexExpr, Expr), Env, Counter, Counter, ir_array_
     lookup_type(Name, Env, array(Low, High, _ElementType)),
     lower_expr(IndexExpr, Env, IRIndex, integer),
     lower_expr(Expr, Env, IRExpr, _).
+lower_stmt(assign_field(Name, Field, Expr), Env, Counter, Counter, ir_record_field_store(MappedName, SlotOffset, IRExpr), []) :-
+    map_name(Name, Env, MappedName),
+    lookup_type(Name, Env, RecordType),
+    record_field_slot_offset(RecordType, Field, SlotOffset, FieldType),
+    lower_expr(Expr, Env, IRExpr, FieldType).
 lower_stmt(if(Cond, Then, Else), Env, CounterIn, CounterOut, ir_if(IRCond, IRThen, IRElse), AddedVars) :-
     lower_expr(Cond, Env, IRCond),
     lower_stmt(Then, Env, CounterIn, CounterThen, IRThen, AddedThen),
@@ -151,6 +156,11 @@ lower_stmt(readln(Name), Env, Counter, Counter, IRStmt, []) :-
     map_name(Name, Env, MappedName),
     lookup_type(Name, Env, Type),
     input_stmt(Type, MappedName, IRStmt).
+lower_stmt(readln_field(Name, Field), Env, Counter, Counter, IRStmt, []) :-
+    map_name(Name, Env, MappedName),
+    lookup_type(Name, Env, RecordType),
+    record_field_slot_offset(RecordType, Field, SlotOffset, FieldType),
+    input_field_stmt(FieldType, MappedName, SlotOffset, IRStmt).
 lower_stmt(block(LocalVars, Stmts), Env, CounterIn, CounterOut, ir_block(IRStmts), AddedVars) :-
     lower_block(block(LocalVars, Stmts), Env, CounterIn, CounterOut, IRStmts, AddedVars).
 lower_stmt(proc_call(Name, Args), Env, Counter, Counter, ir_proc_call(Name, IRArgs), []) :-
@@ -185,6 +195,11 @@ lower_writeln_arg(Mode, expr(Expr), Env, IRStmt) :-
 input_stmt(char, MappedName, ir_readln_char(MappedName)) :- !.
 input_stmt(_, MappedName, ir_readln(MappedName)).
 
+input_field_stmt(char, MappedName, SlotOffset, ir_record_field_readln_char(MappedName, SlotOffset)) :- !.
+input_field_stmt(integer, MappedName, SlotOffset, ir_record_field_readln(MappedName, SlotOffset)).
+input_field_stmt(Type, _MappedName, _SlotOffset, _) :-
+    throw(error(unsupported_record_field_input_type(Type), context(ir/input_field_stmt, 'Only integer and char record fields are readable with readln'))).
+
 map_name(Name, [Name-Mapped-_|_], Mapped) :-
     !.
 map_name(Name, [_|Rest], Mapped) :-
@@ -204,6 +219,10 @@ lower_expr(char(Code), _Env, ir_char(Code), char).
 lower_expr(var(Name), Env, ir_var(MappedName), Type) :-
     map_name(Name, Env, MappedName),
     lookup_type(Name, Env, Type).
+lower_expr(field_ref(Name, Field), Env, ir_record_field_load(MappedName, SlotOffset), FieldType) :-
+    map_name(Name, Env, MappedName),
+    lookup_type(Name, Env, RecordType),
+    record_field_slot_offset(RecordType, Field, SlotOffset, FieldType).
 lower_expr(array_ref(Name, IndexExpr), Env, ir_array_load(MappedName, Low, High, IRIndex), ElementType) :-
     map_name(Name, Env, MappedName),
     lookup_type(Name, Env, array(Low, High, ElementType)),
@@ -261,3 +280,38 @@ lower_call_args([Arg|Rest], [value|ModeRest], Env, [IRArg|IRRest]) :-
 lower_call_args([var(Name)|Rest], [var_ref|ModeRest], Env, [ir_addr_of(MappedName)|IRRest]) :-
     map_name(Name, Env, MappedName),
     lower_call_args(Rest, ModeRest, Env, IRRest).
+lower_call_args([field_ref(Name, Field)|Rest], [var_ref|ModeRest], Env, [ir_record_field_addr(MappedName, SlotOffset)|IRRest]) :-
+    map_name(Name, Env, MappedName),
+    lookup_type(Name, Env, RecordType),
+    record_field_slot_offset(RecordType, Field, SlotOffset, _FieldType),
+    lower_call_args(Rest, ModeRest, Env, IRRest).
+
+type_slot_count(array(Low, High, ElementType), Slots) :-
+    !,
+    Length is High - Low + 1,
+    type_slot_count(ElementType, ElementSlots),
+    Slots is Length * ElementSlots.
+type_slot_count(record(Fields), Slots) :-
+    !,
+    field_list_slot_count(Fields, Slots).
+type_slot_count(_, 1).
+
+field_list_slot_count([], 0).
+field_list_slot_count([field(_, Type)|Rest], Slots) :-
+    type_slot_count(Type, ThisSlots),
+    field_list_slot_count(Rest, RestSlots),
+    Slots is ThisSlots + RestSlots.
+
+record_field_slot_offset(record(Fields), FieldName, SlotOffset, FieldType) :-
+    !,
+    record_field_slot_offset(Fields, FieldName, 0, SlotOffset, FieldType).
+record_field_slot_offset(Type, _FieldName, _SlotOffset, _FieldType) :-
+    throw(error(type_mismatch(record, Type), context(ir/record_field_slot_offset, 'Field access requires a record type'))).
+
+record_field_slot_offset([field(FieldName, FieldType)|_], FieldName, Current, Current, FieldType) :- !.
+record_field_slot_offset([field(_, Type)|Rest], FieldName, Current, SlotOffset, FieldType) :-
+    type_slot_count(Type, TypeSlots),
+    Next is Current + TypeSlots,
+    record_field_slot_offset(Rest, FieldName, Next, SlotOffset, FieldType).
+record_field_slot_offset([], FieldName, _, _, _) :-
+    throw(error(unknown_record_field(FieldName), context(ir/record_field_slot_offset, 'Unknown record field during IR lowering'))).

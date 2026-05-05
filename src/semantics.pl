@@ -113,7 +113,7 @@ check_stmts([Stmt|Rest], Vars, FuncSigs) :-
 
 check_stmt(assign(Name, Expr), Vars, FuncSigs) :-
     ensure_declared(Name, Vars, TargetType),
-    ensure_not_array(TargetType),
+    ensure_not_aggregate(TargetType),
     check_expr(Expr, Vars, FuncSigs, ExprType),
     ensure_assignable(TargetType, ExprType).
 check_stmt(assign_index(Name, IndexExpr, Expr), Vars, FuncSigs) :-
@@ -121,6 +121,12 @@ check_stmt(assign_index(Name, IndexExpr, Expr), Vars, FuncSigs) :-
     check_expr(IndexExpr, Vars, FuncSigs, integer),
     check_expr(Expr, Vars, FuncSigs, ExprType),
     ensure_assignable(ElementType, ExprType).
+check_stmt(assign_field(Name, Field, Expr), Vars, FuncSigs) :-
+    ensure_declared(Name, Vars, RecordType),
+    ensure_record_type(RecordType, Name, Fields),
+    ensure_record_field(Fields, Name, Field, FieldType),
+    check_expr(Expr, Vars, FuncSigs, ExprType),
+    ensure_assignable(FieldType, ExprType).
 check_stmt(if(Cond, Then, Else), Vars, FuncSigs) :-
     check_expr(Cond, Vars, FuncSigs, boolean),
     check_stmt(Then, Vars, FuncSigs),
@@ -161,6 +167,11 @@ check_stmt(write(_, Expr), Vars, FuncSigs) :-
 check_stmt(readln(Name), Vars, _) :-
     ensure_declared(Name, Vars, Type),
     ensure_readable_type(Type).
+check_stmt(readln_field(Name, Field), Vars, _) :-
+    ensure_declared(Name, Vars, RecordType),
+    ensure_record_type(RecordType, Name, Fields),
+    ensure_record_field(Fields, Name, Field, FieldType),
+    ensure_readable_type(FieldType).
 check_stmt(block(LocalVars, Stmts), Vars, FuncSigs) :-
     check_block(block(LocalVars, Stmts), Vars, FuncSigs).
 check_stmt(proc_call(Name, Args), Vars, FuncSigs) :-
@@ -178,6 +189,10 @@ check_expr(bool(_), _, _, boolean).
 check_expr(char(_), _, _, char).
 check_expr(var(Name), Vars, _, Type) :-
     ensure_declared(Name, Vars, Type).
+check_expr(field_ref(Name, Field), Vars, _, FieldType) :-
+    ensure_declared(Name, Vars, RecordType),
+    ensure_record_type(RecordType, Name, Fields),
+    ensure_record_field(Fields, Name, Field, FieldType).
 check_expr(array_ref(Name, IndexExpr), Vars, FuncSigs, ElementType) :-
     ensure_declared(Name, Vars, array(_Low, _High, ElementType)),
     check_expr(IndexExpr, Vars, FuncSigs, integer).
@@ -234,6 +249,15 @@ ensure_var_ref_arg(var(Name), Type, _FuncName, Vars) :-
     (   ActualType == Type
     ->  true
     ;   throw(error(type_mismatch(Type, ActualType), context(semantics/ensure_var_ref_arg, 'var argument has wrong type')))
+    ).
+ensure_var_ref_arg(field_ref(Name, Field), Type, _FuncName, Vars) :-
+    !,
+    ensure_declared(Name, Vars, RecordType),
+    ensure_record_type(RecordType, Name, Fields),
+    ensure_record_field(Fields, Name, Field, ActualType),
+    (   ActualType == Type
+    ->  true
+    ;   throw(error(type_mismatch(Type, ActualType), context(semantics/ensure_var_ref_arg, 'var field argument has wrong type')))
     ).
 ensure_var_ref_arg(Arg, _Type, FuncName, _Vars) :-
     throw(error(var_arg_not_lvalue(FuncName, Arg), context(semantics/ensure_var_ref_arg, 'var parameter requires a variable argument'))).
@@ -308,6 +332,13 @@ ensure_valid_type(array(Low, High, ElementType)) :-
     ;   throw(error(invalid_array_bounds(Low, High), context(semantics/ensure_valid_type, 'Array lower bound must not exceed upper bound')))
     ),
     ensure_scalar_type(ElementType).
+ensure_valid_type(record(Fields)) :-
+    ensure_record_fields_valid(Fields).
+
+ensure_record_fields_valid(Fields) :-
+    findall(FieldName, member(field(FieldName, _), Fields), FieldNames),
+    ensure_no_duplicates(FieldNames),
+    forall(member(field(_, FieldType), Fields), ensure_valid_type(FieldType)).
 
 ensure_scalar_type(integer).
 ensure_scalar_type(boolean).
@@ -315,10 +346,23 @@ ensure_scalar_type(char).
 ensure_scalar_type(Type) :-
     throw(error(unsupported_type(Type), context(semantics/ensure_scalar_type, 'Only scalar types are supported here'))).
 
-ensure_not_array(array(_, _, _)) :-
+ensure_not_aggregate(array(_, _, _)) :-
     !,
     throw(error(type_mismatch(scalar, array), context(semantics/ensure_not_array, 'Array values require indexed element access'))).
-ensure_not_array(_).
+ensure_not_aggregate(record(_)) :-
+    !,
+    throw(error(type_mismatch(scalar, record), context(semantics/ensure_not_aggregate, 'Record values require field access'))).
+ensure_not_aggregate(_).
+
+ensure_record_type(record(Fields), _Name, Fields) :- !.
+ensure_record_type(Type, Name, _) :-
+    throw(error(type_mismatch(record, Type), context(semantics/check_expr, Name))).
+
+ensure_record_field(Fields, _RecordName, Field, Type) :-
+    member(field(Field, Type), Fields),
+    !.
+ensure_record_field(_Fields, RecordName, Field, _Type) :-
+    throw(error(unknown_record_field(RecordName, Field), context(semantics/check_expr, 'Record field not declared'))).
 
 check_block(block(LocalVars, Stmts), VarsInScope, FuncSigs) :-
     ensure_no_duplicate_decls(LocalVars),
