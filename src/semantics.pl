@@ -26,32 +26,37 @@ validate_type_aliases([type_decl(_, Type)|Rest]) :-
     validate_type_aliases(Rest).
 
 resolve_type(Type, Resolved) :-
-    resolve_type(Type, [], Resolved).
+    resolve_type(Type, [], normal, Resolved).
 
-resolve_type(type_ref(Name), Seen, Resolved) :-
+resolve_type(type_ref(Name), Seen, Mode, Resolved) :-
     !,
-    (   memberchk(Name, Seen)
-    ->  throw(error(recursive_type_alias(Name), context(semantics/resolve_type, 'Recursive type aliases are not supported in this milestone')))
-    ;   true
-    ),
-    (   type_alias(Name, Type)
-    ->  resolve_type(Type, [Name|Seen], Resolved)
-    ;   throw(error(undeclared_type(Name), context(semantics/resolve_type, 'Named type not declared')))
+    (   Mode == through_ptr
+    ->  (   type_alias(Name, _)
+        ->  Resolved = type_ref(Name)
+        ;   throw(error(undeclared_type(Name), context(semantics/resolve_type, 'Named type not declared')))
+        )
+    ;   (   memberchk(Name, Seen)
+        ->  throw(error(recursive_type_alias(Name), context(semantics/resolve_type, 'Recursive type aliases must be through pointer indirection')))
+        ;   (   type_alias(Name, Type)
+            ->  resolve_type(Type, [Name|Seen], Mode, Resolved)
+            ;   throw(error(undeclared_type(Name), context(semantics/resolve_type, 'Named type not declared')))
+            )
+        )
     ).
-resolve_type(array(Low, High, ElementType), Seen, array(Low, High, ResolvedElement)) :-
+resolve_type(array(Low, High, ElementType), Seen, _Mode, array(Low, High, ResolvedElement)) :-
     !,
-    resolve_type(ElementType, Seen, ResolvedElement).
-resolve_type(ptr(TargetType), Seen, ptr(ResolvedTarget)) :-
+    resolve_type(ElementType, Seen, normal, ResolvedElement).
+resolve_type(ptr(TargetType), Seen, _Mode, ptr(ResolvedTarget)) :-
     !,
-    resolve_type(TargetType, Seen, ResolvedTarget).
-resolve_type(record(Fields), Seen, record(ResolvedFields)) :-
+    resolve_type(TargetType, Seen, through_ptr, ResolvedTarget).
+resolve_type(record(Fields), Seen, _Mode, record(ResolvedFields)) :-
     !,
     resolve_record_fields(Fields, Seen, ResolvedFields).
-resolve_type(Type, _Seen, Type).
+resolve_type(Type, _Seen, _Mode, Type).
 
 resolve_record_fields([], _Seen, []).
 resolve_record_fields([field(Name, Type)|Rest], Seen, [field(Name, ResolvedType)|ResolvedRest]) :-
-    resolve_type(Type, Seen, ResolvedType),
+    resolve_type(Type, Seen, normal, ResolvedType),
     resolve_record_fields(Rest, Seen, ResolvedRest).
 
 decl_name(decl(Name, _), Name).
@@ -458,8 +463,7 @@ ensure_valid_type(type_ref(Name)) :-
     ensure_valid_type(Resolved).
 ensure_valid_type(ptr(TargetType)) :-
     !,
-    resolve_type(TargetType, ResolvedTarget),
-    ensure_valid_type(ResolvedTarget).
+    ensure_pointer_target_declared(TargetType).
 ensure_valid_type(array(Low, High, ElementType)) :-
     integer(Low),
     integer(High),
@@ -519,6 +523,16 @@ ensure_pointer_type(Type0, Name, TargetType) :-
 ensure_pointer_target_record(PtrType, Name, Fields) :-
     ensure_pointer_type(PtrType, Name, TargetType),
     ensure_record_type(TargetType, Name, Fields).
+
+ensure_pointer_target_declared(type_ref(Name)) :-
+    !,
+    (   type_alias(Name, _)
+    ->  true
+    ;   throw(error(undeclared_type(Name), context(semantics/ensure_valid_type, 'Named pointer target type not declared')))
+    ).
+ensure_pointer_target_declared(TargetType) :-
+    resolve_type(TargetType, ResolvedTarget),
+    ensure_valid_type(ResolvedTarget).
 
 lvalue_type(var(Name), Vars, Type) :-
     ensure_declared(Name, Vars, Type).

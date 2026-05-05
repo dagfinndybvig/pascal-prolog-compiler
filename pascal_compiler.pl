@@ -173,6 +173,10 @@ prolog:message(error(unsupported_write_format, context(_, Detail))) -->
     [ 'unsupported write format (~w)'-[Detail] ].
 prolog:message(error(type_mismatch(Expected, Actual), context(_, Detail))) -->
     [ 'type mismatch: expected ~w, got ~w (~w)'-[Expected, Actual, Detail] ].
+prolog:message(error(undeclared_type(Name), context(_, Detail))) -->
+    [ 'undeclared type: ~w (~w)'-[Name, Detail] ].
+prolog:message(error(recursive_type_alias(Name), context(_, Detail))) -->
+    [ 'recursive type alias: ~w (~w)'-[Name, Detail] ].
 prolog:message(error(unsupported_type(Type), context(_, Detail))) -->
     [ 'unsupported type: ~w (~w)'-[Type, Detail] ].
 prolog:message(error(invalid_array_bounds(Low, High), context(_, Detail))) -->
