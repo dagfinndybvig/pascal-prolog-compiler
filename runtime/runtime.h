@@ -1,6 +1,8 @@
 #ifndef PASCAL_PROLOG_RUNTIME_H
 #define PASCAL_PROLOG_RUNTIME_H
 
+#include <stdint.h>
+
 int rt_readln_int(void);
 int rt_readln_char(void);
 void rt_writeln_int(int value);
@@ -19,6 +21,10 @@ void rt_write_int_str_int(int value1, const char *text, int value2);
 
 /* String conversion functions */
 void rt_int_to_buffer(int value, char *buffer, int buffer_size);
+
+/* Pointer/memory functions */
+int64_t rt_alloc(int64_t size_bytes);
+void rt_free(int64_t ptr_value);
 
 /* Error codes */
 #define RT_ERROR_STACK_OVERFLOW 1

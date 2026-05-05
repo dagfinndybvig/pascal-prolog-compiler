@@ -132,6 +132,8 @@ keyword_or_ident(downto, kw(downto)) :- !.
 keyword_or_ident(writeln, kw(writeln)) :- !.
 keyword_or_ident(write, kw(write)) :- !.
 keyword_or_ident(readln, kw(readln)) :- !.
+keyword_or_ident(new, kw(new)) :- !.
+keyword_or_ident(dispose, kw(dispose)) :- !.
 keyword_or_ident(function, kw(function)) :- !.
 keyword_or_ident(procedure, kw(procedure)) :- !.
 keyword_or_ident(mod, kw(mod)) :- !.

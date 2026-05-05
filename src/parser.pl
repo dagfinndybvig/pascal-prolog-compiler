@@ -345,6 +345,18 @@ statement(readln_field(Name, Field)) -->
     identifier(Field),
     symbol(')'),
     !.
+statement(new_ptr(LValue)) -->
+    keyword(new),
+    symbol('('),
+    pointer_lvalue(LValue),
+    symbol(')'),
+    !.
+statement(dispose_ptr(LValue)) -->
+    keyword(dispose),
+    symbol('('),
+    pointer_lvalue(LValue),
+    symbol(')'),
+    !.
 statement(proc_call(Name, Args)) -->
     identifier(Name),
     symbol('('),
@@ -388,6 +400,25 @@ statement(assign(Name, Expr)) -->
     identifier(Name),
     symbol(':='),
     expression(Expr),
+    !.
+
+pointer_lvalue(ptr_field_ref(Name, Field)) -->
+    identifier(Name),
+    symbol('^'),
+    symbol('.'),
+    identifier(Field),
+    !.
+pointer_lvalue(ptr_deref(Name)) -->
+    identifier(Name),
+    symbol('^'),
+    !.
+pointer_lvalue(field_ref(Name, Field)) -->
+    identifier(Name),
+    symbol('.'),
+    identifier(Field),
+    !.
+pointer_lvalue(var(Name)) -->
+    identifier(Name),
     !.
 
 optional_else(Else) -->

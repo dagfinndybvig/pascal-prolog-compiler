@@ -232,6 +232,12 @@ check_stmt(readln_field(Name, Field), Vars, _) :-
     ensure_record_type(RecordType, Name, Fields),
     ensure_record_field(Fields, Name, Field, FieldType),
     ensure_readable_type(FieldType).
+check_stmt(new_ptr(LValue), Vars, _) :-
+    lvalue_type(LValue, Vars, LType),
+    ensure_pointer_type(LType, LValue, _TargetType).
+check_stmt(dispose_ptr(LValue), Vars, _) :-
+    lvalue_type(LValue, Vars, LType),
+    ensure_pointer_type(LType, LValue, _TargetType).
 check_stmt(block(LocalVars, Stmts), Vars, FuncSigs) :-
     check_block(block(LocalVars, Stmts), Vars, FuncSigs).
 check_stmt(proc_call(Name, Args), Vars, FuncSigs) :-
@@ -513,6 +519,20 @@ ensure_pointer_type(Type0, Name, TargetType) :-
 ensure_pointer_target_record(PtrType, Name, Fields) :-
     ensure_pointer_type(PtrType, Name, TargetType),
     ensure_record_type(TargetType, Name, Fields).
+
+lvalue_type(var(Name), Vars, Type) :-
+    ensure_declared(Name, Vars, Type).
+lvalue_type(field_ref(Name, Field), Vars, Type) :-
+    ensure_declared(Name, Vars, RecordType),
+    ensure_record_type(RecordType, Name, Fields),
+    ensure_record_field(Fields, Name, Field, Type).
+lvalue_type(ptr_deref(Name), Vars, Type) :-
+    ensure_declared(Name, Vars, PtrType),
+    ensure_pointer_type(PtrType, Name, Type).
+lvalue_type(ptr_field_ref(Name, Field), Vars, Type) :-
+    ensure_declared(Name, Vars, PtrType),
+    ensure_pointer_target_record(PtrType, Name, Fields),
+    ensure_record_field(Fields, Name, Field, Type).
 
 check_block(block(LocalVars, Stmts), VarsInScope, FuncSigs) :-
     ensure_no_duplicate_decls(LocalVars),

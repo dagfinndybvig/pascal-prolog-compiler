@@ -185,6 +185,14 @@ lower_stmt(readln_field(Name, Field), Env, Counter, Counter, IRStmt, []) :-
     lookup_type(Name, Env, RecordType),
     record_field_slot_offset(RecordType, Field, SlotOffset, FieldType),
     input_field_stmt(FieldType, MappedName, SlotOffset, IRStmt).
+lower_stmt(new_ptr(LValue), Env, Counter, Counter, ir_new(IRAddrExpr, ByteSize), []) :-
+    lower_lvalue_addr(LValue, Env, IRAddrExpr, LValueType),
+    ensure_ptr_target_type(LValueType, TargetType),
+    type_slot_count(TargetType, SlotCount),
+    ByteSize is SlotCount * 8.
+lower_stmt(dispose_ptr(LValue), Env, Counter, Counter, ir_dispose(IRPtrExpr), []) :-
+    lower_expr(LValue, Env, IRPtrExpr, PtrType),
+    ensure_ptr_target_type(PtrType, _).
 lower_stmt(block(LocalVars, Stmts), Env, CounterIn, CounterOut, ir_block(IRStmts), AddedVars) :-
     lower_block(block(LocalVars, Stmts), Env, CounterIn, CounterOut, IRStmts, AddedVars).
 lower_stmt(proc_call(Name, Args), Env, Counter, Counter, ir_proc_call(Name, IRArgs), []) :-
@@ -403,3 +411,19 @@ record_field_slot_offset([], FieldName, _, _, _) :-
     ptr_record_field_slot_offset(PtrType, FieldName, SlotOffset, FieldType) :-
         ensure_ptr_target_type(PtrType, TargetType),
         record_field_slot_offset(TargetType, FieldName, SlotOffset, FieldType).
+
+    lower_lvalue_addr(var(Name), Env, ir_addr_of(MappedName), Type) :-
+        map_name(Name, Env, MappedName),
+        lookup_type(Name, Env, Type).
+    lower_lvalue_addr(field_ref(Name, Field), Env, ir_record_field_addr(MappedName, SlotOffset), FieldType) :-
+        map_name(Name, Env, MappedName),
+        lookup_type(Name, Env, RecordType),
+        record_field_slot_offset(RecordType, Field, SlotOffset, FieldType).
+    lower_lvalue_addr(ptr_deref(Name), Env, ir_ptr_deref_addr(MappedName), TargetType) :-
+        map_name(Name, Env, MappedName),
+        lookup_type(Name, Env, PtrType),
+        ensure_ptr_target_type(PtrType, TargetType).
+    lower_lvalue_addr(ptr_field_ref(Name, Field), Env, ir_ptr_field_addr(MappedName, SlotOffset), FieldType) :-
+        map_name(Name, Env, MappedName),
+        lookup_type(Name, Env, PtrType),
+        ptr_record_field_slot_offset(PtrType, Field, SlotOffset, FieldType).

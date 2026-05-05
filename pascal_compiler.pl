@@ -141,6 +141,10 @@ write_asm_file(AsmPath, ir_program(_, Funcs, Vars, IRStmts)) :-
     write(Stream, ArrayBoundsHandler),
     asm_array_bounds_message(ArrayBoundsMsg),
     write(Stream, ArrayBoundsMsg),
+    asm_null_pointer_handler(NullPtrHandler),
+    write(Stream, NullPtrHandler),
+    asm_null_pointer_message(NullPtrMsg),
+    write(Stream, NullPtrMsg),
     close(Stream).
 
 expect_success(exit(0)) :- !.
