@@ -2,6 +2,8 @@
 
 This document defines a concrete v1 pointer feature set for the Pascal compiler, aimed at enabling linked records (singly linked lists) while minimizing regression risk.
 
+> Status: Implemented in v1.13.0 (2026-05-05). This file is retained as the design/rollout record.
+
 ## Goals
 
 - Enable linked data structures based on records.
@@ -228,8 +230,9 @@ end.
 - Keep parser and semantic errors explicit and deterministic.
 - Maintain existing test suite as merge gate.
 
-## Open Decisions Before Implementation
+## Implementation Outcomes
 
-- Exact spelling for pointer type syntax (`^T`) and dereference precedence rules.
-- Whether `new` initializes memory to zero in v1 (recommended: yes, via calloc-like behavior or explicit memset).
-- Whether to permit `dispose(nil)` as no-op (recommended: yes).
+- Pointer type spelling is `^TypeName`; dereference forms include `p^` and `p^.field`.
+- Heap allocation is exposed via `new(p)` and deallocation via `dispose(p)`.
+- Runtime includes null-pointer error handling for dereference-sensitive operations.
+- Pointer arithmetic remains intentionally unsupported.

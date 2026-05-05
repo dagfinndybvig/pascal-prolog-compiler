@@ -1,9 +1,7 @@
-<img width="1880" height="515" alt="image" src="https://github.com/user-attachments/assets/0c40b246-bb09-4c59-80ee-e9eafc54bde0" />
-
-# Pascal-Prolog Assembly Backend - Release Version 1.12.0
+# Pascal-Prolog Assembly Backend - Release Version 1.13.0
 
 > [!WARNING]
-> This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`) plus static arrays, procedures, `var` parameters (including arrays passed by reference), `for` loops, multi-argument `write`/`writeln`, and `case` statements, while still intentionally omitting full ISO Pascal features.
+> This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`), static arrays, records, named type aliases, typed pointers (`^TypeName`), `new`/`dispose`, procedures, `var` parameters (including arrays passed by reference), `for` loops, multi-argument `write`/`writeln`, and `case` statements, while still intentionally omitting full ISO Pascal features.
 >
 > It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
 >
@@ -11,8 +9,8 @@
 
 ## 📦 Pascal-Prolog Assembly Backend Release
 
-**Version**: 1.12.0
-**Release Date**: 2026-04-28
+**Version**: 1.13.0
+**Release Date**: 2026-05-05
 **License**: Unlicense (Public Domain)
 
 ## 🎯 About This Release
@@ -27,7 +25,23 @@ This is now a **complete standalone release** of the Pascal-Prolog compiler with
 - ✅ Full documentation
 - ✅ Minimal, clean distribution
 
-## 🆕 What's New In v1.12.0
+## 🆕 What's New In v1.13.0
+
+### Records, named types, and typed pointers
+
+This release extends the language with Pascal-style structured and pointer types, plus heap allocation support for linked data structures:
+
+- ✅ `record` types with field access and field assignment
+- ✅ `type` declarations and named type aliases
+- ✅ Typed pointers (`^TypeName`) and `nil`
+- ✅ Address-of (`@x`) and dereference (`p^`, `p^.field`)
+- ✅ Heap management via `new(p)` and `dispose(p)`
+- ✅ Runtime null-pointer checks for dereference-sensitive operations
+- ✅ New linked-list examples, including a sorting demo in `examples/sorting/`
+
+See `examples/record_demo.pas`, `examples/pointer_list_demo.pas`, and `examples/sorting/linked_list_sort_wirth.pas`.
+
+## 🆕 Previous: v1.12.0
 
 ### Pascal's Triangle demo and audit hardening
 
@@ -520,6 +534,10 @@ This release supports a **practical subset** of Pascal focused on core programmi
 - **Booleans**: `boolean`, `true`, `false`, `and`, `or`, `not`; `if` and `while` conditions are boolean
 - **Chars**: `char` variables, character literals, comparisons, and character I/O
 - **Static arrays**: fixed bounds, indexed load/store, runtime bounds checks
+- **Records**: Pascal-style `record` declarations, typed fields, field load/store
+- **Named type declarations**: `type` aliases and named references in declarations
+- **Typed pointers**: `^TypeName`, `nil`, address-of (`@`), dereference (`^`), and pointer-field access (`p^.field`)
+- **Heap operations**: `new(pointer_lvalue)` and `dispose(pointer_lvalue)`
 - **Character buffers**: `array[...] of char` can be printed as fixed-size text
 - **I/O Operations**: `readln`, multi-argument `write` and `writeln` mixing string literals and writable expressions (`integer`, `boolean`, `char`, `array[...] of char`)
 - **String Literals**: Output-only string literals (no string variables)
@@ -536,16 +554,14 @@ This release supports a **practical subset** of Pascal focused on core programmi
 - **`case` statements**: integer or char selectors; comma-separated label lists; optional `else` branch
 
 #### ❌ Not Yet Implemented
-- Records
 - Separate forward declarations/prototypes
 - Dynamic string variables or string expressions
 - Floating-point numbers
-- Pointers and pointer arithmetic
-- User-defined types
+- Pointer arithmetic
 
-#### Pointer Direction
+#### Pointer Model
 
-Pointers are intentionally still out of scope. Now that arrays provide real l-values, layout, and bounds checks, any future pointer feature should be Pascal-style and typed (for example, a pointer to `integer` or `char`) rather than raw integer-address arithmetic. That keeps the compiler type-checkable and avoids turning addresses into unvalidated integers.
+Pointers are supported in a strict typed form (`^TypeName`) with `nil`, address-of, dereference, and `new`/`dispose`. Raw integer-address arithmetic remains intentionally out of scope.
 
 ### Prime Number Examples
 
@@ -676,6 +692,13 @@ pascal-prolog-asm-release/
 │   ├── array_params_demo.pas       # var array parameter demo
 │   ├── boolean_char_demo.pas       # Boolean and char scalar demo
 │   ├── case_demo.pas               # case statement demo
+│   ├── record_demo.pas             # record declaration and field access demo
+│   ├── type_alias_demo.pas         # named type alias demo
+│   ├── pointer_nil_demo.pas        # pointer nil assignment/comparison demo
+│   ├── pointer_deref_demo.pas      # address-of/dereference and pointer field access demo
+│   ├── pointer_new_dispose_demo.pas # allocation/deallocation demo
+│   ├── pointer_null_guard_demo.pas # null-dereference runtime guard demo
+│   ├── pointer_list_demo.pas       # linked-list pointer+record demo
 │   ├── for_loop_demo.pas           # for-to/downto loop demo
 │   ├── function_demo.pas           # Function demo
 │   ├── global_function_demo.pas    # Function read/write of globals
@@ -692,6 +715,7 @@ pascal-prolog-asm-release/
 │   ├── var_params_demo.pas         # var (by-reference) parameter demo
 │   ├── challenging/                # Challenging algorithms (recursion, etc.)
 │   ├── datatypes/                  # Datatype showcase programs
+│   ├── sorting/                    # Linked-list sorting examples
 │   └── primes/                     # Prime algorithm examples
 │       ├── basic/                  # Basic prime algorithms
 │       ├── optimized/              # Optimized prime algorithms
@@ -703,7 +727,8 @@ pascal-prolog-asm-release/
 │   ├── ALGORITHM_PROGRESSION.md    # Algorithm evolution
 │   ├── ASSEMBLY_GENERATION.md      # Assembly generation notes
 │   ├── IR_FORMAT.md                # IR format documentation
-│   └── PERFORMANCE_COMPARISON.md   # Performance analysis
+│   ├── PERFORMANCE_COMPARISON.md   # Performance analysis
+│   └── POINTERS_V1_PLAN.md         # Pointer feature design and rollout notes
 ├── AGENTS.md                       # Guidelines for AI agents
 ├── AUDIT_REPORT.md                 # Audit report
 ├── MATHEMATICAL_VERIFICATION.md    # Mathematical correctness report
@@ -816,6 +841,7 @@ swipl -q -s pascal_compiler.pl -- build-asm <source.pas> <output>
 - **Stack Overflow**: Generated code does not include OS-level guard-page stack overflow protection
 - **Division by Zero**: Detected and handled through a validated runtime error path
 - **Memory Safety**: Static array accesses include runtime bounds checks; ordinary scalar variables and stack growth do not have OS-level guard-page checks
+- **Null Pointers**: Dereference paths include runtime null-pointer error handling
 - **Input Validation**: Limited to integer and char input validation
 
 ### Not Suitable For

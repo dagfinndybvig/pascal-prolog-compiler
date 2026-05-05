@@ -1,14 +1,14 @@
 # Mathematical Verification Report
 
 > [!WARNING]
-> This project implements only a **fragment of Pascal**. It supports integer arithmetic plus typed booleans, chars, and static arrays, while remaining focused on small algorithmic programs.
+> This project implements only a **fragment of Pascal**. It supports integer arithmetic plus typed booleans, chars, static arrays, records, named type aliases, and typed pointers, while remaining focused on small algorithmic programs.
 >
 > It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
 
 ## Status
 **Result:** PASS
-**Date:** 2026-04-28
-**Version:** v1.11.0
+**Date:** 2026-05-05
+**Version:** v1.13.0
 
 This verification is reproducible from files in this release package.
 

@@ -1,7 +1,7 @@
 # Pascal-Prolog Compiler Audit Report
 
-**Date:** 2026-04-28
-**Version:** 1.11.0
+**Date:** 2026-05-05
+**Version:** 1.13.0
 **Auditor:** Code Review
 
 ---
@@ -31,6 +31,10 @@ This educational Pascal-to-x86-64 compiler is well-structured with a clean pipel
 - ✅ `for ... to/downto ... do` counted loops (v1.9.0)
 - ✅ Multi-argument `write`/`writeln` (v1.10.0)
 - ✅ `case` statements for integer and char selectors with optional `else` (v1.11.0)
+- ✅ Records with field access and assignment (v1.13.0)
+- ✅ Named type declarations and aliases (v1.13.0)
+- ✅ Typed pointers (`^`, `@`, `nil`) with dereference and pointer-field access (v1.13.0)
+- ✅ `new`/`dispose` runtime integration and null-pointer guards (v1.13.0)
 
 ---
 
@@ -140,7 +144,10 @@ The following are documented limitations:
 | `mod` operator | ✅ **Supported** | Added in v1.4.3 |
 | `and`/`or`/`not` | ✅ **Supported** | Boolean operators added in v1.5.0 |
 | Static arrays | ✅ **Supported** | Fixed bounds with runtime bounds checks |
-| Records | ❌ Not supported | Significant work required |
+| Records | ✅ **Supported** | Record declarations, typed fields, and field access/assignment; added in v1.13.0 |
+| Named type declarations (`type`) | ✅ **Supported** | Aliases and named references; added in v1.13.0 |
+| Typed pointers (`^T`) | ✅ **Supported** | `nil`, address-of (`@`), dereference (`p^`), and pointer-field access (`p^.f`); added in v1.13.0 |
+| `new` / `dispose` | ✅ **Supported** | Runtime allocation/free with semantic checks; added in v1.13.0 |
 | Separate forward declarations | ❌ Not supported | Mutual recursion works between fully defined functions |
 | Procedures (void) | ✅ **Supported** | Procedures with up to 6 parameters; no return value; added in v1.6.0 |
 | `var` parameters (scalar) | ✅ **Supported** | By-reference scalar params; non-lvalue args rejected; added in v1.7.0 |
@@ -148,6 +155,7 @@ The following are documented limitations:
 | `for ... to/downto ... do` | ✅ **Supported** | Counted loops, both directions; added in v1.9.0 |
 | Multi-argument `write`/`writeln` | ✅ **Supported** | Mixed string/expr args; added in v1.10.0 |
 | `case` statements | ✅ **Supported** | Integer and char selectors, comma-separated labels, optional `else`; added in v1.11.0 |
+| Pointer arithmetic | ❌ Not supported | Intentionally out of scope in v1 pointer model |
 | Real/float | ❌ Not supported | Integer only |
 
 ---

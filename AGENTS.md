@@ -9,6 +9,10 @@ This is a **Pascal compiler written in SWI-Prolog** that compiles a subset of Pa
 **Key characteristics:**
 - Typed scalars: `integer`, `boolean`, and `char`
 - Static arrays with runtime bounds checks; `array[...] of char` works as fixed-size text output
+- Records with typed fields and field access/assignment
+- Named type declarations (`type`) and aliases
+- Typed pointers (`^TypeName`) with `nil`, address-of (`@`), dereference (`p^`), and field-through-pointer (`p^.field`)
+- Heap allocation/deallocation via `new`/`dispose` with runtime null-pointer guards
 - Operators: `+`, `-`, `*`, `/`, `mod`, boolean operators (`and`, `or`, `not`), comparisons (`=`, `<>`, `<`, `<=`, `>`, `>=`)
 - Control flow: `if`/`else`, `while`, `for ... to/downto ... do`, `case ... of ... else ... end`
 - Compiles to x86-64 assembly via GCC
@@ -20,8 +24,8 @@ This is a **Pascal compiler written in SWI-Prolog** that compiles a subset of Pa
 - Top-level global `var` sections may appear before functions or after functions
 - Prime number algorithms are the primary test cases
 
-**Version**: 1.12.0 (2026-04-28) - Expanded Pascal's Triangle demo, audited docs, and fixed two-argument `write` with boolean/char values
-**Previous**: 1.11.0 (2026-04-28) - Added `case` statements for integer and char selectors with optional `else` branch
+**Version**: 1.13.0 (2026-05-05) - Added records, named type aliases, typed pointers (`^`/`@`/`nil`), `new`/`dispose`, null-pointer guards, and linked-list/sorting demos
+**Previous**: 1.12.0 (2026-04-28) - Expanded Pascal's Triangle demo, audited docs, and fixed two-argument `write` with boolean/char values
 
 ## Quick Start
 
@@ -68,7 +72,7 @@ Pascal Source → Lexer → Parser → AST → Semantic Checker → IR → x86-6
 | Semantics | `src/semantics.pl` | Variable declaration & scope checking |
 | IR | `src/ir.pl` | Lowers AST to intermediate representation with name mangling for locals |
 | Codegen | `src/codegen_asm_x86_64.pl` | Generates x86-64 assembly with register allocation |
-| Runtime | `runtime/runtime.c` | C runtime for I/O operations |
+| Runtime | `runtime/runtime.c` | C runtime for I/O, allocation, and runtime error handling |
 
 ## Common Agent Tasks
 
@@ -162,12 +166,12 @@ Test completed successfully!
 
 1. **No floating-point**: integer division truncates toward zero (`7/2 = 3`, `-7/2 = -3`)
 2. **Arrays are static only**: fixed bounds, scalar element types; passable only by reference (`var`), not by value
-3. **No records or user-defined types**
+3. **No forward declarations/prototypes**
 4. **Procedures and functions**: procedures (no return) and scalar-returning functions are supported; both may take `var` and value parameters
 5. **String literals are output-only**; fixed-size text uses `array[...] of char`
 6. **32-bit signed integers** - overflow behavior is undefined
 7. **Maximum 6 function/procedure parameters** - x86-64 calling convention limit
-8. **No pointers yet** - future pointer work should be typed, not raw integer-address arithmetic
+8. **Pointer arithmetic is not supported** - pointers are typed and intended for safe structured access (`^`, `@`, `new`, `dispose`)
 9. **`for` loop bounds and `case` selectors are re-evaluated** - avoid side-effecting expressions in those positions
 
 ## File Organization
@@ -188,7 +192,11 @@ Test completed successfully!
 │   ├── global_function_demo.pas # Function read/write access to globals
 │   ├── boolean_char_demo.pas    # Boolean and char scalar example
 │   ├── array_demo.pas           # Static array and char-buffer example
+│   ├── record_demo.pas          # Record declaration and field access example
+│   ├── pointer_list_demo.pas    # Typed-pointer linked-list example
+│   ├── type_alias_demo.pas      # Named type alias example
 │   ├── datatypes/               # Focused v1.5 datatype showcase programs
+│   ├── sorting/                 # Linked-list sorting examples
 │   └── primes/                 # Prime algorithm examples
 │       ├── basic/
 │       ├── optimized/
@@ -206,6 +214,7 @@ Test completed successfully!
 
 ## Version History
 
+- **v1.13.0** (2026-05-05): Added records, `type` aliases, typed pointers (`^`/`@`/`nil`), `new`/`dispose`, null-pointer runtime guards, linked-list examples, and sorting docs/examples
 - **v1.12.0** (2026-04-28): Expanded Pascal's Triangle demo to rows 0..6, added exact-output verification, fixed two-argument `write` for boolean/char expressions, and refreshed docs
 - **v1.11.0** (2026-04-28): Added `case` statements (integer and char selectors, comma-separated labels, optional `else`); lowered to chained `if`/`else` IR
 - **v1.10.0** (2026-04-28): Added multi-argument `write`/`writeln`; lowered to a sequence of single-arg writes with the last writeln entry providing the newline
