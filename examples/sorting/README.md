@@ -47,7 +47,15 @@ Complexity:
 
 Linked lists and insertion-based list processing are central ideas in early structured programming and compiler education.
 
-Niklaus Wirth (designer of Pascal) emphasized programs that are compact, understandable, and close to the underlying data structure. In that tradition, list algorithms are often expressed through explicit pointer movement and clear invariants.
+Niklaus Wirth (designer of Pascal) emphasized programs that are compact, understandable, and close to the underlying data structure. His famous book *Algorithms + Data Structures = Programs* uses sorting as one of its recurring teaching themes because sorting exposes the relationship between representation, invariants, and algorithmic cost especially well.
+
+In Wirth's style, sorting is not just a practical task; it is a laboratory for comparing algorithmic ideas. Simple methods such as insertion sort, selection sort, and exchange-based sorting show how local transformations gradually organize data. More advanced methods such as Shellsort, quicksort, and heapsort show how careful data-structure choices and divide-and-conquer reasoning can dramatically change performance. The examples are deliberately concrete: arrays, records, files, and linked structures make the cost of each operation visible.
+
+That is why a linked-list insertion sort is a natural Wirth-style example for this compiler. The algorithm is small enough to read at once, but it still exercises the essential Pascal machinery: records, typed pointers, explicit allocation, dereference, and disciplined pointer rewiring. Unlike array sorting, no elements are shifted through contiguous memory; nodes are removed from one list and inserted into another by changing `next` fields.
+
+This project’s example is therefore not intended to be the fastest possible sorter. It is intended to show the same lesson Wirth often emphasized: the algorithm and the data representation should be studied together. Once the values live in list nodes instead of array cells, insertion becomes a pointer operation, and the program’s correctness depends on maintaining clear list invariants.
+
+In that tradition, list algorithms are often expressed through explicit pointer movement and clear invariants.
 
 This example follows that style:
 
