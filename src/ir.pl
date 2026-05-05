@@ -3,13 +3,20 @@
 :- discontiguous lower_stmt/6.
 :- dynamic func_return_type/2.
 :- dynamic func_param_modes/2.
+:- dynamic ir_type_alias/2.
 
-lower_program(program(Name, Funcs, Vars, Block), ir_program(Name, IRFuncs, AllVars, IRStmts)) :-
+lower_program(program(Name, Types, Funcs, Vars, Block), ir_program(Name, IRFuncs, AllVars, IRStmts)) :-
+    init_ir_type_aliases(Types),
+    resolve_decl_list(Vars, ResolvedVars),
     init_func_metadata(Funcs),
-    vars_env(Vars, GlobalEnv),
+    vars_env(ResolvedVars, GlobalEnv),
     lower_funcs(Funcs, GlobalEnv, IRFuncs),
     lower_block(Block, GlobalEnv, 0, _CounterOut, IRStmts, LocalVars),
-    append(Vars, LocalVars, AllVars).
+    append(ResolvedVars, LocalVars, AllVars).
+
+init_ir_type_aliases(TypeDecls) :-
+    retractall(ir_type_alias(_, _)),
+    forall(member(type_decl(Name, Type), TypeDecls), assertz(ir_type_alias(Name, Type))).
 
 init_func_metadata(Funcs) :-
     retractall(func_return_type(_, _)),
@@ -27,13 +34,16 @@ decl_name(decl(Name, _), Name).
 decl_name(param(Name, _), Name).
 decl_name(param_var(Name, _), Name).
 
-decl_type(decl(_, Type), Type).
-decl_type(param(_, Type), Type).
-decl_type(param_var(_, Type), Type).
+decl_type(decl(_, Type0), Type) :- resolve_ir_type(Type0, Type).
+decl_type(param(_, Type0), Type) :- resolve_ir_type(Type0, Type).
+decl_type(param_var(_, Type0), Type) :- resolve_ir_type(Type0, Type).
 
-rename_decl(decl(_, Type), MappedName, decl(MappedName, Type)).
-rename_decl(param(_, Type), MappedName, param(MappedName, Type)).
-rename_decl(param_var(_, Type), MappedName, param_var(MappedName, Type)).
+rename_decl(decl(_, Type0), MappedName, decl(MappedName, Type)) :-
+    resolve_ir_type(Type0, Type).
+rename_decl(param(_, Type0), MappedName, param(MappedName, Type)) :-
+    resolve_ir_type(Type0, Type).
+rename_decl(param_var(_, Type0), MappedName, param_var(MappedName, Type)) :-
+    resolve_ir_type(Type0, Type).
 
 vars_env([], []).
 vars_env([Decl|Vars], [Name-MappedName-Type|EnvTail]) :-
@@ -43,7 +53,11 @@ vars_env([Decl|Vars], [Name-MappedName-Type|EnvTail]) :-
     vars_env(Vars, EnvTail).
 
 lower_funcs([], _, []).
-lower_funcs([func(Name, Params, ReturnType, FuncLocalVars, block(BlockLocalVars, Stmts))|Rest], GlobalEnv, [ir_func(Name, Params, ReturnType, FuncLocals, IRBody)|IRFuncsRest]) :-
+lower_funcs([func(Name, Params0, ReturnType0, FuncLocalVars0, block(BlockLocalVars0, Stmts))|Rest], GlobalEnv, [ir_func(Name, Params, ReturnType, FuncLocals, IRBody)|IRFuncsRest]) :-
+    resolve_decl_list(Params0, Params),
+    resolve_decl_list(FuncLocalVars0, FuncLocalVars),
+    resolve_decl_list(BlockLocalVars0, BlockLocalVars),
+    resolve_ir_type(ReturnType0, ReturnType),
     vars_env(Params, ParamEnv),
     (   ReturnType == void
     ->  FuncEnv0 = ParamEnv
@@ -285,6 +299,37 @@ lower_call_args([field_ref(Name, Field)|Rest], [var_ref|ModeRest], Env, [ir_reco
     lookup_type(Name, Env, RecordType),
     record_field_slot_offset(RecordType, Field, SlotOffset, _FieldType),
     lower_call_args(Rest, ModeRest, Env, IRRest).
+
+resolve_decl_list([], []).
+resolve_decl_list([Decl|Rest], [ResolvedDecl|ResolvedRest]) :-
+    resolve_decl(Decl, ResolvedDecl),
+    resolve_decl_list(Rest, ResolvedRest).
+
+resolve_decl(decl(Name, Type0), decl(Name, Type)) :-
+    resolve_ir_type(Type0, Type).
+resolve_decl(param(Name, Type0), param(Name, Type)) :-
+    resolve_ir_type(Type0, Type).
+resolve_decl(param_var(Name, Type0), param_var(Name, Type)) :-
+    resolve_ir_type(Type0, Type).
+
+resolve_ir_type(type_ref(Name), Type) :-
+    !,
+    (   ir_type_alias(Name, AliasType)
+    ->  resolve_ir_type(AliasType, Type)
+    ;   throw(error(undeclared_type(Name), context(ir/resolve_ir_type, 'Named type not declared during IR lowering')))
+    ).
+resolve_ir_type(array(Low, High, ElementType0), array(Low, High, ElementType)) :-
+    !,
+    resolve_ir_type(ElementType0, ElementType).
+resolve_ir_type(record(Fields0), record(Fields)) :-
+    !,
+    resolve_ir_record_fields(Fields0, Fields).
+resolve_ir_type(Type, Type).
+
+resolve_ir_record_fields([], []).
+resolve_ir_record_fields([field(Name, Type0)|Rest0], [field(Name, Type)|Rest]) :-
+    resolve_ir_type(Type0, Type),
+    resolve_ir_record_fields(Rest0, Rest).
 
 type_slot_count(array(Low, High, ElementType), Slots) :-
     !,

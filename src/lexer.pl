@@ -107,6 +107,7 @@ consume_digits([C|Cs], Rest, [C|More]) :-
 consume_digits(Rest, Rest, []).
 
 keyword_or_ident(program, kw(program)) :- !.
+keyword_or_ident(type, kw(type)) :- !.
 keyword_or_ident(var, kw(var)) :- !.
 keyword_or_ident(integer, kw(integer)) :- !.
 keyword_or_ident(boolean, kw(boolean)) :- !.

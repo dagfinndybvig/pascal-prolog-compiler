@@ -1,11 +1,55 @@
 :- module(semantics, [check_program/1]).
 
-check_program(program(_, Funcs, Vars, Block)) :-
+:- dynamic type_alias/2.
+
+check_program(program(_, TypeDecls, Funcs, Vars, Block)) :-
+    init_type_aliases(TypeDecls),
     ensure_no_duplicate_decls(Vars),
     ensure_valid_decls(Vars),
     decls_env(Vars, GlobalEnv),
     check_funcs(Funcs, GlobalEnv, FuncSigs),
     check_block(Block, GlobalEnv, FuncSigs).
+
+init_type_aliases(TypeDecls) :-
+    retractall(type_alias(_, _)),
+    ensure_no_duplicate_type_decls(TypeDecls),
+    forall(member(type_decl(Name, Type), TypeDecls), assertz(type_alias(Name, Type))),
+    validate_type_aliases(TypeDecls).
+
+ensure_no_duplicate_type_decls(TypeDecls) :-
+    findall(Name, member(type_decl(Name, _), TypeDecls), Names),
+    ensure_no_duplicates(Names).
+
+validate_type_aliases([]).
+validate_type_aliases([type_decl(_, Type)|Rest]) :-
+    resolve_type(Type, _ResolvedType),
+    validate_type_aliases(Rest).
+
+resolve_type(Type, Resolved) :-
+    resolve_type(Type, [], Resolved).
+
+resolve_type(type_ref(Name), Seen, Resolved) :-
+    !,
+    (   memberchk(Name, Seen)
+    ->  throw(error(recursive_type_alias(Name), context(semantics/resolve_type, 'Recursive type aliases are not supported in this milestone')))
+    ;   true
+    ),
+    (   type_alias(Name, Type)
+    ->  resolve_type(Type, [Name|Seen], Resolved)
+    ;   throw(error(undeclared_type(Name), context(semantics/resolve_type, 'Named type not declared')))
+    ).
+resolve_type(array(Low, High, ElementType), Seen, array(Low, High, ResolvedElement)) :-
+    !,
+    resolve_type(ElementType, Seen, ResolvedElement).
+resolve_type(record(Fields), Seen, record(ResolvedFields)) :-
+    !,
+    resolve_record_fields(Fields, Seen, ResolvedFields).
+resolve_type(Type, _Seen, Type).
+
+resolve_record_fields([], _Seen, []).
+resolve_record_fields([field(Name, Type)|Rest], Seen, [field(Name, ResolvedType)|ResolvedRest]) :-
+    resolve_type(Type, Seen, ResolvedType),
+    resolve_record_fields(Rest, Seen, ResolvedRest).
 
 decl_name(decl(Name, _), Name).
 decl_name(param(Name, _), Name).
@@ -20,7 +64,8 @@ param_spec(param_var(_, Type), spec(var_ref, Type)).
 
 decl_env_entry(Decl, Name-Type) :-
     decl_name(Decl, Name),
-    decl_type(Decl, Type).
+    decl_type(Decl, RawType),
+    resolve_type(RawType, Type).
 
 decls_env([], []).
 decls_env([Decl|Decls], [Entry|Env]) :-
@@ -246,18 +291,22 @@ check_call_args([Arg|Rest], [spec(var_ref, Type)|SpecRest], FuncName, Vars, Func
 ensure_var_ref_arg(var(Name), Type, _FuncName, Vars) :-
     !,
     ensure_declared(Name, Vars, ActualType),
-    (   ActualType == Type
+    resolve_type(ActualType, ResolvedActual),
+    resolve_type(Type, ResolvedType),
+    (   ResolvedActual == ResolvedType
     ->  true
-    ;   throw(error(type_mismatch(Type, ActualType), context(semantics/ensure_var_ref_arg, 'var argument has wrong type')))
+    ;   throw(error(type_mismatch(ResolvedType, ResolvedActual), context(semantics/ensure_var_ref_arg, 'var argument has wrong type')))
     ).
 ensure_var_ref_arg(field_ref(Name, Field), Type, _FuncName, Vars) :-
     !,
     ensure_declared(Name, Vars, RecordType),
     ensure_record_type(RecordType, Name, Fields),
     ensure_record_field(Fields, Name, Field, ActualType),
-    (   ActualType == Type
+    resolve_type(ActualType, ResolvedActual),
+    resolve_type(Type, ResolvedType),
+    (   ResolvedActual == ResolvedType
     ->  true
-    ;   throw(error(type_mismatch(Type, ActualType), context(semantics/ensure_var_ref_arg, 'var field argument has wrong type')))
+    ;   throw(error(type_mismatch(ResolvedType, ResolvedActual), context(semantics/ensure_var_ref_arg, 'var field argument has wrong type')))
     ).
 ensure_var_ref_arg(Arg, _Type, FuncName, _Vars) :-
     throw(error(var_arg_not_lvalue(FuncName, Arg), context(semantics/ensure_var_ref_arg, 'var parameter requires a variable argument'))).
@@ -274,7 +323,12 @@ ensure_expected_type(Expected, Actual) :-
     Expected = Actual.
 ensure_expected_type(Type, Type) :- !.
 ensure_expected_type(Expected, Actual) :-
-    throw(error(type_mismatch(Expected, Actual), context(semantics/ensure_declared, 'Variable has a different declared type'))).
+    resolve_type(Expected, ResolvedExpected),
+    resolve_type(Actual, ResolvedActual),
+    (   ResolvedExpected == ResolvedActual
+    ->  true
+    ;   throw(error(type_mismatch(ResolvedExpected, ResolvedActual), context(semantics/ensure_declared, 'Variable has a different declared type')))
+    ).
 
 ensure_function_declared(Name, FuncSigs, ParamTypes, ReturnType) :-
     (   memberchk(func_sig(Name, ParamTypes, ReturnType), FuncSigs)
@@ -283,6 +337,11 @@ ensure_function_declared(Name, FuncSigs, ParamTypes, ReturnType) :-
     ).
 
 ensure_assignable(Type, Type) :- !.
+ensure_assignable(Expected0, Actual0) :-
+    resolve_type(Expected0, Expected),
+    resolve_type(Actual0, Actual),
+    Expected == Actual,
+    !.
 ensure_assignable(Expected, Actual) :-
     throw(error(type_mismatch(Expected, Actual), context(semantics/ensure_assignable, 'Expression type is not assignable to target'))).
 
@@ -324,6 +383,10 @@ ensure_scalar_decls([Decl|Decls]) :-
 ensure_valid_type(integer).
 ensure_valid_type(boolean).
 ensure_valid_type(char).
+ensure_valid_type(type_ref(Name)) :-
+    !,
+    resolve_type(type_ref(Name), Resolved),
+    ensure_valid_type(Resolved).
 ensure_valid_type(array(Low, High, ElementType)) :-
     integer(Low),
     integer(High),
@@ -343,6 +406,10 @@ ensure_record_fields_valid(Fields) :-
 ensure_scalar_type(integer).
 ensure_scalar_type(boolean).
 ensure_scalar_type(char).
+ensure_scalar_type(type_ref(Name)) :-
+    !,
+    resolve_type(type_ref(Name), Resolved),
+    ensure_scalar_type(Resolved).
 ensure_scalar_type(Type) :-
     throw(error(unsupported_type(Type), context(semantics/ensure_scalar_type, 'Only scalar types are supported here'))).
 
@@ -355,6 +422,10 @@ ensure_not_aggregate(record(_)) :-
 ensure_not_aggregate(_).
 
 ensure_record_type(record(Fields), _Name, Fields) :- !.
+ensure_record_type(type_ref(Name), RecordName, Fields) :-
+    !,
+    resolve_type(type_ref(Name), Resolved),
+    ensure_record_type(Resolved, RecordName, Fields).
 ensure_record_type(Type, Name, _) :-
     throw(error(type_mismatch(record, Type), context(semantics/check_expr, Name))).
 

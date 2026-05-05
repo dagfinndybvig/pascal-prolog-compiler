@@ -12,14 +12,35 @@ parse_tokens(Tokens, Program) :-
     ;   throw(error(syntax_error(invalid_pascal_program), _))
     ).
 
-program(program(Name, Funcs, Vars, Block)) -->
+program(program(Name, Types, Funcs, Vars, Block)) -->
     keyword(program),
     identifier(Name),
     symbol(';'),
+    type_declarations(Types),
     top_level_declarations(Funcs, Vars),
     block(Block),
     symbol('.'),
     [tok(eof, _, _)].
+
+type_declarations(Types) -->
+    keyword(type),
+    !,
+    type_decls(Types).
+type_declarations([]) -->
+    [].
+
+type_decls([TypeDecl|Rest]) -->
+    type_decl(TypeDecl),
+    symbol(';'),
+    !,
+    type_decls(Rest).
+type_decls([]) -->
+    [].
+
+type_decl(type_decl(Name, Type)) -->
+    identifier(Name),
+    symbol('='),
+    type_spec(Type).
 
 top_level_declarations(Funcs, Vars) -->
     declarations(Vars),
@@ -142,6 +163,8 @@ type_spec(record(Fields)) -->
     keyword(record),
     record_field_decls(Fields),
     keyword(end).
+type_spec(type_ref(Name)) -->
+    identifier(Name).
 
 record_field_decls(Fields) -->
     record_field_decl(First),
@@ -164,6 +187,8 @@ scalar_type_spec(boolean) -->
     keyword(boolean).
 scalar_type_spec(char) -->
     keyword(char).
+scalar_type_spec(type_ref(Name)) -->
+    identifier(Name).
 
 make_params([], _, []).
 make_params([Name|Names], Type, [param(Name, Type)|Params]) :-
