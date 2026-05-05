@@ -104,6 +104,16 @@ lower_stmt(assign_field(Name, Field, Expr), Env, Counter, Counter, ir_record_fie
     lookup_type(Name, Env, RecordType),
     record_field_slot_offset(RecordType, Field, SlotOffset, FieldType),
     lower_expr(Expr, Env, IRExpr, FieldType).
+lower_stmt(assign_ptr_field(Name, Field, Expr), Env, Counter, Counter, ir_ptr_field_store(MappedName, SlotOffset, IRExpr), []) :-
+    map_name(Name, Env, MappedName),
+    lookup_type(Name, Env, PtrType),
+    ptr_record_field_slot_offset(PtrType, Field, SlotOffset, FieldType),
+    lower_expr(Expr, Env, IRExpr, FieldType).
+lower_stmt(assign_deref(Name, Expr), Env, Counter, Counter, ir_ptr_deref_store(MappedName, IRExpr), []) :-
+    map_name(Name, Env, MappedName),
+    lookup_type(Name, Env, PtrType),
+    ensure_ptr_target_type(PtrType, _),
+    lower_expr(Expr, Env, IRExpr, _).
 lower_stmt(if(Cond, Then, Else), Env, CounterIn, CounterOut, ir_if(IRCond, IRThen, IRElse), AddedVars) :-
     lower_expr(Cond, Env, IRCond),
     lower_stmt(Then, Env, CounterIn, CounterThen, IRThen, AddedThen),
@@ -234,10 +244,21 @@ lower_expr(char(Code), _Env, ir_char(Code), char).
 lower_expr(var(Name), Env, ir_var(MappedName), Type) :-
     map_name(Name, Env, MappedName),
     lookup_type(Name, Env, Type).
+lower_expr(addr_of(Name), Env, ir_addr_of(MappedName), ptr(Type)) :-
+    map_name(Name, Env, MappedName),
+    lookup_type(Name, Env, Type).
+lower_expr(ptr_deref(Name), Env, ir_ptr_deref_load(MappedName), TargetType) :-
+    map_name(Name, Env, MappedName),
+    lookup_type(Name, Env, PtrType),
+    ensure_ptr_target_type(PtrType, TargetType).
 lower_expr(field_ref(Name, Field), Env, ir_record_field_load(MappedName, SlotOffset), FieldType) :-
     map_name(Name, Env, MappedName),
     lookup_type(Name, Env, RecordType),
     record_field_slot_offset(RecordType, Field, SlotOffset, FieldType).
+lower_expr(ptr_field_ref(Name, Field), Env, ir_ptr_field_load(MappedName, SlotOffset), FieldType) :-
+    map_name(Name, Env, MappedName),
+    lookup_type(Name, Env, PtrType),
+    ptr_record_field_slot_offset(PtrType, Field, SlotOffset, FieldType).
 lower_expr(array_ref(Name, IndexExpr), Env, ir_array_load(MappedName, Low, High, IRIndex), ElementType) :-
     map_name(Name, Env, MappedName),
     lookup_type(Name, Env, array(Low, High, ElementType)),
@@ -300,6 +321,16 @@ lower_call_args([field_ref(Name, Field)|Rest], [var_ref|ModeRest], Env, [ir_reco
     lookup_type(Name, Env, RecordType),
     record_field_slot_offset(RecordType, Field, SlotOffset, _FieldType),
     lower_call_args(Rest, ModeRest, Env, IRRest).
+    lower_call_args([ptr_deref(Name)|Rest], [var_ref|ModeRest], Env, [ir_ptr_deref_addr(MappedName)|IRRest]) :-
+        map_name(Name, Env, MappedName),
+        lookup_type(Name, Env, PtrType),
+        ensure_ptr_target_type(PtrType, _),
+        lower_call_args(Rest, ModeRest, Env, IRRest).
+    lower_call_args([ptr_field_ref(Name, Field)|Rest], [var_ref|ModeRest], Env, [ir_ptr_field_addr(MappedName, SlotOffset)|IRRest]) :-
+        map_name(Name, Env, MappedName),
+        lookup_type(Name, Env, PtrType),
+        ptr_record_field_slot_offset(PtrType, Field, SlotOffset, _FieldType),
+        lower_call_args(Rest, ModeRest, Env, IRRest).
 
 resolve_decl_list([], []).
 resolve_decl_list([Decl|Rest], [ResolvedDecl|ResolvedRest]) :-
@@ -364,3 +395,11 @@ record_field_slot_offset([field(_, Type)|Rest], FieldName, Current, SlotOffset, 
     record_field_slot_offset(Rest, FieldName, Next, SlotOffset, FieldType).
 record_field_slot_offset([], FieldName, _, _, _) :-
     throw(error(unknown_record_field(FieldName), context(ir/record_field_slot_offset, 'Unknown record field during IR lowering'))).
+
+    ensure_ptr_target_type(ptr(TargetType), TargetType) :- !.
+    ensure_ptr_target_type(Type, _) :-
+        throw(error(type_mismatch(pointer, Type), context(ir/ensure_ptr_target_type, 'Pointer operation requires pointer type'))).
+
+    ptr_record_field_slot_offset(PtrType, FieldName, SlotOffset, FieldType) :-
+        ensure_ptr_target_type(PtrType, TargetType),
+        record_field_slot_offset(TargetType, FieldName, SlotOffset, FieldType).

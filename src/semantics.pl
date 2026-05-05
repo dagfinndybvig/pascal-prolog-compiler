@@ -175,6 +175,18 @@ check_stmt(assign_field(Name, Field, Expr), Vars, FuncSigs) :-
     ensure_record_field(Fields, Name, Field, FieldType),
     check_expr(Expr, Vars, FuncSigs, ExprType),
     ensure_assignable(FieldType, ExprType).
+check_stmt(assign_ptr_field(Name, Field, Expr), Vars, FuncSigs) :-
+    ensure_declared(Name, Vars, PtrType),
+    ensure_pointer_target_record(PtrType, Name, Fields),
+    ensure_record_field(Fields, Name, Field, FieldType),
+    check_expr(Expr, Vars, FuncSigs, ExprType),
+    ensure_assignable(FieldType, ExprType).
+check_stmt(assign_deref(Name, Expr), Vars, FuncSigs) :-
+    ensure_declared(Name, Vars, PtrType),
+    ensure_pointer_type(PtrType, Name, TargetType),
+    ensure_not_aggregate(TargetType),
+    check_expr(Expr, Vars, FuncSigs, ExprType),
+    ensure_assignable(TargetType, ExprType).
 check_stmt(if(Cond, Then, Else), Vars, FuncSigs) :-
     check_expr(Cond, Vars, FuncSigs, boolean),
     check_stmt(Then, Vars, FuncSigs),
@@ -238,9 +250,18 @@ check_expr(char(_), _, _, char).
 check_expr(nil, _, _, nil_type).
 check_expr(var(Name), Vars, _, Type) :-
     ensure_declared(Name, Vars, Type).
+check_expr(addr_of(Name), Vars, _, ptr(Type)) :-
+    ensure_declared(Name, Vars, Type).
+check_expr(ptr_deref(Name), Vars, _, TargetType) :-
+    ensure_declared(Name, Vars, PtrType),
+    ensure_pointer_type(PtrType, Name, TargetType).
 check_expr(field_ref(Name, Field), Vars, _, FieldType) :-
     ensure_declared(Name, Vars, RecordType),
     ensure_record_type(RecordType, Name, Fields),
+    ensure_record_field(Fields, Name, Field, FieldType).
+check_expr(ptr_field_ref(Name, Field), Vars, _, FieldType) :-
+    ensure_declared(Name, Vars, PtrType),
+    ensure_pointer_target_record(PtrType, Name, Fields),
     ensure_record_field(Fields, Name, Field, FieldType).
 check_expr(array_ref(Name, IndexExpr), Vars, FuncSigs, ElementType) :-
     ensure_declared(Name, Vars, array(_Low, _High, ElementType)),
@@ -324,6 +345,27 @@ ensure_var_ref_arg(field_ref(Name, Field), Type, _FuncName, Vars) :-
     (   ResolvedActual == ResolvedType
     ->  true
     ;   throw(error(type_mismatch(ResolvedType, ResolvedActual), context(semantics/ensure_var_ref_arg, 'var field argument has wrong type')))
+    ).
+ensure_var_ref_arg(ptr_deref(Name), Type, _FuncName, Vars) :-
+    !,
+    ensure_declared(Name, Vars, PtrType),
+    ensure_pointer_type(PtrType, Name, ActualType),
+    resolve_type(ActualType, ResolvedActual),
+    resolve_type(Type, ResolvedType),
+    (   ResolvedActual == ResolvedType
+    ->  true
+    ;   throw(error(type_mismatch(ResolvedType, ResolvedActual), context(semantics/ensure_var_ref_arg, 'var dereference argument has wrong type')))
+    ).
+ensure_var_ref_arg(ptr_field_ref(Name, Field), Type, _FuncName, Vars) :-
+    !,
+    ensure_declared(Name, Vars, PtrType),
+    ensure_pointer_target_record(PtrType, Name, Fields),
+    ensure_record_field(Fields, Name, Field, ActualType),
+    resolve_type(ActualType, ResolvedActual),
+    resolve_type(Type, ResolvedType),
+    (   ResolvedActual == ResolvedType
+    ->  true
+    ;   throw(error(type_mismatch(ResolvedType, ResolvedActual), context(semantics/ensure_var_ref_arg, 'var pointer-field argument has wrong type')))
     ).
 ensure_var_ref_arg(Arg, _Type, FuncName, _Vars) :-
     throw(error(var_arg_not_lvalue(FuncName, Arg), context(semantics/ensure_var_ref_arg, 'var parameter requires a variable argument'))).
@@ -460,6 +502,17 @@ ensure_record_field(Fields, _RecordName, Field, Type) :-
     !.
 ensure_record_field(_Fields, RecordName, Field, _Type) :-
     throw(error(unknown_record_field(RecordName, Field), context(semantics/check_expr, 'Record field not declared'))).
+
+ensure_pointer_type(Type0, Name, TargetType) :-
+    resolve_type(Type0, Type),
+    (   Type = ptr(TargetType)
+    ->  true
+    ;   throw(error(type_mismatch(pointer, Type), context(semantics/check_expr, Name)))
+    ).
+
+ensure_pointer_target_record(PtrType, Name, Fields) :-
+    ensure_pointer_type(PtrType, Name, TargetType),
+    ensure_record_type(TargetType, Name, Fields).
 
 check_block(block(LocalVars, Stmts), VarsInScope, FuncSigs) :-
     ensure_no_duplicate_decls(LocalVars),

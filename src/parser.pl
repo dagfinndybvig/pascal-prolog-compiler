@@ -370,6 +370,20 @@ statement(assign_field(Name, Field, Expr)) -->
     symbol(':='),
     expression(Expr),
     !.
+statement(assign_ptr_field(Name, Field, Expr)) -->
+    identifier(Name),
+    symbol('^'),
+    symbol('.'),
+    identifier(Field),
+    symbol(':='),
+    expression(Expr),
+    !.
+statement(assign_deref(Name, Expr)) -->
+    identifier(Name),
+    symbol('^'),
+    symbol(':='),
+    expression(Expr),
+    !.
 statement(assign(Name, Expr)) -->
     identifier(Name),
     symbol(':='),
@@ -553,6 +567,20 @@ primary(call(Name, Args)) -->
     symbol('('),
     expr_list(Args),
     symbol(')'),
+    !.
+primary(ptr_field_ref(Name, Field)) -->
+    identifier(Name),
+    symbol('^'),
+    symbol('.'),
+    identifier(Field),
+    !.
+primary(ptr_deref(Name)) -->
+    identifier(Name),
+    symbol('^'),
+    !.
+primary(addr_of(Name)) -->
+    symbol('@'),
+    identifier(Name),
     !.
 primary(field_ref(Name, Field)) -->
     identifier(Name),
