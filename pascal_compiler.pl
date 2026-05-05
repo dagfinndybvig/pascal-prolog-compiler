@@ -145,6 +145,7 @@ write_asm_file(AsmPath, ir_program(_, Funcs, Vars, IRStmts)) :-
     write(Stream, NullPtrHandler),
     asm_null_pointer_message(NullPtrMsg),
     write(Stream, NullPtrMsg),
+    write(Stream, "\n\t.section .note.GNU-stack,\"\",@progbits\n"),
     close(Stream).
 
 expect_success(exit(0)) :- !.
