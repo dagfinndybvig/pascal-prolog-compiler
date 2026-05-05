@@ -117,6 +117,7 @@ keyword_or_ident(record, kw(record)) :- !.
 keyword_or_ident(of, kw(of)) :- !.
 keyword_or_ident(true, kw(true)) :- !.
 keyword_or_ident(false, kw(false)) :- !.
+keyword_or_ident(nil, kw(nil)) :- !.
 keyword_or_ident(begin, kw(begin)) :- !.
 keyword_or_ident(end, kw(end)) :- !.
 keyword_or_ident(if, kw(if)) :- !.
@@ -152,6 +153,8 @@ consume_symbol(0'(, Rest, Rest, '(', 1) :- !.
 consume_symbol(0'), Rest, Rest, ')', 1) :- !.
 consume_symbol(0'[, Rest, Rest, '[', 1) :- !.
 consume_symbol(0'], Rest, Rest, ']', 1) :- !.
+consume_symbol(0'^, Rest, Rest, '^', 1) :- !.
+consume_symbol(0'@, Rest, Rest, '@', 1) :- !.
 consume_symbol(0'+, Rest, Rest, '+', 1) :- !.
 consume_symbol(0'-, Rest, Rest, '-', 1) :- !.
 consume_symbol(0'*, Rest, Rest, '*', 1) :- !.

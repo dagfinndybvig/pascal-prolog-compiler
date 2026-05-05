@@ -150,6 +150,9 @@ type_spec(boolean) -->
     keyword(boolean).
 type_spec(char) -->
     keyword(char).
+type_spec(ptr(type_ref(Name))) -->
+    symbol('^'),
+    identifier(Name).
 type_spec(array(Low, High, ElementType)) -->
     keyword(array),
     symbol('['),
@@ -187,6 +190,9 @@ scalar_type_spec(boolean) -->
     keyword(boolean).
 scalar_type_spec(char) -->
     keyword(char).
+scalar_type_spec(ptr(type_ref(Name))) -->
+    symbol('^'),
+    identifier(Name).
 scalar_type_spec(type_ref(Name)) -->
     identifier(Name).
 
@@ -532,6 +538,9 @@ primary(bool(1)) -->
     !.
 primary(bool(0)) -->
     keyword(false),
+    !.
+primary(nil) -->
+    keyword(nil),
     !.
 primary(char(Code)) -->
     [tok(str(Text), _, _)],

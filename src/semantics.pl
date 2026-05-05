@@ -41,6 +41,9 @@ resolve_type(type_ref(Name), Seen, Resolved) :-
 resolve_type(array(Low, High, ElementType), Seen, array(Low, High, ResolvedElement)) :-
     !,
     resolve_type(ElementType, Seen, ResolvedElement).
+resolve_type(ptr(TargetType), Seen, ptr(ResolvedTarget)) :-
+    !,
+    resolve_type(TargetType, Seen, ResolvedTarget).
 resolve_type(record(Fields), Seen, record(ResolvedFields)) :-
     !,
     resolve_record_fields(Fields, Seen, ResolvedFields).
@@ -232,6 +235,7 @@ check_stmt(proc_call(Name, Args), Vars, FuncSigs) :-
 check_expr(int(_), _, _, integer).
 check_expr(bool(_), _, _, boolean).
 check_expr(char(_), _, _, char).
+check_expr(nil, _, _, nil_type).
 check_expr(var(Name), Vars, _, Type) :-
     ensure_declared(Name, Vars, Type).
 check_expr(field_ref(Name, Field), Vars, _, FieldType) :-
@@ -274,6 +278,19 @@ bin_expr_type(Op, char, char, boolean) :-
     memberchk(Op, ['=', '<>', '<', '<=', '>', '>=']).
 bin_expr_type(Op, boolean, boolean, boolean) :-
     memberchk(Op, [and, or, '=', '<>']).
+bin_expr_type(Op, LeftType, RightType, boolean) :-
+    is_pointer_type(LeftType),
+    is_pointer_type(RightType),
+    memberchk(Op, ['=', '<>']),
+    LeftType == RightType.
+bin_expr_type(Op, LeftType, nil_type, boolean) :-
+    is_pointer_type(LeftType),
+    memberchk(Op, ['=', '<>']).
+bin_expr_type(Op, nil_type, RightType, boolean) :-
+    is_pointer_type(RightType),
+    memberchk(Op, ['=', '<>']).
+
+is_pointer_type(ptr(_)).
 
 check_exprs([], [], _, _).
 check_exprs([Expr|Rest], [Type|Types], Vars, FuncSigs) :-
@@ -337,6 +354,10 @@ ensure_function_declared(Name, FuncSigs, ParamTypes, ReturnType) :-
     ).
 
 ensure_assignable(Type, Type) :- !.
+ensure_assignable(Expected0, nil_type) :-
+    resolve_type(Expected0, Expected),
+    is_pointer_type(Expected),
+    !.
 ensure_assignable(Expected0, Actual0) :-
     resolve_type(Expected0, Expected),
     resolve_type(Actual0, Actual),
@@ -387,6 +408,10 @@ ensure_valid_type(type_ref(Name)) :-
     !,
     resolve_type(type_ref(Name), Resolved),
     ensure_valid_type(Resolved).
+ensure_valid_type(ptr(TargetType)) :-
+    !,
+    resolve_type(TargetType, ResolvedTarget),
+    ensure_valid_type(ResolvedTarget).
 ensure_valid_type(array(Low, High, ElementType)) :-
     integer(Low),
     integer(High),
@@ -406,6 +431,7 @@ ensure_record_fields_valid(Fields) :-
 ensure_scalar_type(integer).
 ensure_scalar_type(boolean).
 ensure_scalar_type(char).
+ensure_scalar_type(ptr(_)).
 ensure_scalar_type(type_ref(Name)) :-
     !,
     resolve_type(type_ref(Name), Resolved),

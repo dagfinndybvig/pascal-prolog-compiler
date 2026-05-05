@@ -230,6 +230,7 @@ lower_expr(Expr, Env, IRExpr) :-
 lower_expr(int(N), _Env, ir_int(N), integer).
 lower_expr(bool(Value), _Env, ir_bool(Value), boolean).
 lower_expr(char(Code), _Env, ir_char(Code), char).
+   lower_expr(nil, _Env, ir_int(0), nil_type).
 lower_expr(var(Name), Env, ir_var(MappedName), Type) :-
     map_name(Name, Env, MappedName),
     lookup_type(Name, Env, Type).
@@ -321,6 +322,9 @@ resolve_ir_type(type_ref(Name), Type) :-
 resolve_ir_type(array(Low, High, ElementType0), array(Low, High, ElementType)) :-
     !,
     resolve_ir_type(ElementType0, ElementType).
+   resolve_ir_type(ptr(TargetType0), ptr(TargetType)) :-
+       !,
+       resolve_ir_type(TargetType0, TargetType).
 resolve_ir_type(record(Fields0), record(Fields)) :-
     !,
     resolve_ir_record_fields(Fields0, Fields).
