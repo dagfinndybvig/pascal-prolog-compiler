@@ -12,14 +12,35 @@ parse_tokens(Tokens, Program) :-
     ;   throw(error(syntax_error(invalid_pascal_program), _))
     ).
 
-program(program(Name, Funcs, Vars, Block)) -->
+program(program(Name, Types, Funcs, Vars, Block)) -->
     keyword(program),
     identifier(Name),
     symbol(';'),
+    type_declarations(Types),
     top_level_declarations(Funcs, Vars),
     block(Block),
     symbol('.'),
     [tok(eof, _, _)].
+
+type_declarations(Types) -->
+    keyword(type),
+    !,
+    type_decls(Types).
+type_declarations([]) -->
+    [].
+
+type_decls([TypeDecl|Rest]) -->
+    type_decl(TypeDecl),
+    symbol(';'),
+    !,
+    type_decls(Rest).
+type_decls([]) -->
+    [].
+
+type_decl(type_decl(Name, Type)) -->
+    identifier(Name),
+    symbol('='),
+    type_spec(Type).
 
 top_level_declarations(Funcs, Vars) -->
     declarations(Vars),
@@ -129,6 +150,9 @@ type_spec(boolean) -->
     keyword(boolean).
 type_spec(char) -->
     keyword(char).
+type_spec(ptr(type_ref(Name))) -->
+    symbol('^'),
+    identifier(Name).
 type_spec(array(Low, High, ElementType)) -->
     keyword(array),
     symbol('['),
@@ -142,6 +166,8 @@ type_spec(record(Fields)) -->
     keyword(record),
     record_field_decls(Fields),
     keyword(end).
+type_spec(type_ref(Name)) -->
+    identifier(Name).
 
 record_field_decls(Fields) -->
     record_field_decl(First),
@@ -164,6 +190,11 @@ scalar_type_spec(boolean) -->
     keyword(boolean).
 scalar_type_spec(char) -->
     keyword(char).
+scalar_type_spec(ptr(type_ref(Name))) -->
+    symbol('^'),
+    identifier(Name).
+scalar_type_spec(type_ref(Name)) -->
+    identifier(Name).
 
 make_params([], _, []).
 make_params([Name|Names], Type, [param(Name, Type)|Params]) :-
@@ -314,6 +345,18 @@ statement(readln_field(Name, Field)) -->
     identifier(Field),
     symbol(')'),
     !.
+statement(new_ptr(LValue)) -->
+    keyword(new),
+    symbol('('),
+    pointer_lvalue(LValue),
+    symbol(')'),
+    !.
+statement(dispose_ptr(LValue)) -->
+    keyword(dispose),
+    symbol('('),
+    pointer_lvalue(LValue),
+    symbol(')'),
+    !.
 statement(proc_call(Name, Args)) -->
     identifier(Name),
     symbol('('),
@@ -339,10 +382,43 @@ statement(assign_field(Name, Field, Expr)) -->
     symbol(':='),
     expression(Expr),
     !.
+statement(assign_ptr_field(Name, Field, Expr)) -->
+    identifier(Name),
+    symbol('^'),
+    symbol('.'),
+    identifier(Field),
+    symbol(':='),
+    expression(Expr),
+    !.
+statement(assign_deref(Name, Expr)) -->
+    identifier(Name),
+    symbol('^'),
+    symbol(':='),
+    expression(Expr),
+    !.
 statement(assign(Name, Expr)) -->
     identifier(Name),
     symbol(':='),
     expression(Expr),
+    !.
+
+pointer_lvalue(ptr_field_ref(Name, Field)) -->
+    identifier(Name),
+    symbol('^'),
+    symbol('.'),
+    identifier(Field),
+    !.
+pointer_lvalue(ptr_deref(Name)) -->
+    identifier(Name),
+    symbol('^'),
+    !.
+pointer_lvalue(field_ref(Name, Field)) -->
+    identifier(Name),
+    symbol('.'),
+    identifier(Field),
+    !.
+pointer_lvalue(var(Name)) -->
+    identifier(Name),
     !.
 
 optional_else(Else) -->
@@ -508,6 +584,9 @@ primary(bool(1)) -->
 primary(bool(0)) -->
     keyword(false),
     !.
+primary(nil) -->
+    keyword(nil),
+    !.
 primary(char(Code)) -->
     [tok(str(Text), _, _)],
     { string_length(Text, 1),
@@ -519,6 +598,20 @@ primary(call(Name, Args)) -->
     symbol('('),
     expr_list(Args),
     symbol(')'),
+    !.
+primary(ptr_field_ref(Name, Field)) -->
+    identifier(Name),
+    symbol('^'),
+    symbol('.'),
+    identifier(Field),
+    !.
+primary(ptr_deref(Name)) -->
+    identifier(Name),
+    symbol('^'),
+    !.
+primary(addr_of(Name)) -->
+    symbol('@'),
+    identifier(Name),
     !.
 primary(field_ref(Name, Field)) -->
     identifier(Name),

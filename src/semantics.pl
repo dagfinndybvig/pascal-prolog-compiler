@@ -1,11 +1,63 @@
 :- module(semantics, [check_program/1]).
 
-check_program(program(_, Funcs, Vars, Block)) :-
+:- dynamic type_alias/2.
+
+check_program(program(_, TypeDecls, Funcs, Vars, Block)) :-
+    init_type_aliases(TypeDecls),
     ensure_no_duplicate_decls(Vars),
     ensure_valid_decls(Vars),
     decls_env(Vars, GlobalEnv),
     check_funcs(Funcs, GlobalEnv, FuncSigs),
     check_block(Block, GlobalEnv, FuncSigs).
+
+init_type_aliases(TypeDecls) :-
+    retractall(type_alias(_, _)),
+    ensure_no_duplicate_type_decls(TypeDecls),
+    forall(member(type_decl(Name, Type), TypeDecls), assertz(type_alias(Name, Type))),
+    validate_type_aliases(TypeDecls).
+
+ensure_no_duplicate_type_decls(TypeDecls) :-
+    findall(Name, member(type_decl(Name, _), TypeDecls), Names),
+    ensure_no_duplicates(Names).
+
+validate_type_aliases([]).
+validate_type_aliases([type_decl(_, Type)|Rest]) :-
+    resolve_type(Type, _ResolvedType),
+    validate_type_aliases(Rest).
+
+resolve_type(Type, Resolved) :-
+    resolve_type(Type, [], normal, Resolved).
+
+resolve_type(type_ref(Name), Seen, Mode, Resolved) :-
+    !,
+    (   Mode == through_ptr
+    ->  (   type_alias(Name, _)
+        ->  Resolved = type_ref(Name)
+        ;   throw(error(undeclared_type(Name), context(semantics/resolve_type, 'Named type not declared')))
+        )
+    ;   (   memberchk(Name, Seen)
+        ->  throw(error(recursive_type_alias(Name), context(semantics/resolve_type, 'Recursive type aliases must be through pointer indirection')))
+        ;   (   type_alias(Name, Type)
+            ->  resolve_type(Type, [Name|Seen], Mode, Resolved)
+            ;   throw(error(undeclared_type(Name), context(semantics/resolve_type, 'Named type not declared')))
+            )
+        )
+    ).
+resolve_type(array(Low, High, ElementType), Seen, _Mode, array(Low, High, ResolvedElement)) :-
+    !,
+    resolve_type(ElementType, Seen, normal, ResolvedElement).
+resolve_type(ptr(TargetType), Seen, _Mode, ptr(ResolvedTarget)) :-
+    !,
+    resolve_type(TargetType, Seen, through_ptr, ResolvedTarget).
+resolve_type(record(Fields), Seen, _Mode, record(ResolvedFields)) :-
+    !,
+    resolve_record_fields(Fields, Seen, ResolvedFields).
+resolve_type(Type, _Seen, _Mode, Type).
+
+resolve_record_fields([], _Seen, []).
+resolve_record_fields([field(Name, Type)|Rest], Seen, [field(Name, ResolvedType)|ResolvedRest]) :-
+    resolve_type(Type, Seen, normal, ResolvedType),
+    resolve_record_fields(Rest, Seen, ResolvedRest).
 
 decl_name(decl(Name, _), Name).
 decl_name(param(Name, _), Name).
@@ -20,7 +72,8 @@ param_spec(param_var(_, Type), spec(var_ref, Type)).
 
 decl_env_entry(Decl, Name-Type) :-
     decl_name(Decl, Name),
-    decl_type(Decl, Type).
+    decl_type(Decl, RawType),
+    resolve_type(RawType, Type).
 
 decls_env([], []).
 decls_env([Decl|Decls], [Entry|Env]) :-
@@ -127,6 +180,18 @@ check_stmt(assign_field(Name, Field, Expr), Vars, FuncSigs) :-
     ensure_record_field(Fields, Name, Field, FieldType),
     check_expr(Expr, Vars, FuncSigs, ExprType),
     ensure_assignable(FieldType, ExprType).
+check_stmt(assign_ptr_field(Name, Field, Expr), Vars, FuncSigs) :-
+    ensure_declared(Name, Vars, PtrType),
+    ensure_pointer_target_record(PtrType, Name, Fields),
+    ensure_record_field(Fields, Name, Field, FieldType),
+    check_expr(Expr, Vars, FuncSigs, ExprType),
+    ensure_assignable(FieldType, ExprType).
+check_stmt(assign_deref(Name, Expr), Vars, FuncSigs) :-
+    ensure_declared(Name, Vars, PtrType),
+    ensure_pointer_type(PtrType, Name, TargetType),
+    ensure_not_aggregate(TargetType),
+    check_expr(Expr, Vars, FuncSigs, ExprType),
+    ensure_assignable(TargetType, ExprType).
 check_stmt(if(Cond, Then, Else), Vars, FuncSigs) :-
     check_expr(Cond, Vars, FuncSigs, boolean),
     check_stmt(Then, Vars, FuncSigs),
@@ -172,6 +237,12 @@ check_stmt(readln_field(Name, Field), Vars, _) :-
     ensure_record_type(RecordType, Name, Fields),
     ensure_record_field(Fields, Name, Field, FieldType),
     ensure_readable_type(FieldType).
+check_stmt(new_ptr(LValue), Vars, _) :-
+    lvalue_type(LValue, Vars, LType),
+    ensure_pointer_type(LType, LValue, _TargetType).
+check_stmt(dispose_ptr(LValue), Vars, _) :-
+    lvalue_type(LValue, Vars, LType),
+    ensure_pointer_type(LType, LValue, _TargetType).
 check_stmt(block(LocalVars, Stmts), Vars, FuncSigs) :-
     check_block(block(LocalVars, Stmts), Vars, FuncSigs).
 check_stmt(proc_call(Name, Args), Vars, FuncSigs) :-
@@ -187,11 +258,21 @@ check_stmt(proc_call(Name, Args), Vars, FuncSigs) :-
 check_expr(int(_), _, _, integer).
 check_expr(bool(_), _, _, boolean).
 check_expr(char(_), _, _, char).
+check_expr(nil, _, _, nil_type).
 check_expr(var(Name), Vars, _, Type) :-
     ensure_declared(Name, Vars, Type).
+check_expr(addr_of(Name), Vars, _, ptr(Type)) :-
+    ensure_declared(Name, Vars, Type).
+check_expr(ptr_deref(Name), Vars, _, TargetType) :-
+    ensure_declared(Name, Vars, PtrType),
+    ensure_pointer_type(PtrType, Name, TargetType).
 check_expr(field_ref(Name, Field), Vars, _, FieldType) :-
     ensure_declared(Name, Vars, RecordType),
     ensure_record_type(RecordType, Name, Fields),
+    ensure_record_field(Fields, Name, Field, FieldType).
+check_expr(ptr_field_ref(Name, Field), Vars, _, FieldType) :-
+    ensure_declared(Name, Vars, PtrType),
+    ensure_pointer_target_record(PtrType, Name, Fields),
     ensure_record_field(Fields, Name, Field, FieldType).
 check_expr(array_ref(Name, IndexExpr), Vars, FuncSigs, ElementType) :-
     ensure_declared(Name, Vars, array(_Low, _High, ElementType)),
@@ -229,6 +310,19 @@ bin_expr_type(Op, char, char, boolean) :-
     memberchk(Op, ['=', '<>', '<', '<=', '>', '>=']).
 bin_expr_type(Op, boolean, boolean, boolean) :-
     memberchk(Op, [and, or, '=', '<>']).
+bin_expr_type(Op, LeftType, RightType, boolean) :-
+    is_pointer_type(LeftType),
+    is_pointer_type(RightType),
+    memberchk(Op, ['=', '<>']),
+    LeftType == RightType.
+bin_expr_type(Op, LeftType, nil_type, boolean) :-
+    is_pointer_type(LeftType),
+    memberchk(Op, ['=', '<>']).
+bin_expr_type(Op, nil_type, RightType, boolean) :-
+    is_pointer_type(RightType),
+    memberchk(Op, ['=', '<>']).
+
+is_pointer_type(ptr(_)).
 
 check_exprs([], [], _, _).
 check_exprs([Expr|Rest], [Type|Types], Vars, FuncSigs) :-
@@ -246,18 +340,43 @@ check_call_args([Arg|Rest], [spec(var_ref, Type)|SpecRest], FuncName, Vars, Func
 ensure_var_ref_arg(var(Name), Type, _FuncName, Vars) :-
     !,
     ensure_declared(Name, Vars, ActualType),
-    (   ActualType == Type
+    resolve_type(ActualType, ResolvedActual),
+    resolve_type(Type, ResolvedType),
+    (   ResolvedActual == ResolvedType
     ->  true
-    ;   throw(error(type_mismatch(Type, ActualType), context(semantics/ensure_var_ref_arg, 'var argument has wrong type')))
+    ;   throw(error(type_mismatch(ResolvedType, ResolvedActual), context(semantics/ensure_var_ref_arg, 'var argument has wrong type')))
     ).
 ensure_var_ref_arg(field_ref(Name, Field), Type, _FuncName, Vars) :-
     !,
     ensure_declared(Name, Vars, RecordType),
     ensure_record_type(RecordType, Name, Fields),
     ensure_record_field(Fields, Name, Field, ActualType),
-    (   ActualType == Type
+    resolve_type(ActualType, ResolvedActual),
+    resolve_type(Type, ResolvedType),
+    (   ResolvedActual == ResolvedType
     ->  true
-    ;   throw(error(type_mismatch(Type, ActualType), context(semantics/ensure_var_ref_arg, 'var field argument has wrong type')))
+    ;   throw(error(type_mismatch(ResolvedType, ResolvedActual), context(semantics/ensure_var_ref_arg, 'var field argument has wrong type')))
+    ).
+ensure_var_ref_arg(ptr_deref(Name), Type, _FuncName, Vars) :-
+    !,
+    ensure_declared(Name, Vars, PtrType),
+    ensure_pointer_type(PtrType, Name, ActualType),
+    resolve_type(ActualType, ResolvedActual),
+    resolve_type(Type, ResolvedType),
+    (   ResolvedActual == ResolvedType
+    ->  true
+    ;   throw(error(type_mismatch(ResolvedType, ResolvedActual), context(semantics/ensure_var_ref_arg, 'var dereference argument has wrong type')))
+    ).
+ensure_var_ref_arg(ptr_field_ref(Name, Field), Type, _FuncName, Vars) :-
+    !,
+    ensure_declared(Name, Vars, PtrType),
+    ensure_pointer_target_record(PtrType, Name, Fields),
+    ensure_record_field(Fields, Name, Field, ActualType),
+    resolve_type(ActualType, ResolvedActual),
+    resolve_type(Type, ResolvedType),
+    (   ResolvedActual == ResolvedType
+    ->  true
+    ;   throw(error(type_mismatch(ResolvedType, ResolvedActual), context(semantics/ensure_var_ref_arg, 'var pointer-field argument has wrong type')))
     ).
 ensure_var_ref_arg(Arg, _Type, FuncName, _Vars) :-
     throw(error(var_arg_not_lvalue(FuncName, Arg), context(semantics/ensure_var_ref_arg, 'var parameter requires a variable argument'))).
@@ -274,7 +393,12 @@ ensure_expected_type(Expected, Actual) :-
     Expected = Actual.
 ensure_expected_type(Type, Type) :- !.
 ensure_expected_type(Expected, Actual) :-
-    throw(error(type_mismatch(Expected, Actual), context(semantics/ensure_declared, 'Variable has a different declared type'))).
+    resolve_type(Expected, ResolvedExpected),
+    resolve_type(Actual, ResolvedActual),
+    (   ResolvedExpected == ResolvedActual
+    ->  true
+    ;   throw(error(type_mismatch(ResolvedExpected, ResolvedActual), context(semantics/ensure_declared, 'Variable has a different declared type')))
+    ).
 
 ensure_function_declared(Name, FuncSigs, ParamTypes, ReturnType) :-
     (   memberchk(func_sig(Name, ParamTypes, ReturnType), FuncSigs)
@@ -283,6 +407,15 @@ ensure_function_declared(Name, FuncSigs, ParamTypes, ReturnType) :-
     ).
 
 ensure_assignable(Type, Type) :- !.
+ensure_assignable(Expected0, nil_type) :-
+    resolve_type(Expected0, Expected),
+    is_pointer_type(Expected),
+    !.
+ensure_assignable(Expected0, Actual0) :-
+    resolve_type(Expected0, Expected),
+    resolve_type(Actual0, Actual),
+    Expected == Actual,
+    !.
 ensure_assignable(Expected, Actual) :-
     throw(error(type_mismatch(Expected, Actual), context(semantics/ensure_assignable, 'Expression type is not assignable to target'))).
 
@@ -324,6 +457,13 @@ ensure_scalar_decls([Decl|Decls]) :-
 ensure_valid_type(integer).
 ensure_valid_type(boolean).
 ensure_valid_type(char).
+ensure_valid_type(type_ref(Name)) :-
+    !,
+    resolve_type(type_ref(Name), Resolved),
+    ensure_valid_type(Resolved).
+ensure_valid_type(ptr(TargetType)) :-
+    !,
+    ensure_pointer_target_declared(TargetType).
 ensure_valid_type(array(Low, High, ElementType)) :-
     integer(Low),
     integer(High),
@@ -343,6 +483,11 @@ ensure_record_fields_valid(Fields) :-
 ensure_scalar_type(integer).
 ensure_scalar_type(boolean).
 ensure_scalar_type(char).
+ensure_scalar_type(ptr(_)).
+ensure_scalar_type(type_ref(Name)) :-
+    !,
+    resolve_type(type_ref(Name), Resolved),
+    ensure_scalar_type(Resolved).
 ensure_scalar_type(Type) :-
     throw(error(unsupported_type(Type), context(semantics/ensure_scalar_type, 'Only scalar types are supported here'))).
 
@@ -355,6 +500,10 @@ ensure_not_aggregate(record(_)) :-
 ensure_not_aggregate(_).
 
 ensure_record_type(record(Fields), _Name, Fields) :- !.
+ensure_record_type(type_ref(Name), RecordName, Fields) :-
+    !,
+    resolve_type(type_ref(Name), Resolved),
+    ensure_record_type(Resolved, RecordName, Fields).
 ensure_record_type(Type, Name, _) :-
     throw(error(type_mismatch(record, Type), context(semantics/check_expr, Name))).
 
@@ -363,6 +512,41 @@ ensure_record_field(Fields, _RecordName, Field, Type) :-
     !.
 ensure_record_field(_Fields, RecordName, Field, _Type) :-
     throw(error(unknown_record_field(RecordName, Field), context(semantics/check_expr, 'Record field not declared'))).
+
+ensure_pointer_type(Type0, Name, TargetType) :-
+    resolve_type(Type0, Type),
+    (   Type = ptr(TargetType)
+    ->  true
+    ;   throw(error(type_mismatch(pointer, Type), context(semantics/check_expr, Name)))
+    ).
+
+ensure_pointer_target_record(PtrType, Name, Fields) :-
+    ensure_pointer_type(PtrType, Name, TargetType),
+    ensure_record_type(TargetType, Name, Fields).
+
+ensure_pointer_target_declared(type_ref(Name)) :-
+    !,
+    (   type_alias(Name, _)
+    ->  true
+    ;   throw(error(undeclared_type(Name), context(semantics/ensure_valid_type, 'Named pointer target type not declared')))
+    ).
+ensure_pointer_target_declared(TargetType) :-
+    resolve_type(TargetType, ResolvedTarget),
+    ensure_valid_type(ResolvedTarget).
+
+lvalue_type(var(Name), Vars, Type) :-
+    ensure_declared(Name, Vars, Type).
+lvalue_type(field_ref(Name, Field), Vars, Type) :-
+    ensure_declared(Name, Vars, RecordType),
+    ensure_record_type(RecordType, Name, Fields),
+    ensure_record_field(Fields, Name, Field, Type).
+lvalue_type(ptr_deref(Name), Vars, Type) :-
+    ensure_declared(Name, Vars, PtrType),
+    ensure_pointer_type(PtrType, Name, Type).
+lvalue_type(ptr_field_ref(Name, Field), Vars, Type) :-
+    ensure_declared(Name, Vars, PtrType),
+    ensure_pointer_target_record(PtrType, Name, Fields),
+    ensure_record_field(Fields, Name, Field, Type).
 
 check_block(block(LocalVars, Stmts), VarsInScope, FuncSigs) :-
     ensure_no_duplicate_decls(LocalVars),

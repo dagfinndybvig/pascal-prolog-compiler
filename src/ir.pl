@@ -3,13 +3,20 @@
 :- discontiguous lower_stmt/6.
 :- dynamic func_return_type/2.
 :- dynamic func_param_modes/2.
+:- dynamic ir_type_alias/2.
 
-lower_program(program(Name, Funcs, Vars, Block), ir_program(Name, IRFuncs, AllVars, IRStmts)) :-
+lower_program(program(Name, Types, Funcs, Vars, Block), ir_program(Name, IRFuncs, AllVars, IRStmts)) :-
+    init_ir_type_aliases(Types),
+    resolve_decl_list(Vars, ResolvedVars),
     init_func_metadata(Funcs),
-    vars_env(Vars, GlobalEnv),
+    vars_env(ResolvedVars, GlobalEnv),
     lower_funcs(Funcs, GlobalEnv, IRFuncs),
     lower_block(Block, GlobalEnv, 0, _CounterOut, IRStmts, LocalVars),
-    append(Vars, LocalVars, AllVars).
+    append(ResolvedVars, LocalVars, AllVars).
+
+init_ir_type_aliases(TypeDecls) :-
+    retractall(ir_type_alias(_, _)),
+    forall(member(type_decl(Name, Type), TypeDecls), assertz(ir_type_alias(Name, Type))).
 
 init_func_metadata(Funcs) :-
     retractall(func_return_type(_, _)),
@@ -27,13 +34,16 @@ decl_name(decl(Name, _), Name).
 decl_name(param(Name, _), Name).
 decl_name(param_var(Name, _), Name).
 
-decl_type(decl(_, Type), Type).
-decl_type(param(_, Type), Type).
-decl_type(param_var(_, Type), Type).
+decl_type(decl(_, Type0), Type) :- resolve_ir_type(Type0, Type).
+decl_type(param(_, Type0), Type) :- resolve_ir_type(Type0, Type).
+decl_type(param_var(_, Type0), Type) :- resolve_ir_type(Type0, Type).
 
-rename_decl(decl(_, Type), MappedName, decl(MappedName, Type)).
-rename_decl(param(_, Type), MappedName, param(MappedName, Type)).
-rename_decl(param_var(_, Type), MappedName, param_var(MappedName, Type)).
+rename_decl(decl(_, Type0), MappedName, decl(MappedName, Type)) :-
+    resolve_ir_type(Type0, Type).
+rename_decl(param(_, Type0), MappedName, param(MappedName, Type)) :-
+    resolve_ir_type(Type0, Type).
+rename_decl(param_var(_, Type0), MappedName, param_var(MappedName, Type)) :-
+    resolve_ir_type(Type0, Type).
 
 vars_env([], []).
 vars_env([Decl|Vars], [Name-MappedName-Type|EnvTail]) :-
@@ -43,7 +53,11 @@ vars_env([Decl|Vars], [Name-MappedName-Type|EnvTail]) :-
     vars_env(Vars, EnvTail).
 
 lower_funcs([], _, []).
-lower_funcs([func(Name, Params, ReturnType, FuncLocalVars, block(BlockLocalVars, Stmts))|Rest], GlobalEnv, [ir_func(Name, Params, ReturnType, FuncLocals, IRBody)|IRFuncsRest]) :-
+lower_funcs([func(Name, Params0, ReturnType0, FuncLocalVars0, block(BlockLocalVars0, Stmts))|Rest], GlobalEnv, [ir_func(Name, Params, ReturnType, FuncLocals, IRBody)|IRFuncsRest]) :-
+    resolve_decl_list(Params0, Params),
+    resolve_decl_list(FuncLocalVars0, FuncLocalVars),
+    resolve_decl_list(BlockLocalVars0, BlockLocalVars),
+    resolve_ir_type(ReturnType0, ReturnType),
     vars_env(Params, ParamEnv),
     (   ReturnType == void
     ->  FuncEnv0 = ParamEnv
@@ -73,7 +87,7 @@ allocate_locals([Decl|Vars], CounterIn, CounterOut, [Name-Mangled-Type|MapTail],
 
 lower_stmts([], _Env, Counter, Counter, [], []).
 lower_stmts([Stmt|Rest], Env, CounterIn, CounterOut, [IRStmt|IRRest], AddedVars) :-
-    lower_stmt(Stmt, Env, CounterIn, CounterNext, IRStmt, AddedHere),
+    once(lower_stmt(Stmt, Env, CounterIn, CounterNext, IRStmt, AddedHere)),
     lower_stmts(Rest, Env, CounterNext, CounterOut, IRRest, AddedTail),
     append(AddedHere, AddedTail, AddedVars).
 
@@ -89,7 +103,19 @@ lower_stmt(assign_field(Name, Field, Expr), Env, Counter, Counter, ir_record_fie
     map_name(Name, Env, MappedName),
     lookup_type(Name, Env, RecordType),
     record_field_slot_offset(RecordType, Field, SlotOffset, FieldType),
-    lower_expr(Expr, Env, IRExpr, FieldType).
+    lower_expr(Expr, Env, IRExpr, ExprType),
+    ensure_ir_assignable(FieldType, ExprType).
+lower_stmt(assign_ptr_field(Name, Field, Expr), Env, Counter, Counter, ir_ptr_field_store(MappedName, SlotOffset, IRExpr), []) :-
+    map_name(Name, Env, MappedName),
+    lookup_type(Name, Env, PtrType),
+    ptr_record_field_slot_offset(PtrType, Field, SlotOffset, FieldType),
+    lower_expr(Expr, Env, IRExpr, ExprType),
+    ensure_ir_assignable(FieldType, ExprType).
+lower_stmt(assign_deref(Name, Expr), Env, Counter, Counter, ir_ptr_deref_store(MappedName, IRExpr), []) :-
+    map_name(Name, Env, MappedName),
+    lookup_type(Name, Env, PtrType),
+    ensure_ptr_target_type(PtrType, _),
+    lower_expr(Expr, Env, IRExpr, _).
 lower_stmt(if(Cond, Then, Else), Env, CounterIn, CounterOut, ir_if(IRCond, IRThen, IRElse), AddedVars) :-
     lower_expr(Cond, Env, IRCond),
     lower_stmt(Then, Env, CounterIn, CounterThen, IRThen, AddedThen),
@@ -161,6 +187,15 @@ lower_stmt(readln_field(Name, Field), Env, Counter, Counter, IRStmt, []) :-
     lookup_type(Name, Env, RecordType),
     record_field_slot_offset(RecordType, Field, SlotOffset, FieldType),
     input_field_stmt(FieldType, MappedName, SlotOffset, IRStmt).
+lower_stmt(new_ptr(LValue), Env, Counter, Counter, ir_new(IRAddrExpr, ByteSize), []) :-
+    lower_lvalue_addr(LValue, Env, IRAddrExpr, LValueType),
+    ensure_ptr_target_type(LValueType, TargetType0),
+    resolve_ir_type(TargetType0, TargetType),
+    type_slot_count(TargetType, SlotCount),
+    ByteSize is SlotCount * 8.
+lower_stmt(dispose_ptr(LValue), Env, Counter, Counter, ir_dispose(IRPtrExpr), []) :-
+    lower_expr(LValue, Env, IRPtrExpr, PtrType),
+    ensure_ptr_target_type(PtrType, _).
 lower_stmt(block(LocalVars, Stmts), Env, CounterIn, CounterOut, ir_block(IRStmts), AddedVars) :-
     lower_block(block(LocalVars, Stmts), Env, CounterIn, CounterOut, IRStmts, AddedVars).
 lower_stmt(proc_call(Name, Args), Env, Counter, Counter, ir_proc_call(Name, IRArgs), []) :-
@@ -216,13 +251,25 @@ lower_expr(Expr, Env, IRExpr) :-
 lower_expr(int(N), _Env, ir_int(N), integer).
 lower_expr(bool(Value), _Env, ir_bool(Value), boolean).
 lower_expr(char(Code), _Env, ir_char(Code), char).
+   lower_expr(nil, _Env, ir_int(0), nil_type).
 lower_expr(var(Name), Env, ir_var(MappedName), Type) :-
     map_name(Name, Env, MappedName),
     lookup_type(Name, Env, Type).
+lower_expr(addr_of(Name), Env, ir_addr_of(MappedName), ptr(Type)) :-
+    map_name(Name, Env, MappedName),
+    lookup_type(Name, Env, Type).
+lower_expr(ptr_deref(Name), Env, ir_ptr_deref_load(MappedName), TargetType) :-
+    map_name(Name, Env, MappedName),
+    lookup_type(Name, Env, PtrType),
+    ensure_ptr_target_type(PtrType, TargetType).
 lower_expr(field_ref(Name, Field), Env, ir_record_field_load(MappedName, SlotOffset), FieldType) :-
     map_name(Name, Env, MappedName),
     lookup_type(Name, Env, RecordType),
     record_field_slot_offset(RecordType, Field, SlotOffset, FieldType).
+lower_expr(ptr_field_ref(Name, Field), Env, ir_ptr_field_load(MappedName, SlotOffset), FieldType) :-
+    map_name(Name, Env, MappedName),
+    lookup_type(Name, Env, PtrType),
+    ptr_record_field_slot_offset(PtrType, Field, SlotOffset, FieldType).
 lower_expr(array_ref(Name, IndexExpr), Env, ir_array_load(MappedName, Low, High, IRIndex), ElementType) :-
     map_name(Name, Env, MappedName),
     lookup_type(Name, Env, array(Low, High, ElementType)),
@@ -285,12 +332,72 @@ lower_call_args([field_ref(Name, Field)|Rest], [var_ref|ModeRest], Env, [ir_reco
     lookup_type(Name, Env, RecordType),
     record_field_slot_offset(RecordType, Field, SlotOffset, _FieldType),
     lower_call_args(Rest, ModeRest, Env, IRRest).
+lower_call_args([ptr_deref(Name)|Rest], [var_ref|ModeRest], Env, [ir_ptr_deref_addr(MappedName)|IRRest]) :-
+    map_name(Name, Env, MappedName),
+    lookup_type(Name, Env, PtrType),
+    ensure_ptr_target_type(PtrType, _),
+    lower_call_args(Rest, ModeRest, Env, IRRest).
+lower_call_args([ptr_field_ref(Name, Field)|Rest], [var_ref|ModeRest], Env, [ir_ptr_field_addr(MappedName, SlotOffset)|IRRest]) :-
+    map_name(Name, Env, MappedName),
+    lookup_type(Name, Env, PtrType),
+    ptr_record_field_slot_offset(PtrType, Field, SlotOffset, _FieldType),
+    lower_call_args(Rest, ModeRest, Env, IRRest).
+
+resolve_decl_list([], []).
+resolve_decl_list([Decl|Rest], [ResolvedDecl|ResolvedRest]) :-
+    resolve_decl(Decl, ResolvedDecl),
+    resolve_decl_list(Rest, ResolvedRest).
+
+resolve_decl(decl(Name, Type0), decl(Name, Type)) :-
+    resolve_ir_type(Type0, Type).
+resolve_decl(param(Name, Type0), param(Name, Type)) :-
+    resolve_ir_type(Type0, Type).
+resolve_decl(param_var(Name, Type0), param_var(Name, Type)) :-
+    resolve_ir_type(Type0, Type).
+
+resolve_ir_type(Type, Resolved) :-
+    resolve_ir_type(Type, [], normal, Resolved).
+
+resolve_ir_type(type_ref(Name), Seen, Mode, Type) :-
+    !,
+    (   Mode == through_ptr
+    ->  (   ir_type_alias(Name, _)
+        ->  Type = type_ref(Name)
+        ;   throw(error(undeclared_type(Name), context(ir/resolve_ir_type, 'Named type not declared during IR lowering')))
+        )
+    ;   (   memberchk(Name, Seen)
+        ->  throw(error(recursive_type_alias(Name), context(ir/resolve_ir_type, 'Recursive type aliases must be through pointer indirection')))
+        ;   (   ir_type_alias(Name, AliasType)
+            ->  resolve_ir_type(AliasType, [Name|Seen], Mode, Type)
+            ;   throw(error(undeclared_type(Name), context(ir/resolve_ir_type, 'Named type not declared during IR lowering')))
+            )
+        )
+    ).
+resolve_ir_type(array(Low, High, ElementType0), Seen, _Mode, array(Low, High, ElementType)) :-
+    !,
+    resolve_ir_type(ElementType0, Seen, normal, ElementType).
+resolve_ir_type(ptr(TargetType0), Seen, _Mode, ptr(TargetType)) :-
+    !,
+    resolve_ir_type(TargetType0, Seen, through_ptr, TargetType).
+resolve_ir_type(record(Fields0), Seen, _Mode, record(Fields)) :-
+    !,
+    resolve_ir_record_fields(Fields0, Seen, Fields).
+resolve_ir_type(Type, _Seen, _Mode, Type).
+
+resolve_ir_record_fields([], _Seen, []).
+resolve_ir_record_fields([field(Name, Type0)|Rest0], Seen, [field(Name, Type)|Rest]) :-
+    resolve_ir_type(Type0, Seen, normal, Type),
+    resolve_ir_record_fields(Rest0, Seen, Rest).
 
 type_slot_count(array(Low, High, ElementType), Slots) :-
     !,
     Length is High - Low + 1,
     type_slot_count(ElementType, ElementSlots),
     Slots is Length * ElementSlots.
+type_slot_count(type_ref(Name), Slots) :-
+    !,
+    resolve_ir_type(type_ref(Name), Resolved),
+    type_slot_count(Resolved, Slots).
 type_slot_count(record(Fields), Slots) :-
     !,
     field_list_slot_count(Fields, Slots).
@@ -315,3 +422,40 @@ record_field_slot_offset([field(_, Type)|Rest], FieldName, Current, SlotOffset, 
     record_field_slot_offset(Rest, FieldName, Next, SlotOffset, FieldType).
 record_field_slot_offset([], FieldName, _, _, _) :-
     throw(error(unknown_record_field(FieldName), context(ir/record_field_slot_offset, 'Unknown record field during IR lowering'))).
+
+    ensure_ptr_target_type(ptr(TargetType), TargetType) :- !.
+    ensure_ptr_target_type(Type, _) :-
+        throw(error(type_mismatch(pointer, Type), context(ir/ensure_ptr_target_type, 'Pointer operation requires pointer type'))).
+
+    ptr_record_field_slot_offset(PtrType, FieldName, SlotOffset, FieldType) :-
+        ensure_ptr_target_type(PtrType, TargetType0),
+        resolve_ir_type(TargetType0, TargetType),
+        record_field_slot_offset(TargetType, FieldName, SlotOffset, FieldType).
+
+    lower_lvalue_addr(var(Name), Env, ir_addr_of(MappedName), Type) :-
+        map_name(Name, Env, MappedName),
+        lookup_type(Name, Env, Type).
+    lower_lvalue_addr(field_ref(Name, Field), Env, ir_record_field_addr(MappedName, SlotOffset), FieldType) :-
+        map_name(Name, Env, MappedName),
+        lookup_type(Name, Env, RecordType),
+        record_field_slot_offset(RecordType, Field, SlotOffset, FieldType).
+    lower_lvalue_addr(ptr_deref(Name), Env, ir_ptr_deref_addr(MappedName), TargetType) :-
+        map_name(Name, Env, MappedName),
+        lookup_type(Name, Env, PtrType),
+        ensure_ptr_target_type(PtrType, TargetType).
+    lower_lvalue_addr(ptr_field_ref(Name, Field), Env, ir_ptr_field_addr(MappedName, SlotOffset), FieldType) :-
+        map_name(Name, Env, MappedName),
+        lookup_type(Name, Env, PtrType),
+        ptr_record_field_slot_offset(PtrType, Field, SlotOffset, FieldType).
+
+    ensure_ir_assignable(TargetType, nil_type) :-
+        resolve_ir_type(TargetType, ResolvedType),
+        ResolvedType = ptr(_),
+        !.
+    ensure_ir_assignable(TargetType0, ExprType0) :-
+        resolve_ir_type(TargetType0, TargetType),
+        resolve_ir_type(ExprType0, ExprType),
+        TargetType == ExprType,
+        !.
+    ensure_ir_assignable(TargetType, ExprType) :-
+        throw(error(type_mismatch(TargetType, ExprType), context(ir/ensure_ir_assignable, 'IR assignment type mismatch'))).

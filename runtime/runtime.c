@@ -77,3 +77,24 @@ void rt_write_int_str_int(int value1, const char *text, int value2) {
 void rt_int_to_buffer(int value, char *buffer, int buffer_size) {
     snprintf(buffer, buffer_size, "%d", value);
 }
+
+int64_t rt_alloc(int64_t size_bytes) {
+    if (size_bytes <= 0) {
+        rt_error(RT_ERROR_INVALID_OPERATION, "Invalid allocation size\n");
+    }
+
+    void *ptr = calloc(1, (size_t)size_bytes);
+    if (ptr == NULL) {
+        rt_error(RT_ERROR_INVALID_OPERATION, "Out of memory\n");
+    }
+
+    return (int64_t)(intptr_t)ptr;
+}
+
+void rt_free(int64_t ptr_value) {
+    if (ptr_value == 0) {
+        return;
+    }
+
+    free((void *)(intptr_t)ptr_value);
+}

@@ -24,7 +24,9 @@
     asm_division_by_zero_handler/1, % asm_division_by_zero_handler(-Handler)
     asm_div_by_zero_message/1, % asm_div_by_zero_message(-Message)
     asm_array_bounds_handler/1, % asm_array_bounds_handler(-Handler)
-    asm_array_bounds_message/1 % asm_array_bounds_message(-Message)
+    asm_array_bounds_message/1, % asm_array_bounds_message(-Message)
+    asm_null_pointer_handler/1, % asm_null_pointer_handler(-Handler)
+    asm_null_pointer_message/1 % asm_null_pointer_message(-Message)
 ]).
 
 % Counter for generating unique labels
@@ -216,6 +218,14 @@ generate_asm(ir_array_store(_, _, _, _, _), Assembly) :-
     format(atom(Assembly), "", []).
 generate_asm(ir_record_field_store(_, _, _), Assembly) :-
     format(atom(Assembly), "", []).
+generate_asm(ir_ptr_deref_store(_, _), Assembly) :-
+    format(atom(Assembly), "", []).
+generate_asm(ir_ptr_field_store(_, _, _), Assembly) :-
+    format(atom(Assembly), "", []).
+generate_asm(ir_new(_, _), Assembly) :-
+    format(atom(Assembly), "", []).
+generate_asm(ir_dispose(_), Assembly) :-
+    format(atom(Assembly), "", []).
 generate_asm(ir_proc_call(_, _), Assembly) :-
     format(atom(Assembly), "", []).
 generate_asm(ir_if(_, ThenStmt, ElseStmt), Assembly) :-
@@ -283,6 +293,14 @@ generate_asm_text(ir_array_store(Name, Low, High, IndexExpr, Expr), Assembly) :-
     asm_array_store(Name, Low, High, IndexExpr, Expr, Assembly).
 generate_asm_text(ir_record_field_store(Name, SlotOffset, Expr), Assembly) :-
     asm_record_field_store(Name, SlotOffset, Expr, Assembly).
+generate_asm_text(ir_ptr_deref_store(Name, Expr), Assembly) :-
+    asm_ptr_deref_store(Name, Expr, Assembly).
+generate_asm_text(ir_ptr_field_store(Name, SlotOffset, Expr), Assembly) :-
+    asm_ptr_field_store(Name, SlotOffset, Expr, Assembly).
+generate_asm_text(ir_new(TargetAddrExpr, ByteSize), Assembly) :-
+    asm_new_ptr(TargetAddrExpr, ByteSize, Assembly).
+generate_asm_text(ir_dispose(PtrExpr), Assembly) :-
+    asm_dispose_ptr(PtrExpr, Assembly).
 generate_asm_text(ir_proc_call(Name, Args), Assembly) :-
     length(Args, ArgCount),
     (   ArgCount > 6
@@ -383,6 +401,11 @@ asm_array_bounds_handler(
     "array_bounds_error:\n\tmovq $3, %rdi\n\tleaq array_bounds_msg(%rip), %rsi\n\tmovq %rsp, %r11\n\tandq $-16, %rsp\n\tsubq $16, %rsp\n\tmovq %r11, 8(%rsp)\n\tcall rt_error\n\tmovq 8(%rsp), %rsp\n\tint $3\n\tud2\n"):- !.
 
 asm_array_bounds_message("array_bounds_msg:\n\t.asciz \"Array index out of bounds\\n\"\n"):- !.
+
+asm_null_pointer_handler(
+    "null_pointer_error:\n\tmovq $4, %rdi\n\tleaq null_pointer_msg(%rip), %rsi\n\tmovq %rsp, %r11\n\tandq $-16, %rsp\n\tsubq $16, %rsp\n\tmovq %r11, 8(%rsp)\n\tcall rt_error\n\tmovq 8(%rsp), %rsp\n\tint $3\n\tud2\n"):- !.
+
+asm_null_pointer_message("null_pointer_msg:\n\t.asciz \"Null pointer dereference\\n\"\n"):- !.
 
 % Generate assembly for writeln_str
 asm_writeln_str(String, DataSection) :-
@@ -563,6 +586,31 @@ asm_record_field_store(Name, SlotOffset, Expr, Assembly) :-
     FieldOffset is BaseOffset + (SlotOffset * 8),
     format(atom(Assembly), "~w\tmovq %rax, -~d(%rbp)\n", [ExprCode, FieldOffset]).
 
+asm_ptr_base_main(Name, BaseCode) :-
+    var_offset(Name, Offset),
+    format(atom(BaseCode), "\tmovq -~d(%rbp), %r11\n\tcmpq $0, %r11\n\tje null_pointer_error\n", [Offset]).
+
+asm_ptr_deref_store(Name, Expr, Assembly) :-
+    asm_expr(Expr, ExprCode),
+    asm_ptr_base_main(Name, BaseCode),
+    format(atom(Assembly), "~w\tpushq %rax\n~w\tpopq %rax\n\tmovq %rax, (%r11)\n", [ExprCode, BaseCode]).
+
+asm_ptr_field_store(Name, SlotOffset, Expr, Assembly) :-
+    asm_expr(Expr, ExprCode),
+    asm_ptr_base_main(Name, BaseCode),
+    ByteOffset is SlotOffset * 8,
+    format(atom(Assembly), "~w\tpushq %rax\n~w\tpopq %rax\n\tmovq %rax, ~d(%r11)\n", [ExprCode, BaseCode, ByteOffset]).
+
+asm_new_ptr(TargetAddrExpr, ByteSize, Assembly) :-
+    asm_expr(TargetAddrExpr, AddrCode),
+    asm_call_instruction(rt_alloc, CallCode),
+    format(atom(Assembly), "~w\tpushq %rax\n\tmovq $~d, %rdi\n~w\tpopq %r10\n\tmovq %rax, (%r10)\n", [AddrCode, ByteSize, CallCode]).
+
+asm_dispose_ptr(PtrExpr, Assembly) :-
+    asm_expr(PtrExpr, PtrCode),
+    asm_call_instruction(rt_free, CallCode),
+    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w", [PtrCode, CallCode]).
+
 asm_array_index_check(Low, High, Assembly) :-
     format(
         atom(Assembly),
@@ -645,6 +693,20 @@ asm_expr(ir_var(Name), Assembly) :-
 asm_expr(ir_addr_of(Name), Assembly) :-
     var_offset(Name, Offset),
     format(atom(Assembly), "\tleaq -~d(%rbp), %rax\n", [Offset]).
+asm_expr(ir_ptr_deref_load(Name), Assembly) :-
+    asm_ptr_base_main(Name, BaseCode),
+    format(atom(Assembly), "~w\tmovq (%r11), %rax\n", [BaseCode]).
+asm_expr(ir_ptr_deref_addr(Name), Assembly) :-
+    asm_ptr_base_main(Name, BaseCode),
+    format(atom(Assembly), "~w\tmovq %r11, %rax\n", [BaseCode]).
+asm_expr(ir_ptr_field_load(Name, SlotOffset), Assembly) :-
+    asm_ptr_base_main(Name, BaseCode),
+    ByteOffset is SlotOffset * 8,
+    format(atom(Assembly), "~w\tmovq ~d(%r11), %rax\n", [BaseCode, ByteOffset]).
+asm_expr(ir_ptr_field_addr(Name, SlotOffset), Assembly) :-
+    asm_ptr_base_main(Name, BaseCode),
+    ByteOffset is SlotOffset * 8,
+    format(atom(Assembly), "~w\tleaq ~d(%r11), %rax\n", [BaseCode, ByteOffset]).
 asm_expr(ir_record_field_addr(Name, SlotOffset), Assembly) :-
     var_offset(Name, BaseOffset),
     FieldOffset is BaseOffset + (SlotOffset * 8),
@@ -899,6 +961,14 @@ generate_func_asm_text(ir_array_store(Name, Low, High, IndexExpr, Expr), FuncNam
     asm_array_store_func(Name, Low, High, IndexExpr, Expr, FuncName, Params, Locals, Assembly).
 generate_func_asm_text(ir_record_field_store(Name, SlotOffset, Expr), FuncName, Params, Locals, Assembly) :-
     asm_record_field_store_func(Name, SlotOffset, Expr, FuncName, Params, Locals, Assembly).
+generate_func_asm_text(ir_ptr_deref_store(Name, Expr), FuncName, Params, Locals, Assembly) :-
+    asm_ptr_deref_store_func(Name, Expr, FuncName, Params, Locals, Assembly).
+generate_func_asm_text(ir_ptr_field_store(Name, SlotOffset, Expr), FuncName, Params, Locals, Assembly) :-
+    asm_ptr_field_store_func(Name, SlotOffset, Expr, FuncName, Params, Locals, Assembly).
+generate_func_asm_text(ir_new(TargetAddrExpr, ByteSize), FuncName, Params, Locals, Assembly) :-
+    asm_new_ptr_func(TargetAddrExpr, ByteSize, FuncName, Params, Locals, Assembly).
+generate_func_asm_text(ir_dispose(PtrExpr), FuncName, Params, Locals, Assembly) :-
+    asm_dispose_ptr_func(PtrExpr, FuncName, Params, Locals, Assembly).
 generate_func_asm_text(ir_writeln_int(Expr), FuncName, Params, Locals, Assembly) :-
     asm_expr_func(Expr, FuncName, Params, Locals, ExprCode),
     asm_call_instruction(rt_writeln_int, CallCode),
@@ -1063,6 +1133,31 @@ asm_record_field_readln_func(Name, SlotOffset, RuntimeCall, FuncName, Params, Lo
     func_record_field_addr(Name, SlotOffset, FuncName, Params, Locals, AddrCode),
     format(atom(Assembly), "~w\tmovslq %eax, %rax\n~w\tmovq %rax, (%r11)\n", [CallCode, AddrCode]).
 
+func_ptr_value_to_r11(Name, FuncName, Params, Locals, Assembly) :-
+    asm_expr_func(ir_var(Name), FuncName, Params, Locals, PtrExprCode),
+    format(atom(Assembly), "~w\tmovq %rax, %r11\n\tcmpq $0, %r11\n\tje null_pointer_error\n", [PtrExprCode]).
+
+asm_ptr_deref_store_func(Name, Expr, FuncName, Params, Locals, Assembly) :-
+    asm_expr_func(Expr, FuncName, Params, Locals, ExprCode),
+    func_ptr_value_to_r11(Name, FuncName, Params, Locals, PtrCode),
+    format(atom(Assembly), "~w\tpushq %rax\n~w\tpopq %rax\n\tmovq %rax, (%r11)\n", [ExprCode, PtrCode]).
+
+asm_ptr_field_store_func(Name, SlotOffset, Expr, FuncName, Params, Locals, Assembly) :-
+    asm_expr_func(Expr, FuncName, Params, Locals, ExprCode),
+    func_ptr_value_to_r11(Name, FuncName, Params, Locals, PtrCode),
+    ByteOffset is SlotOffset * 8,
+    format(atom(Assembly), "~w\tpushq %rax\n~w\tpopq %rax\n\tmovq %rax, ~d(%r11)\n", [ExprCode, PtrCode, ByteOffset]).
+
+asm_new_ptr_func(TargetAddrExpr, ByteSize, FuncName, Params, Locals, Assembly) :-
+    asm_expr_func(TargetAddrExpr, FuncName, Params, Locals, AddrCode),
+    asm_call_instruction(rt_alloc, CallCode),
+    format(atom(Assembly), "~w\tpushq %rax\n\tmovq $~d, %rdi\n~w\tpopq %r10\n\tmovq %rax, (%r10)\n", [AddrCode, ByteSize, CallCode]).
+
+asm_dispose_ptr_func(PtrExpr, FuncName, Params, Locals, Assembly) :-
+    asm_expr_func(PtrExpr, FuncName, Params, Locals, PtrCode),
+    asm_call_instruction(rt_free, CallCode),
+    format(atom(Assembly), "~w\tmovq %rax, %rdi\n~w", [PtrCode, CallCode]).
+
 asm_array_load_func(Name, Low, High, IndexExpr, FuncName, Params, Locals, Assembly) :-
     asm_expr_func(IndexExpr, FuncName, Params, Locals, IndexCode),
     asm_array_index_check(Low, High, CheckCode),
@@ -1155,6 +1250,20 @@ asm_expr_func(ir_addr_of(Name), FuncName, Params, Locals, Assembly) :-
         ;   format(atom(Assembly), "\tleaq ~d(%rbp), %rax\n", [Offset])
         )
     ).
+asm_expr_func(ir_ptr_deref_load(Name), FuncName, Params, Locals, Assembly) :-
+    func_ptr_value_to_r11(Name, FuncName, Params, Locals, PtrCode),
+    format(atom(Assembly), "~w\tmovq (%r11), %rax\n", [PtrCode]).
+asm_expr_func(ir_ptr_deref_addr(Name), FuncName, Params, Locals, Assembly) :-
+    func_ptr_value_to_r11(Name, FuncName, Params, Locals, PtrCode),
+    format(atom(Assembly), "~w\tmovq %r11, %rax\n", [PtrCode]).
+asm_expr_func(ir_ptr_field_load(Name, SlotOffset), FuncName, Params, Locals, Assembly) :-
+    func_ptr_value_to_r11(Name, FuncName, Params, Locals, PtrCode),
+    ByteOffset is SlotOffset * 8,
+    format(atom(Assembly), "~w\tmovq ~d(%r11), %rax\n", [PtrCode, ByteOffset]).
+asm_expr_func(ir_ptr_field_addr(Name, SlotOffset), FuncName, Params, Locals, Assembly) :-
+    func_ptr_value_to_r11(Name, FuncName, Params, Locals, PtrCode),
+    ByteOffset is SlotOffset * 8,
+    format(atom(Assembly), "~w\tleaq ~d(%r11), %rax\n", [PtrCode, ByteOffset]).
 asm_expr_func(ir_record_field_addr(Name, SlotOffset), FuncName, Params, Locals, Assembly) :-
     func_record_field_addr(Name, SlotOffset, FuncName, Params, Locals, AddrCode),
     format(atom(Assembly), "~w\tmovq %r11, %rax\n", [AddrCode]).
