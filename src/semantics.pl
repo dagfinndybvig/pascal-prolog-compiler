@@ -265,7 +265,8 @@ check_expr(addr_of(Name), Vars, _, ptr(Type)) :-
     ensure_declared(Name, Vars, Type).
 check_expr(ptr_deref(Name), Vars, _, TargetType) :-
     ensure_declared(Name, Vars, PtrType),
-    ensure_pointer_type(PtrType, Name, TargetType).
+    ensure_pointer_type(PtrType, Name, TargetType0),
+    resolve_type(TargetType0, TargetType).
 check_expr(field_ref(Name, Field), Vars, _, FieldType) :-
     ensure_declared(Name, Vars, RecordType),
     ensure_record_type(RecordType, Name, Fields),
@@ -314,7 +315,7 @@ bin_expr_type(Op, LeftType, RightType, boolean) :-
     is_pointer_type(LeftType),
     is_pointer_type(RightType),
     memberchk(Op, ['=', '<>']),
-    LeftType == RightType.
+    pointer_types_compatible(LeftType, RightType).
 bin_expr_type(Op, LeftType, nil_type, boolean) :-
     is_pointer_type(LeftType),
     memberchk(Op, ['=', '<>']).
@@ -414,10 +415,23 @@ ensure_assignable(Expected0, nil_type) :-
 ensure_assignable(Expected0, Actual0) :-
     resolve_type(Expected0, Expected),
     resolve_type(Actual0, Actual),
-    Expected == Actual,
+    types_compatible(Expected, Actual),
     !.
 ensure_assignable(Expected, Actual) :-
     throw(error(type_mismatch(Expected, Actual), context(semantics/ensure_assignable, 'Expression type is not assignable to target'))).
+
+types_compatible(Expected, Actual) :-
+    Expected == Actual,
+    !.
+types_compatible(Expected, Actual) :-
+    is_pointer_type(Expected),
+    is_pointer_type(Actual),
+    pointer_types_compatible(Expected, Actual).
+
+pointer_types_compatible(ptr(ExpectedTarget0), ptr(ActualTarget0)) :-
+    resolve_type(ExpectedTarget0, ExpectedTarget),
+    resolve_type(ActualTarget0, ActualTarget),
+    ExpectedTarget == ActualTarget.
 
 ensure_writable_type(integer).
 ensure_writable_type(boolean).

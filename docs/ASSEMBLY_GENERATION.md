@@ -143,6 +143,29 @@ movq (%r11), %rax     ; load element
 
 Out-of-range indexes branch to `array_bounds_error`, which calls `rt_error` with runtime error code 3.
 
+Records use the same slot model as arrays: each scalar or pointer field occupies one 8-byte slot, and nested record fields contribute their own slot counts. Field access is compiled as a fixed slot offset from the record base:
+
+```assembly
+; Load field at slot offset K from a record whose base offset is BaseOffset
+movq -BaseOffset(%rbp), %rax          ; K = 0
+movq -(BaseOffset + 8*K)(%rbp), %rax  ; K > 0
+
+; Store field at slot offset K
+movq %rax, -(BaseOffset + 8*K)(%rbp)
+```
+
+Pointer variables are 8-byte address values. Address-of expressions compute the address of a stack slot or record-field slot. Pointer dereference and pointer-field operations first load the pointer value, check it for `nil`, then access the target storage:
+
+```assembly
+; Load p^.field where field slot offset is K
+movq -PointerOffset(%rbp), %r11
+cmpq $0, %r11
+je null_pointer_error
+movq 8*K(%r11), %rax
+```
+
+The same null-pointer guard pattern is used for pointer-derived l-value addresses, scalar dereference (`p^`), pointer-field load/store (`p^.field`), and `var` arguments that pass `p^` or `p^.field`.
+
 ### Arithmetic Operations
 
 ```assembly
@@ -214,6 +237,34 @@ je division_by_zero
 ; ... perform division ...
 ```
 
+### Null Pointer Dereference
+
+Pointer dereference-sensitive operations branch to `null_pointer_error` when the pointer value is zero:
+
+```assembly
+cmpq $0, %r11
+je null_pointer_error
+```
+
+The handler calls `rt_error` with runtime error code 4. This protects `p^`, `p^.field`, pointer-derived `var` arguments, and pointer-derived allocation targets.
+
+### Heap Allocation and Free
+
+Pascal `new(p)` and `dispose(p)` are lowered to runtime calls:
+
+```assembly
+; new(p): allocate target size in bytes and store returned pointer in p
+movq $ByteSize, %rdi
+call rt_alloc
+movq %rax, -PointerOffset(%rbp)
+
+; dispose(p): free pointer value
+movq -PointerOffset(%rbp), %rdi
+call rt_free
+```
+
+Record allocation sizes are computed from the target type's slot count multiplied by 8 bytes.
+
 ## Assembly Structure
 
 ### Generated Assembly Sections
@@ -222,7 +273,7 @@ je division_by_zero
 2. **Text Section**: Executable code
 3. **Main Function**: Program entry point
 4. **Generated Functions**: User-defined functions
-5. **Error Handlers**: Stack overflow, division by zero, and array-bounds handlers
+5. **Error Handlers**: Stack overflow, division by zero, array-bounds, and null-pointer handlers
 
 ### Assembly Generation Process
 
@@ -242,6 +293,8 @@ The generated code follows the System V AMD64 ABI:
 - **Register Preservation**: Callee-saved registers are preserved in generated functions and generated `main`
 - **Return Values**: Scalar results in `%rax`
 - **Global Access**: Generated `main` records `%rbp` in `main_frame_ptr`; functions use it to read and write global variables
+- **Aggregate Layout**: Static arrays and records are represented as contiguous 8-byte stack slots
+- **Pointer Safety**: Typed pointer dereferences check for `nil` before accessing memory
 
 ## Optimization Notes
 
