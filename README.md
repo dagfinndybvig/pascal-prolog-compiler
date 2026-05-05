@@ -13,6 +13,28 @@
 **Release Date**: 2026-05-05
 **License**: Unlicense (Public Domain)
 
+## ⚡ Quick Start (Docker, 3 Commands)
+
+From the repository root:
+
+```bash
+docker build -t pascal-prolog-compiler:1.13.0 .
+./scripts/pascalc-docker.sh build-asm examples/comprehensive_test.pas comprehensive_test
+./scripts/pascalc-docker.sh check examples/comprehensive_test.pas
+```
+
+Windows alternatives for command 2 and 3:
+
+```powershell
+./scripts/pascalc-docker.ps1 build-asm examples/comprehensive_test.pas comprehensive_test
+./scripts/pascalc-docker.ps1 check examples/comprehensive_test.pas
+```
+
+```bat
+scripts\pascalc-docker.cmd build-asm examples\comprehensive_test.pas comprehensive_test
+scripts\pascalc-docker.cmd check examples\comprehensive_test.pas
+```
+
 ## 🎯 About This Release
 
 This is now a **complete standalone release** of the Pascal-Prolog compiler with assembly backend. It includes everything needed to compile simple Pascal programs directly to x86-64 assembly and native executables.
@@ -24,6 +46,80 @@ This is now a **complete standalone release** of the Pascal-Prolog compiler with
 - ✅ Comprehensive test program
 - ✅ Full documentation
 - ✅ Minimal, clean distribution
+
+## 🐳 Cross-Platform Usage (Mac, Windows, Linux)
+
+Use Docker Desktop to run the compiler consistently across platforms.
+
+### 1. Build the image
+
+```bash
+docker build -t pascal-prolog-compiler:1.13.0 .
+```
+
+### 2. Use one-command helper scripts
+
+Mac/Linux:
+
+```bash
+./scripts/pascalc-docker.sh build-asm examples/comprehensive_test.pas comprehensive_test
+```
+
+Windows PowerShell:
+
+```powershell
+./scripts/pascalc-docker.ps1 build-asm examples/comprehensive_test.pas comprehensive_test
+```
+
+Windows cmd.exe:
+
+```bat
+scripts\pascalc-docker.cmd build-asm examples\comprehensive_test.pas comprehensive_test
+```
+
+Optional custom image tag:
+
+```bash
+PASCALC_DOCKER_IMAGE=pascal-prolog-compiler:1.13.0 ./scripts/pascalc-docker.sh check examples/comprehensive_test.pas
+```
+
+```powershell
+$env:PASCALC_DOCKER_IMAGE = "pascal-prolog-compiler:1.13.0"
+./scripts/pascalc-docker.ps1 check examples/comprehensive_test.pas
+```
+
+```bat
+set PASCALC_DOCKER_IMAGE=pascal-prolog-compiler:1.13.0
+scripts\pascalc-docker.cmd check examples\comprehensive_test.pas
+```
+
+### 3. Direct docker run (fallback)
+
+Mac/Linux:
+
+```bash
+docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.13.0 build-asm examples/comprehensive_test.pas comprehensive_test
+```
+
+Windows PowerShell:
+
+```powershell
+docker run --rm -v "${PWD}:/workspace" -w /workspace pascal-prolog-compiler:1.13.0 build-asm examples/comprehensive_test.pas comprehensive_test
+```
+
+### 4. Run semantic checks / parse only
+
+```bash
+docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.13.0 check examples/comprehensive_test.pas
+docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.13.0 parse examples/comprehensive_test.pas
+```
+
+### Notes
+
+- Binaries produced by `build-asm` are Linux executables.
+- On macOS/Windows, run generated binaries inside a Linux environment (for example Docker or WSL) if needed.
+- The binary architecture matches the container architecture. On Apple Silicon, use `--platform linux/amd64` with `docker build` and `docker run` if you need x86-64 Linux output.
+- If PowerShell blocks script execution, use `scripts\pascalc-docker.cmd` from cmd.exe, or run PowerShell with an execution policy that allows local scripts.
 
 ## 🆕 What's New In v1.13.0
 
