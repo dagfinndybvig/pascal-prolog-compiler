@@ -332,7 +332,8 @@ check_exprs([Expr|Rest], [Type|Types], Vars, FuncSigs) :-
 
 check_call_args([], [], _, _, _).
 check_call_args([Arg|Rest], [spec(value, Type)|SpecRest], FuncName, Vars, FuncSigs) :-
-    check_expr(Arg, Vars, FuncSigs, Type),
+    check_expr(Arg, Vars, FuncSigs, ActualType),
+    ensure_assignable(Type, ActualType),
     check_call_args(Rest, SpecRest, FuncName, Vars, FuncSigs).
 check_call_args([Arg|Rest], [spec(var_ref, Type)|SpecRest], FuncName, Vars, FuncSigs) :-
     ensure_var_ref_arg(Arg, Type, FuncName, Vars),
