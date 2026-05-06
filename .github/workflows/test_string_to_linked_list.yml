@@ -10,17 +10,16 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install SWI-Prolog
-        run: sudo apt-get update && sudo apt-get install -y swi-prolog
+      - name: Build Docker image
+        run: docker build -t pascal-prolog-compiler:1.13.0 .
 
       - name: Compile Pascal Program
         run: |
-          swipl -s pascal_compiler.pl -g "compile('examples/lists/string_to_linked_list.pas')." --quiet
+          ./scripts/pascalc-docker.sh build-asm examples/lists/string_to_linked_list.pas string_to_linked_list
 
       - name: Run Compiled Program
         run: |
-          # Replace with the actual command to run the compiled output
-          # Example: if the compiler generates an executable named 'string_to_linked_list'
-          ./string_to_linked_list
+          ./scripts/pascalc-docker.sh run ./string_to_linked_list
