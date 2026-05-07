@@ -2,7 +2,7 @@ name: Test Pascal Program - String to Linked List
 
 on:
   push:
-    branches: [ "feature/string-to-linked-list" ]
+    branches: [ "main", "feature/string-to-linked-list" ]
   pull_request:
     branches: [ "main" ]
 
