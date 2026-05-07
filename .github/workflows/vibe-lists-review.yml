@@ -81,7 +81,7 @@ jobs:
               sys.exit(1)
           print("Mistral API key validation passed.")
           PY
-          vibe --workdir . --trust --max-turns 1 --max-price 1.00 -p "Analyze all Pascal programs in examples/lists. Enumerate the Pascal subset used (data types, control structures, procedures, I/O, advanced features). Output a markdown report." 2>&1 | tee examples/lists/pascal-subset-report.md
+          vibe --workdir . --trust --max-price 1.00 -p "Analyze all Pascal programs in examples/lists. Enumerate the Pascal subset used (data types, control structures, procedures, I/O, advanced features). Output a markdown report." 2>&1 | tee examples/lists/pascal-subset-report.md
           # Add metadata
           echo "" >> examples/lists/pascal-subset-report.md
           echo "---" >> examples/lists/pascal-subset-report.md
