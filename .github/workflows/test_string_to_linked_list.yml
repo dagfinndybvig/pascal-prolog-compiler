@@ -22,4 +22,5 @@ jobs:
 
       - name: Run Compiled Program
         run: |
-          ./scripts/pascalc-docker.sh run ./string_to_linked_list
+          output="$(./string_to_linked_list)"
+          test "$output" = "a -> b -> c -> nil"
