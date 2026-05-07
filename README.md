@@ -150,6 +150,7 @@ This release introduces first-class bounded integer sets implemented as compact 
   - `set_basic_ops.pas`
   - `set_ranges_and_empty.pas`
   - `set_equality.pas`
+- 📘 Folder guide: `examples/sets/README.md` (feature overview, limitations, and build/run commands)
 - ✅ Added design/rollout notes in `docs/SETS_V1_PLAN.md`
 
 ## 🆕 Previous: v1.13.2
