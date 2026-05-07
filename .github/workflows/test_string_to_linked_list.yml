@@ -1,4 +1,4 @@
-name: Test Pascal Program - String to Linked List
+name: Test Pascal Program - Linked Lists
 
 on:
   push:
@@ -19,8 +19,11 @@ jobs:
       - name: Compile Pascal Program
         run: |
           ./scripts/pascalc-docker.sh build-asm examples/lists/string_to_linked_list.pas string_to_linked_list
+          ./scripts/pascalc-docker.sh build-asm examples/lists/nested_s_expression_list.pas nested_s_expression_list
 
       - name: Run Compiled Program
         run: |
           output="$(printf '(a b c)\n' | ./string_to_linked_list)"
           test "$output" = "list: [a] -> [b] -> [c] -> nil"
+          output="$(printf '(a (b c) d)\n' | ./nested_s_expression_list)"
+          test "$output" = "tree: [a] -> ([b] -> [c] -> nil) -> [d] -> nil"
