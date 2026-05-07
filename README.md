@@ -1,7 +1,7 @@
-# Pascal-Prolog Assembly Backend - Release Version 1.13.2
+# Pascal-Prolog Assembly Backend - Release Version 1.14.0
 
 > [!WARNING]
-> This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`), static arrays, records, named type aliases, typed pointers (`^TypeName`), `new`/`dispose`, procedures, `var` parameters (including arrays passed by reference), `for` loops, multi-argument `write`/`writeln`, and `case` statements, while still intentionally omitting full ISO Pascal features.
+> This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`), static arrays, records, named type aliases, typed pointers (`^TypeName`), bounded integer sets (`set of Low..High`, v1 range `0..63`), `new`/`dispose`, procedures, `var` parameters (including arrays passed by reference), `for` loops, multi-argument `write`/`writeln`, and `case` statements, while still intentionally omitting full ISO Pascal features.
 >
 > It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
 >
@@ -9,7 +9,7 @@
 
 ## 📦 Pascal-Prolog Assembly Backend Release
 
-**Version**: 1.13.2
+**Version**: 1.14.0
 **Release Date**: 2026-05-07
 **License**: Unlicense (Public Domain)
 
@@ -18,7 +18,7 @@
 From the repository root:
 
 ```bash
-docker build -t pascal-prolog-compiler:1.13.2 .
+docker build -t pascal-prolog-compiler:1.14.0 .
 ./scripts/pascalc-docker.sh build-asm examples/comprehensive_test.pas comprehensive_test
 ./scripts/pascalc-docker.sh check examples/comprehensive_test.pas
 ```
@@ -54,7 +54,7 @@ Use Docker Desktop to run the compiler consistently across platforms.
 ### 1. Build the image
 
 ```bash
-docker build -t pascal-prolog-compiler:1.13.2 .
+docker build -t pascal-prolog-compiler:1.14.0 .
 ```
 
 ### 2. Use one-command helper scripts
@@ -80,16 +80,16 @@ scripts\pascalc-docker.cmd build-asm examples\comprehensive_test.pas comprehensi
 Optional custom image tag:
 
 ```bash
-PASCALC_DOCKER_IMAGE=pascal-prolog-compiler:1.13.2 ./scripts/pascalc-docker.sh check examples/comprehensive_test.pas
+PASCALC_DOCKER_IMAGE=pascal-prolog-compiler:1.14.0 ./scripts/pascalc-docker.sh check examples/comprehensive_test.pas
 ```
 
 ```powershell
-$env:PASCALC_DOCKER_IMAGE = "pascal-prolog-compiler:1.13.2"
+$env:PASCALC_DOCKER_IMAGE = "pascal-prolog-compiler:1.14.0"
 ./scripts/pascalc-docker.ps1 check examples/comprehensive_test.pas
 ```
 
 ```bat
-set PASCALC_DOCKER_IMAGE=pascal-prolog-compiler:1.13.2
+set PASCALC_DOCKER_IMAGE=pascal-prolog-compiler:1.14.0
 scripts\pascalc-docker.cmd check examples\comprehensive_test.pas
 ```
 
@@ -98,20 +98,20 @@ scripts\pascalc-docker.cmd check examples\comprehensive_test.pas
 Mac/Linux:
 
 ```bash
-docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.13.2 build-asm examples/comprehensive_test.pas comprehensive_test
+docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.14.0 build-asm examples/comprehensive_test.pas comprehensive_test
 ```
 
 Windows PowerShell:
 
 ```powershell
-docker run --rm -v "${PWD}:/workspace" -w /workspace pascal-prolog-compiler:1.13.2 build-asm examples/comprehensive_test.pas comprehensive_test
+docker run --rm -v "${PWD}:/workspace" -w /workspace pascal-prolog-compiler:1.14.0 build-asm examples/comprehensive_test.pas comprehensive_test
 ```
 
 ### 4. Run semantic checks / parse only
 
 ```bash
-docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.13.2 check examples/comprehensive_test.pas
-docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.13.2 parse examples/comprehensive_test.pas
+docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.14.0 check examples/comprehensive_test.pas
+docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.14.0 parse examples/comprehensive_test.pas
 ```
 
 ### Notes
@@ -121,7 +121,24 @@ docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.13.2
 - The binary architecture matches the container architecture. On Apple Silicon, use `--platform linux/amd64` with `docker build` and `docker run` if you need x86-64 Linux output.
 - If PowerShell blocks script execution, use `scripts\pascalc-docker.cmd` from cmd.exe, or run PowerShell with an execution policy that allows local scripts.
 
-## 🆕 What's New In v1.13.2
+## 🆕 What's New In v1.14.0
+
+### Pascal sets (v1)
+
+This release introduces first-class bounded integer sets implemented as compact 64-bit bitsets:
+
+- ✅ New type syntax: `set of Low..High` (v1 supports bounds within `0..63`)
+- ✅ Set literals: `[]`, `[1,3,5]`, `[10..15]`, and mixed forms
+- ✅ Membership operator: `x in S`
+- ✅ Set algebra operators: union (`+`), difference (`-`), intersection (`*`)
+- ✅ Set equality and inequality (`=`, `<>`)
+- ✅ New examples in `examples/sets/`:
+  - `set_basic_ops.pas`
+  - `set_ranges_and_empty.pas`
+  - `set_equality.pas`
+- ✅ Added design/rollout notes in `docs/SETS_V1_PLAN.md`
+
+## 🆕 Previous: v1.13.2
 
 ### Linked-list example expansion and Docker publishing
 
@@ -638,6 +655,7 @@ This release supports a **practical subset** of Pascal focused on core programmi
 
 #### ✅ Supported Features
 - **Typed variables**: `integer`, `boolean`, `char`, and static arrays
+- **Typed sets**: bounded integer sets via `set of Low..High` (v1 bounds `0..63`)
 - **Integers**: 32-bit signed integer arithmetic (`+`, `-`, `*`, `/`, `mod`)
   - **Division**: Integer division (truncates toward zero, e.g., `7/2 = 3`)
   - **Modulo**: Remainder of integer division (e.g., `17 mod 5 = 2`)
@@ -655,6 +673,7 @@ This release supports a **practical subset** of Pascal focused on core programmi
 - **String Literals**: Output-only string literals (no string variables)
 - **Nested Blocks**: Local variable scoping with proper shadowing
 - **Relational Operators**: `=`, `<>`, `<`, `<=`, `>`, `>=` (typed comparisons)
+- **Set Operators**: `+` (union), `-` (difference), `*` (intersection), and membership `in`
 - **Unary Operators**: `+` (implicit), `-` (integer negation), `not` (boolean negation)
 - **Functions and procedures**: scalar functions and `void` procedures with up to 6 parameters
   - **Parameter modes**: by-value (default) and by-reference (`var`); `var` parameters may be scalar or static-array typed
@@ -834,6 +853,7 @@ pascal-prolog-compiler/
 │   ├── var_params_demo.pas         # var (by-reference) parameter demo
 │   ├── challenging/                # Challenging algorithms (recursion, etc.)
 │   ├── datatypes/                  # Datatype showcase programs
+│   ├── sets/                       # Set-language feature examples
 │   ├── sorting/                    # Linked-list sorting examples
 │   └── primes/                     # Prime algorithm examples
 │       ├── basic/                  # Basic prime algorithms
@@ -850,7 +870,8 @@ pascal-prolog-compiler/
 │   ├── ASSEMBLY_GENERATION.md      # Assembly generation notes
 │   ├── IR_FORMAT.md                # IR format documentation
 │   ├── PERFORMANCE_COMPARISON.md   # Performance analysis
-│   └── POINTERS_V1_PLAN.md         # Pointer feature design and rollout notes
+│   ├── POINTERS_V1_PLAN.md         # Pointer feature design and rollout notes
+│   └── SETS_V1_PLAN.md             # Sets feature design and rollout notes
 ├── AGENTS.md                       # Guidelines for AI agents
 ├── AUDIT_REPORT.md                 # Audit report
 ├── MATHEMATICAL_VERIFICATION.md    # Mathematical correctness report
