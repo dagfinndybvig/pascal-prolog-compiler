@@ -162,6 +162,12 @@ type_spec(array(Low, High, ElementType)) -->
     symbol(']'),
     keyword(of),
     scalar_type_spec(ElementType).
+type_spec(set(subrange(Low, High))) -->
+    keyword(set),
+    keyword(of),
+    [tok(int(Low), _, _)],
+    symbol('..'),
+    [tok(int(High), _, _)].
 type_spec(record(Fields)) -->
     keyword(record),
     record_field_decls(Fields),
@@ -530,6 +536,7 @@ rel_op('<') --> symbol('<').
 rel_op('<=') --> symbol('<=').
 rel_op('>') --> symbol('>').
 rel_op('>=') --> symbol('>=').
+rel_op(in) --> keyword(in).
 
 additive(Expr) -->
     multiplicative(Left),
@@ -587,6 +594,9 @@ primary(bool(0)) -->
 primary(nil) -->
     keyword(nil),
     !.
+primary(SetLit) -->
+    set_literal(SetLit),
+    !.
 primary(char(Code)) -->
     [tok(str(Text), _, _)],
     { string_length(Text, 1),
@@ -631,6 +641,33 @@ primary(Expr) -->
     symbol('('),
     expression(Expr),
     symbol(')').
+
+set_literal(set_lit(Elements)) -->
+    symbol('['),
+    set_elements(Elements),
+    symbol(']').
+
+set_elements([]) -->
+    [].
+set_elements([Elem|Rest]) -->
+    set_elem(Elem),
+    set_elements_tail(Rest).
+
+set_elements_tail([Elem|Rest]) -->
+    symbol(','),
+    !,
+    set_elem(Elem),
+    set_elements_tail(Rest).
+set_elements_tail([]) -->
+    [].
+
+set_elem(set_elem_range(LowExpr, HighExpr)) -->
+    expression(LowExpr),
+    symbol('..'),
+    expression(HighExpr),
+    !.
+set_elem(set_elem_value(Expr)) -->
+    expression(Expr).
 
 expr_list([Expr|Rest]) -->
     expression(Expr),

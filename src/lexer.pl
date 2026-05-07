@@ -113,6 +113,7 @@ keyword_or_ident(integer, kw(integer)) :- !.
 keyword_or_ident(boolean, kw(boolean)) :- !.
 keyword_or_ident(char, kw(char)) :- !.
 keyword_or_ident(array, kw(array)) :- !.
+keyword_or_ident(set, kw(set)) :- !.
 keyword_or_ident(record, kw(record)) :- !.
 keyword_or_ident(of, kw(of)) :- !.
 keyword_or_ident(true, kw(true)) :- !.
@@ -137,6 +138,7 @@ keyword_or_ident(dispose, kw(dispose)) :- !.
 keyword_or_ident(function, kw(function)) :- !.
 keyword_or_ident(procedure, kw(procedure)) :- !.
 keyword_or_ident(mod, kw(mod)) :- !.
+keyword_or_ident(in, kw(in)) :- !.
 keyword_or_ident(and, kw(and)) :- !.
 keyword_or_ident(or, kw(or)) :- !.
 keyword_or_ident(not, kw(not)) :- !.
