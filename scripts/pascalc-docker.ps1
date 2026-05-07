@@ -3,7 +3,7 @@ param(
     [string[]]$PascalArgs
 )
 
-$Image = if ($env:PASCALC_DOCKER_IMAGE) { $env:PASCALC_DOCKER_IMAGE } else { "pascal-prolog-compiler:1.13.0" }
+$Image = if ($env:PASCALC_DOCKER_IMAGE) { $env:PASCALC_DOCKER_IMAGE } else { "pascal-prolog-compiler:1.15.0" }
 $RepoRoot = (Resolve-Path "$PSScriptRoot/..").Path
 
 if (-not $PascalArgs -or $PascalArgs.Count -eq 0) {

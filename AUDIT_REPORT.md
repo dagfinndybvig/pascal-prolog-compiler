@@ -1,7 +1,7 @@
 # Pascal-Prolog Compiler Audit Report
 
-**Date:** 2026-05-05
-**Version:** 1.13.0
+**Date:** 2026-05-07
+**Version:** 1.15.0
 **Auditor:** Code Review
 
 ---
@@ -11,6 +11,13 @@
 This educational Pascal-to-x86-64 compiler is well-structured with a clean pipeline architecture (Lexer → Parser → Semantics → IR → Codegen). The codebase shows good separation of concerns and follows Prolog conventions. Most features work correctly including arithmetic, control flow, functions with up to 6 parameters, recursion, and proper register allocation.
 
 **Overall Status:** ✅ **Current audit findings addressed**
+
+**Current v1.15.0 Audit Snapshot (2026-05-07):**
+- ✅ Git working tree was clean before audit fixes.
+- ✅ `scripts/verify_math.py` completed successfully and built all shipped Pascal examples recursively.
+- ✅ `examples/comprehensive_test.pas` built and ran with input `5`, producing the documented smoke-test output.
+- ✅ Set examples in `examples/sets/` build successfully, including `set_feature_showcase.pas`, `set_boundary_showcase.pas`, and `set_subset_relations.pas`.
+- ✅ Release hygiene issue fixed: Docker helper scripts and linked-list CI workflow now default to `pascal-prolog-compiler:1.15.0` instead of the older `1.13.0` tag.
 
 **Fixes Applied:**
 - ✅ Function return values now default to 0 (was returning garbage)
@@ -35,6 +42,7 @@ This educational Pascal-to-x86-64 compiler is well-structured with a clean pipel
 - ✅ Named type declarations and aliases (v1.13.0)
 - ✅ Typed pointers (`^`, `@`, `nil`) with dereference and pointer-field access (v1.13.0)
 - ✅ `new`/`dispose` runtime integration and null-pointer guards (v1.13.0)
+- ✅ Pascal sets with bounded integer bitsets, literals, membership, algebra, equality/inequality, subset, and superset relations (v1.14.0-v1.15.0)
 
 ---
 

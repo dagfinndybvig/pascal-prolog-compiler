@@ -2,7 +2,7 @@
 setlocal
 
 set "IMAGE=%PASCALC_DOCKER_IMAGE%"
-if "%IMAGE%"=="" set "IMAGE=pascal-prolog-compiler:1.13.0"
+if "%IMAGE%"=="" set "IMAGE=pascal-prolog-compiler:1.15.0"
 
 if "%~1"=="" (
   echo Usage: scripts\pascalc-docker.cmd ^<compiler-command^> [args...]

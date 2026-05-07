@@ -7,10 +7,10 @@
 
 ## Status
 **Result:** PASS
-**Date:** 2026-05-05
-**Version:** v1.13.0
+**Date:** 2026-05-07
+**Version:** v1.15.0
 
-This verification is reproducible from files in this release package.
+This verification is reproducible from files in this release package. The current audit run used SWI-Prolog 9.0.4, GCC 13.3.0, and Python 3.12.1 in the development container.
 
 ## Reproducible Verification Procedure
 
@@ -27,6 +27,7 @@ The script:
 4. Runs the comprehensive feature test with fixed input.
 5. Runs backend hardening regression programs generated at verification time.
 6. Runs semantic hardening, function/global-access, declaration-order, datatype, and array regressions generated at verification time.
+7. Builds all set examples, including the v1.15.0 subset/superset relation examples.
 
 ## Verified Results
 
