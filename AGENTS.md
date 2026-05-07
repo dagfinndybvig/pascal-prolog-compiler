@@ -140,6 +140,12 @@ Always verify changes with:
 2. **Prime examples**: Build at least one prime algorithm variant
 3. **Verification script**: Run `python3 scripts/verify_math.py` if math-related changes
 
+## Git Workflow
+
+- Always run `git pull --rebase origin main` before pushing to avoid non-fast-forward push failures.
+- Commit regularly after successful tests and after completing each new feature.
+- Keep commits focused and descriptive so changes are easy to review.
+
 ### Expected Comprehensive Test Output
 
 ```
