@@ -41,12 +41,46 @@ jobs:
 
       - name: Run Mistral Vibe on examples/lists
         run: |
-          set -o pipefail
+          set -euo pipefail
           export MISTRAL_API_KEY="${{ secrets.MISTRAL_API_KEY }}"
           if [ -z "$MISTRAL_API_KEY" ]; then
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              echo "MISTRAL_API_KEY is not set; configure it as a repository secret before running this workflow manually."
+              exit 1
+            fi
             echo "MISTRAL_API_KEY is not set; skipping Vibe report generation."
             exit 0
           fi
+          python - <<'PY'
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          key = os.environ["MISTRAL_API_KEY"]
+          request = urllib.request.Request(
+              "https://api.mistral.ai/v1/models",
+              headers={
+                  "Authorization": f"Bearer {key}",
+                  "Accept": "application/json",
+              },
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  if response.status != 200:
+                      print(f"Mistral API key validation failed with HTTP {response.status}.")
+                      sys.exit(1)
+          except urllib.error.HTTPError as error:
+              if error.code in (401, 403):
+                  print("Mistral API key validation failed: the repository secret is invalid or unauthorized.")
+              else:
+                  print(f"Mistral API key validation failed with HTTP {error.code}.")
+              sys.exit(1)
+          except Exception as error:
+              print(f"Mistral API key validation failed: {error}")
+              sys.exit(1)
+          print("Mistral API key validation passed.")
+          PY
           vibe --workdir . --trust --max-turns 1 --max-price 1.00 -p "Analyze all Pascal programs in examples/lists. Enumerate the Pascal subset used (data types, control structures, procedures, I/O, advanced features). Output a markdown report." 2>&1 | tee examples/lists/pascal-subset-report.md
           # Add metadata
           echo "" >> examples/lists/pascal-subset-report.md
