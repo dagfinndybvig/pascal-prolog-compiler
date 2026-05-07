@@ -1,9 +1,10 @@
-:- module(semantics, [check_program/1]).
+- module(semantics, [check_program/1]).
 
 :- dynamic type_alias/2.
 
-check_program(program(_, TypeDecls, Funcs, Vars, Block)) :-
+check_program(program(_, ConstDecls, TypeDecls, Funcs, Vars, Block)) :-
     init_type_aliases(TypeDecls),
+    check_const_decls(ConstDecls, []),
     ensure_no_duplicate_decls(Vars),
     ensure_valid_decls(Vars),
     decls_env(Vars, GlobalEnv),
@@ -62,23 +63,27 @@ resolve_record_fields([field(Name, Type)|Rest], Seen, [field(Name, ResolvedType)
 decl_name(decl(Name, _), Name).
 decl_name(param(Name, _), Name).
 decl_name(param_var(Name, _), Name).
+decl_name(const_decl(Name, _, _), Name).
 
 decl_type(decl(_, Type), Type).
 decl_type(param(_, Type), Type).
 decl_type(param_var(_, Type), Type).
+decl_type(const_decl(_, Type, _), Type).
 
 param_spec(param(_, Type), spec(value, Type)).
 param_spec(param_var(_, Type), spec(var_ref, Type)).
 
-decl_env_entry(Decl, Name-Type) :-
-    decl_name(Decl, Name),
-    decl_type(Decl, RawType),
-    resolve_type(RawType, Type).
+const_env_entry(const_decl(Name, Type, Value), Name-Type-Value).
 
 decls_env([], []).
 decls_env([Decl|Decls], [Entry|Env]) :-
     decl_env_entry(Decl, Entry),
     decls_env(Decls, Env).
+
+decl_env_entry(Decl, Name-Type) :-
+    decl_name(Decl, Name),
+    decl_type(Decl, RawType),
+    resolve_type(RawType, Type).
 
 decl_names(Decls, Names) :-
     findall(Name, (member(Decl, Decls), decl_name(Decl, Name)), Names).
@@ -97,6 +102,46 @@ ensure_no_duplicates(Vars) :-
 has_duplicate([X, X|_], X) :- !.
 has_duplicate([_|Rest], Dup) :-
     has_duplicate(Rest, Dup).
+
+% Check const declarations
+check_const_decls([], _).
+check_const_decls([const_decl(Name, Type, Value)|Rest], VarsInScope) :-
+    ensure_no_duplicate_const(Name, VarsInScope),
+    ensure_valid_type(Type),
+    check_const_expr(Value, VarsInScope, Type),
+    check_const_decls(Rest, [Name-Type|VarsInScope]).
+
+ensure_no_duplicate_const(Name, VarsInScope) :-
+    (   memberchk(Name-_, VarsInScope)
+    ->  throw(error(duplicate_declaration(Name), context(semantics/ensure_no_duplicate_const, 'Constant declared multiple times')))
+    ;   true
+    ).
+
+% Check that the const expression is valid and matches the declared type
+check_const_expr(Value, VarsInScope, Type) :-
+    eval_const_expr(Value, VarsInScope, EvaluatedValue, EvaluatedType),
+    ensure_assignable(Type, EvaluatedType).
+
+% Evaluate constant expressions (literals, simple arithmetic, etc.)
+eval_const_expr(int(N), _Vars, int(N), integer).
+eval_const_expr(bool(Value), _Vars, bool(Value), boolean).
+eval_const_expr(char(Code), _Vars, char(Code), char).
+eval_const_expr(nil, _Vars, nil, nil_type).
+eval_const_expr(unary('-', Expr), Vars, int(Value), integer) :-
+    eval_const_expr(Expr, Vars, int(Inner), integer),
+    Value is -Inner.
+eval_const_expr(bin(Op, Left, Right), Vars, int(Value), integer) :-
+    eval_const_expr(Left, Vars, int(LVal), integer),
+    eval_const_expr(Right, Vars, int(RVal), integer),
+    eval_bin_op(Op, LVal, RVal, Value).
+eval_const_expr(Expr, _Vars, _Value, _Type) :-
+    throw(error(non_constant_expression(Expr), context(semantics/eval_const_expr, 'Const expression must be a constant'))).
+
+eval_bin_op('+', L, R, S) :- S is L + R.
+eval_bin_op('-', L, R, S) :- S is L - R.
+eval_bin_op('*', L, R, S) :- S is L * R.
+eval_bin_op('/', L, R, S) :- R =\= 0, S is L // R.
+eval_bin_op(mod, L, R, S) :- R =\= 0, S is L mod R.
 
 check_funcs(Funcs, GlobalEnv, FuncSigs) :-
     collect_func_sigs(Funcs, FuncSigs),
@@ -150,12 +195,13 @@ check_all_func_bodies([func(Name, Params, ReturnType, LocalVars, Body)|Rest], Gl
     append([Name|ParamNames], LocalNames, FuncScopeNames),
     ensure_no_duplicates(FuncScopeNames),
     decls_env(Params, ParamEnv),
-    decls_env(LocalVars, LocalEnv),
     (   ReturnType == void
-    ->  append(ParamEnv, LocalEnv, FuncScope)
-    ;   append([Name-ReturnType|ParamEnv], LocalEnv, FuncScope)
+    ->  FuncEnv0 = ParamEnv
+    ;   append(ParamEnv, [Name-ReturnType], FuncEnv0)
     ),
-    append(FuncScope, GlobalEnv, VarsInScope),
+    decls_env(LocalVars, LocalEnv),
+    append(FuncEnv0, LocalEnv, FuncEnv),
+    append(FuncEnv, GlobalEnv, VarsInScope),
     check_block(Body, VarsInScope, FuncSigs),
     check_all_func_bodies(Rest, GlobalEnv, FuncSigs).
 
@@ -243,8 +289,8 @@ check_stmt(new_ptr(LValue), Vars, _) :-
 check_stmt(dispose_ptr(LValue), Vars, _) :-
     lvalue_type(LValue, Vars, LType),
     ensure_pointer_type(LType, LValue, _TargetType).
-check_stmt(block(LocalVars, Stmts), Vars, FuncSigs) :-
-    check_block(block(LocalVars, Stmts), Vars, FuncSigs).
+check_stmt(block(LocalConsts, LocalVars, Stmts), Vars, FuncSigs) :-
+    check_block(block(LocalConsts, LocalVars, Stmts), Vars, FuncSigs).
 check_stmt(proc_call(Name, Args), Vars, FuncSigs) :-
     ensure_function_declared(Name, FuncSigs, ParamSpecs, _ReturnType),
     length(Args, ActualArity),
@@ -674,7 +720,8 @@ lvalue_type(ptr_field_ref(Name, Field), Vars, Type) :-
     ensure_pointer_target_record(PtrType, Name, Fields),
     ensure_record_field(Fields, Name, Field, Type).
 
-check_block(block(LocalVars, Stmts), VarsInScope, FuncSigs) :-
+check_block(block(LocalConsts, LocalVars, Stmts), VarsInScope, FuncSigs) :-
+    check_const_decls(LocalConsts, VarsInScope),
     ensure_no_duplicate_decls(LocalVars),
     ensure_valid_decls(LocalVars),
     decls_env(LocalVars, LocalEnv),
