@@ -294,6 +294,12 @@ lower_expr(bin(Op, Left, Right), Env, ir_set_bin(Op, IRLeft, IRRight), Type) :-
     lower_expr(Right, Env, IRRight, RightType),
     lowered_set_bin_type(Op, LeftType, RightType, Type),
     !.
+lower_expr(bin(Op, Left, Right), Env, ir_set_rel(Op, IRLeft, IRRight), boolean) :-
+    memberchk(Op, ['<=', '>=']),
+    lower_expr(Left, Env, IRLeft, LeftType),
+    lower_expr(Right, Env, IRRight, RightType),
+    lowered_set_rel_compatible(LeftType, RightType),
+    !.
 lower_expr(bin(Op, Left, Right), Env, ir_bin(Op, IRLeft, IRRight), Type) :-
     lower_expr(Left, Env, IRLeft, LeftType),
     lower_expr(Right, Env, IRRight, RightType),
@@ -318,6 +324,17 @@ lowered_set_bin_type_resolved(set(subrange(Low, High)), set_literal(bounds(Min, 
 lowered_set_bin_type_resolved(set_literal(bounds(Min, Max)), set(subrange(Low, High)), set(subrange(Low, High))) :-
     Low =< Min,
     Max =< High.
+
+lowered_set_rel_compatible(LeftType0, RightType0) :-
+    resolve_ir_type(LeftType0, LeftType),
+    resolve_ir_type(RightType0, RightType),
+    lowered_set_rel_compatible_resolved(LeftType, RightType).
+
+lowered_set_rel_compatible_resolved(LeftType, RightType) :-
+    lowered_set_bin_type_resolved(LeftType, RightType, _),
+    !.
+lowered_set_rel_compatible_resolved(set_literal(empty_bounds), set(subrange(_, _))).
+lowered_set_rel_compatible_resolved(set(subrange(_, _)), set_literal(empty_bounds)).
 
 set_type_bounds(set(subrange(Low, High)), Low, High).
 set_type_bounds(set_literal(empty_bounds), 1, 0).

@@ -329,7 +329,7 @@ bin_expr_type(Op, nil_type, RightType, boolean) :-
     is_pointer_type(RightType),
     memberchk(Op, ['=', '<>']).
 bin_expr_type(Op, LeftType0, RightType0, boolean) :-
-    memberchk(Op, ['=', '<>']),
+    memberchk(Op, ['=', '<>', '<=', '>=']),
     set_comparable_types(LeftType0, RightType0),
     !.
 bin_expr_type(in, integer, SetType0, boolean) :-

@@ -739,6 +739,10 @@ asm_expr(ir_set_bin('-', Left, Right), Assembly) :-
     asm_set_bin_expr(Left, Right, difference, Assembly).
 asm_expr(ir_set_bin('*', Left, Right), Assembly) :-
     asm_set_bin_expr(Left, Right, intersection, Assembly).
+asm_expr(ir_set_rel('<=', Left, Right), Assembly) :-
+    asm_set_rel_expr(Left, Right, subset, Assembly).
+asm_expr(ir_set_rel('>=', Left, Right), Assembly) :-
+    asm_set_rel_expr(Left, Right, superset, Assembly).
 asm_expr(ir_set_in(ElemExpr, SetExpr, Low, High), Assembly) :-
     next_label(set_in_out, OutLabel),
     next_label(set_in_end, EndLabel),
@@ -915,6 +919,38 @@ asm_set_bin_expr(Left, Right, Kind, Assembly) :-
         ;   Kind == intersection
         ->  format(atom(Assembly), "~w\tpushq %rax\n~w\tpopq %r10\n\tandq %r10, %rax\n", [LeftCode, RightCode])
         ;   format(atom(Assembly), "~w\tpushq %rax\n~w\tpopq %r10\n\tnotq %rax\n\tandq %r10, %rax\n", [LeftCode, RightCode])
+        )
+    ).
+
+asm_set_rel_expr(Left, Right, Kind, Assembly) :-
+    asm_expr(Left, LeftCode),
+    (   get_preferred_temp_register(TempReg)
+    ->  asm_expr(Right, RightCode),
+        (   Kind == subset
+        ->  format(
+                atom(Assembly),
+                "~w\tmovq %rax, %~w\n~w\tnotq %rax\n\tandq %~w, %rax\n\tcmpq $0, %rax\n\tsete %al\n\tmovzbq %al, %rax\n",
+                [LeftCode, TempReg, RightCode, TempReg]
+            )
+        ;   format(
+                atom(Assembly),
+                "~w\tmovq %rax, %~w\n~w\tmovq %~w, %r11\n\tnotq %r11\n\tandq %rax, %r11\n\tcmpq $0, %r11\n\tsete %al\n\tmovzbq %al, %rax\n",
+                [LeftCode, TempReg, RightCode, TempReg]
+            )
+        ),
+        free_register(TempReg)
+    ;   asm_expr(Right, RightCode),
+        (   Kind == subset
+        ->  format(
+                atom(Assembly),
+                "~w\tpushq %rax\n~w\tpopq %r10\n\tnotq %rax\n\tandq %r10, %rax\n\tcmpq $0, %rax\n\tsete %al\n\tmovzbq %al, %rax\n",
+                [LeftCode, RightCode]
+            )
+        ;   format(
+                atom(Assembly),
+                "~w\tpushq %rax\n~w\tpopq %r10\n\tnotq %r10\n\tandq %rax, %r10\n\tcmpq $0, %r10\n\tsete %al\n\tmovzbq %al, %rax\n",
+                [LeftCode, RightCode]
+            )
         )
     ).
 
