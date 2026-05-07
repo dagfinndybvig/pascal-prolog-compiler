@@ -1,4 +1,4 @@
-:- module(parser, [parse_file/2, parse_tokens/2]).
+- module(parser, [parse_file/2, parse_tokens/2]).
 
 :- use_module(lexer).
 
@@ -12,10 +12,11 @@ parse_tokens(Tokens, Program) :-
     ;   throw(error(syntax_error(invalid_pascal_program), _))
     ).
 
-program(program(Name, Types, Funcs, Vars, Block)) -->
+program(program(Name, ConstDecls, Types, Funcs, Vars, Block)) -->
     keyword(program),
     identifier(Name),
     symbol(';'),
+    const_declarations(ConstDecls),
     type_declarations(Types),
     top_level_declarations(Funcs, Vars),
     block(Block),
@@ -42,12 +43,42 @@ type_decl(type_decl(Name, Type)) -->
     symbol('='),
     type_spec(Type).
 
+const_declarations(ConstDecls) -->
+    keyword(const),
+    !,
+    const_decls(ConstDecls).
+const_declarations([]) -->
+    [].
+
+const_decls([ConstDecl|Rest]) -->
+    const_decl(ConstDecl),
+    symbol(';'),
+    !,
+    const_decls(Rest).
+const_decls([]) -->
+    [].
+
+const_decl(const_decl(Name, Type, Value)) -->
+    identifier(Name),
+    symbol(':'),
+    type_spec(Type),
+    symbol('='),
+    expression(Value).
+
 top_level_declarations(Funcs, Vars) -->
+    const_declarations(ConstDecls),
     declarations(Vars),
     func_declarations(Funcs).
 top_level_declarations(Funcs, Vars) -->
+    const_declarations(ConstDecls),
     func_declarations(Funcs),
     declarations(Vars).
+top_level_declarations(Funcs, Vars) -->
+    func_declarations(Funcs),
+    declarations(Vars).
+top_level_declarations(Funcs, Vars) -->
+    declarations(Vars),
+    func_declarations(Funcs).
 
 func_declarations([First|Rest]) -->
     subprogram_decl(First),
@@ -121,6 +152,13 @@ param_segment(Params) -->
     symbol(':'),
     type_spec(Type),
     { make_params(Names, Type, Params) }.
+
+const_declarations_block(ConstDecls) -->
+    keyword(const),
+    !,
+    const_decls(ConstDecls).
+const_declarations_block([]) -->
+    [].
 
 declarations(Vars) -->
     keyword(var),
@@ -230,18 +268,17 @@ ident_list_tail([Name|Rest]) -->
 ident_list_tail([]) -->
     [].
 
-block(block(LocalVars, Stmts)) -->
+block(block(LocalConsts, LocalVars, Stmts)) -->
     keyword(begin),
-    block_declarations(LocalVars),
+    block_declarations(LocalConsts, LocalVars),
     stmt_list(Stmts),
     keyword(end).
 
-block_declarations(Vars) -->
-    keyword(var),
-    !,
-    var_decls(Vars).
-block_declarations([]) -->
-    [].
+block_declarations(LocalConsts, LocalVars) -->
+    const_declarations_block(LocalConsts),
+    declarations(LocalVars).
+block_declarations([], LocalVars) -->
+    declarations(LocalVars).
 
 stmt_list([]) -->
     peek_keyword(end),
@@ -284,7 +321,7 @@ statement(case_stmt(Selector, Branches, ElseBody)) -->
 statement(for_loop(Name, Start, End, Dir, Body)) -->
     keyword(for),
     [tok(ident(Name), _, _)],
-    symbol(:=),
+    symbol(':='),
     expression(Start),
     for_direction(Dir),
     expression(End),
