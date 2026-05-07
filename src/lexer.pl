@@ -1,4 +1,4 @@
-:- module(lexer, [lex_file/2, lex_string/2]).
+- module(lexer, [lex_file/2, lex_string/2]).
 
 :- use_module(library(readutil)).
 
@@ -15,7 +15,7 @@ lex_codes([C|Cs], Line, Col, Tokens) :-
     (   code_type(C, space)
     ->  advance_space(C, Line, Col, NextLine, NextCol),
         lex_codes(Cs, NextLine, NextCol, Tokens)
-    ;   C =:= 0'{
+    ;   C =:= 0'{ 
     ->  skip_brace_comment(Cs, Line, Col, Rest, NextLine, NextCol),
         lex_codes(Rest, NextLine, NextCol, Tokens)
     ;   C =:= 0'/, Cs = [0'/|Tail]
@@ -74,7 +74,7 @@ consume_string_literal([], _, _, _) :-
     throw(error(syntax_error(unclosed_string_literal), _)).
 consume_string_literal([0'\n|_], _, _, _) :-
     throw(error(syntax_error(newline_in_string_literal), _)).
-consume_string_literal([0''', 0'''|Cs], Rest, [0'''|More], Used) :-
+consume_string_literal([0'', 0'''|Cs], Rest, [0'''|More], Used) :-
     !,
     consume_string_literal(Cs, Rest, More, Used0),
     Used is Used0 + 2.
@@ -109,6 +109,7 @@ consume_digits(Rest, Rest, []).
 keyword_or_ident(program, kw(program)) :- !.
 keyword_or_ident(type, kw(type)) :- !.
 keyword_or_ident(var, kw(var)) :- !.
+keyword_or_ident(const, kw(const)) :- !.
 keyword_or_ident(integer, kw(integer)) :- !.
 keyword_or_ident(boolean, kw(boolean)) :- !.
 keyword_or_ident(char, kw(char)) :- !.
@@ -157,14 +158,14 @@ consume_symbol(0'(, Rest, Rest, '(', 1) :- !.
 consume_symbol(0'), Rest, Rest, ')', 1) :- !.
 consume_symbol(0'[, Rest, Rest, '[', 1) :- !.
 consume_symbol(0'], Rest, Rest, ']', 1) :- !.
-consume_symbol(0'^, Rest, Rest, '^', 1) :- !.
+consume_symbol(0'^', Rest, Rest, '^', 1) :- !.
 consume_symbol(0'@, Rest, Rest, '@', 1) :- !.
 consume_symbol(0'+, Rest, Rest, '+', 1) :- !.
 consume_symbol(0'-, Rest, Rest, '-', 1) :- !.
-consume_symbol(0'*, Rest, Rest, '*', 1) :- !.
-consume_symbol(0'/, Rest, Rest, '/', 1) :- !.
-consume_symbol(0'=, Rest, Rest, '=', 1) :- !.
-consume_symbol(0'<, Rest, Rest, '<', 1) :- !.
-consume_symbol(0'>, Rest, Rest, '>', 1) :- !.
+consume_symbol(0'*', Rest, Rest, '*', 1) :- !.
+consume_symbol(0'/', Rest, Rest, '/', 1) :- !.
+consume_symbol(0'=', Rest, Rest, '=', 1) :- !.
+consume_symbol(0'<', Rest, Rest, '<', 1) :- !.
+consume_symbol(0'>', Rest, Rest, '>', 1) :- !.
 consume_symbol(Char, _, _, _, _) :-
     throw(error(syntax_error(unexpected_character(Char)), _)).
