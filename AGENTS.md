@@ -24,8 +24,8 @@ This is a **Pascal compiler written in SWI-Prolog** that compiles a subset of Pa
 - Top-level global `var` sections may appear before functions or after functions
 - Prime number algorithms are the primary test cases
 
-**Version**: 1.13.0 (2026-05-05) - Added records, named type aliases, typed pointers (`^`/`@`/`nil`), `new`/`dispose`, null-pointer guards, and linked-list/sorting demos
-**Previous**: 1.12.0 (2026-04-28) - Expanded Pascal's Triangle demo, audited docs, and fixed two-argument `write` with boolean/char values
+**Version**: 1.13.2 (2026-05-07) - Added linked-list examples under `examples/lists/`, GHCR Docker publish workflow on version tags, and refreshed docs for release consistency
+**Previous**: 1.13.1 (2026-05-06) - Cross-platform Docker workflow improvements and release packaging updates
 
 ## Quick Start
 
@@ -201,6 +201,8 @@ Test completed successfully!
 │   ├── record_demo.pas          # Record declaration and field access example
 │   ├── pointer_list_demo.pas    # Typed-pointer linked-list example
 │   ├── type_alias_demo.pas      # Named type alias example
+│   ├── Pascals_Triangle/         # Pascal's Triangle demo and notes
+│   ├── lists/                    # Linked-list and tree/list examples
 │   ├── datatypes/               # Focused v1.5 datatype showcase programs
 │   ├── sorting/                 # Linked-list sorting examples
 │   └── primes/                 # Prime algorithm examples
@@ -208,7 +210,10 @@ Test completed successfully!
 │       ├── optimized/
 │       └── special/
 ├── scripts/
-│   └── verify_math.py          # Mathematical verification suite
+│   ├── pascalc-docker.sh        # Docker helper (macOS/Linux)
+│   ├── pascalc-docker.ps1       # Docker helper (Windows PowerShell)
+│   ├── pascalc-docker.cmd       # Docker helper (Windows cmd.exe)
+│   └── verify_math.py           # Mathematical verification suite
 └── docs/                       # Documentation
 ```
 
@@ -220,6 +225,8 @@ Test completed successfully!
 
 ## Version History
 
+- **v1.13.2** (2026-05-07): Added linked-list examples (`count_list`, `for_count_list`, `primes_under_1000_list`, `case_bucket_lists`), added GHCR Docker publishing workflow on `v*` tags, and refreshed docs
+- **v1.13.1** (2026-05-06): Cross-platform Docker workflow improvements and release packaging updates
 - **v1.13.0** (2026-05-05): Added records, `type` aliases, typed pointers (`^`/`@`/`nil`), `new`/`dispose`, null-pointer runtime guards, linked-list examples, and sorting docs/examples
 - **v1.12.0** (2026-04-28): Expanded Pascal's Triangle demo to rows 0..6, added exact-output verification, fixed two-argument `write` for boolean/char expressions, and refreshed docs
 - **v1.11.0** (2026-04-28): Added `case` statements (integer and char selectors, comma-separated labels, optional `else`); lowered to chained `if`/`else` IR

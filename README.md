@@ -1,4 +1,4 @@
-# Pascal-Prolog Assembly Backend - Release Version 1.13.0
+# Pascal-Prolog Assembly Backend - Release Version 1.13.2
 
 > [!WARNING]
 > This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`), static arrays, records, named type aliases, typed pointers (`^TypeName`), `new`/`dispose`, procedures, `var` parameters (including arrays passed by reference), `for` loops, multi-argument `write`/`writeln`, and `case` statements, while still intentionally omitting full ISO Pascal features.
@@ -9,8 +9,8 @@
 
 ## 📦 Pascal-Prolog Assembly Backend Release
 
-**Version**: 1.13.0
-**Release Date**: 2026-05-05
+**Version**: 1.13.2
+**Release Date**: 2026-05-07
 **License**: Unlicense (Public Domain)
 
 ## ⚡ Quick Start (Docker, 3 Commands)
@@ -18,7 +18,7 @@
 From the repository root:
 
 ```bash
-docker build -t pascal-prolog-compiler:1.13.0 .
+docker build -t pascal-prolog-compiler:1.13.2 .
 ./scripts/pascalc-docker.sh build-asm examples/comprehensive_test.pas comprehensive_test
 ./scripts/pascalc-docker.sh check examples/comprehensive_test.pas
 ```
@@ -54,7 +54,7 @@ Use Docker Desktop to run the compiler consistently across platforms.
 ### 1. Build the image
 
 ```bash
-docker build -t pascal-prolog-compiler:1.13.0 .
+docker build -t pascal-prolog-compiler:1.13.2 .
 ```
 
 ### 2. Use one-command helper scripts
@@ -80,16 +80,16 @@ scripts\pascalc-docker.cmd build-asm examples\comprehensive_test.pas comprehensi
 Optional custom image tag:
 
 ```bash
-PASCALC_DOCKER_IMAGE=pascal-prolog-compiler:1.13.0 ./scripts/pascalc-docker.sh check examples/comprehensive_test.pas
+PASCALC_DOCKER_IMAGE=pascal-prolog-compiler:1.13.2 ./scripts/pascalc-docker.sh check examples/comprehensive_test.pas
 ```
 
 ```powershell
-$env:PASCALC_DOCKER_IMAGE = "pascal-prolog-compiler:1.13.0"
+$env:PASCALC_DOCKER_IMAGE = "pascal-prolog-compiler:1.13.2"
 ./scripts/pascalc-docker.ps1 check examples/comprehensive_test.pas
 ```
 
 ```bat
-set PASCALC_DOCKER_IMAGE=pascal-prolog-compiler:1.13.0
+set PASCALC_DOCKER_IMAGE=pascal-prolog-compiler:1.13.2
 scripts\pascalc-docker.cmd check examples\comprehensive_test.pas
 ```
 
@@ -98,20 +98,20 @@ scripts\pascalc-docker.cmd check examples\comprehensive_test.pas
 Mac/Linux:
 
 ```bash
-docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.13.0 build-asm examples/comprehensive_test.pas comprehensive_test
+docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.13.2 build-asm examples/comprehensive_test.pas comprehensive_test
 ```
 
 Windows PowerShell:
 
 ```powershell
-docker run --rm -v "${PWD}:/workspace" -w /workspace pascal-prolog-compiler:1.13.0 build-asm examples/comprehensive_test.pas comprehensive_test
+docker run --rm -v "${PWD}:/workspace" -w /workspace pascal-prolog-compiler:1.13.2 build-asm examples/comprehensive_test.pas comprehensive_test
 ```
 
 ### 4. Run semantic checks / parse only
 
 ```bash
-docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.13.0 check examples/comprehensive_test.pas
-docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.13.0 parse examples/comprehensive_test.pas
+docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.13.2 check examples/comprehensive_test.pas
+docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.13.2 parse examples/comprehensive_test.pas
 ```
 
 ### Notes
@@ -121,7 +121,23 @@ docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.13.0
 - The binary architecture matches the container architecture. On Apple Silicon, use `--platform linux/amd64` with `docker build` and `docker run` if you need x86-64 Linux output.
 - If PowerShell blocks script execution, use `scripts\pascalc-docker.cmd` from cmd.exe, or run PowerShell with an execution policy that allows local scripts.
 
-## 🆕 What's New In v1.13.0
+## 🆕 What's New In v1.13.2
+
+### Linked-list example expansion and Docker publishing
+
+This release adds several focused linked-list programs and introduces automated Docker image publishing on version tags:
+
+- ✅ New list examples in `examples/lists/`:
+  - `count_list.pas`
+  - `for_count_list.pas`
+  - `primes_under_1000_list.pas`
+  - `case_bucket_lists.pas`
+- ✅ Added GitHub Actions Docker publishing workflow:
+  - `.github/workflows/docker-publish.yml`
+  - Publishes `ghcr.io/dagfinndybvig/pascal-prolog-compiler` on `v*` tags
+- ✅ Added explicit agent git guidance in `AGENTS.md` for `git pull --rebase` before push and regular commits after successful tests/features
+
+## 🆕 Previous: v1.13.0
 
 ### Records, named types, and typed pointers
 
@@ -771,7 +787,12 @@ Pascal Source → AST → IR → x86-64 Assembly → Native Executable
 ## 📁 Directory Structure
 
 ```
-pascal-prolog-asm-release/
+pascal-prolog-compiler/
+├── .github/
+│   └── workflows/
+│       ├── docker-publish.yml
+│       ├── test_string_to_linked_list.yml
+│       └── vibe-lists-review.yml
 ├── pascal_compiler.pl              # Main compiler entry point
 ├── src/                            # Compiler front-end + backend modules
 │   ├── lexer.pl                    # Lexer
@@ -803,6 +824,8 @@ pascal-prolog-asm-release/
 │   ├── mod_function_test.pas
 │   ├── multi_arg_write_demo.pas    # Multi-argument write/writeln
 │   ├── no_func_test.pas
+│   ├── Pascals_Triangle/           # Pascal's Triangle demo and notes
+│   ├── lists/                      # Linked-list and tree/list examples
 │   ├── procedures_demo.pas         # Procedure demo
 │   ├── procedures_recursive.pas    # Recursive procedure demo
 │   ├── simple_func_test.pas
@@ -817,6 +840,9 @@ pascal-prolog-asm-release/
 │       ├── optimized/              # Optimized prime algorithms
 │       └── special/                # Specialized prime algorithms
 ├── scripts/
+│   ├── pascalc-docker.sh           # Docker helper (macOS/Linux)
+│   ├── pascalc-docker.ps1          # Docker helper (Windows PowerShell)
+│   ├── pascalc-docker.cmd          # Docker helper (Windows cmd.exe)
 │   └── verify_math.py              # Mathematical verification suite
 ├── docs/                           # Documentation
 │   ├── primes.md                   # Prime algorithm documentation
