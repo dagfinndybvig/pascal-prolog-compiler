@@ -8,13 +8,13 @@ This is a **Pascal compiler written in SWI-Prolog** that compiles a subset of Pa
 
 **Key characteristics:**
 - Typed scalars: `integer`, `boolean`, and `char`
-- Bounded integer sets: `set of Low..High` (v1 bounds `0..63`) with literals, membership (`in`), and set algebra (`+`, `-`, `*`)
+- Bounded integer sets: `set of Low..High` (v1 bounds `0..63`) with literals, membership (`in`), set algebra (`+`, `-`, `*`), and set relations (`<=`, `>=`)
 - Static arrays with runtime bounds checks; `array[...] of char` works as fixed-size text output
 - Records with typed fields and field access/assignment
 - Named type declarations (`type`) and aliases
 - Typed pointers (`^TypeName`) with `nil`, address-of (`@`), dereference (`p^`), and field-through-pointer (`p^.field`)
 - Heap allocation/deallocation via `new`/`dispose` with runtime null-pointer guards
-- Operators: `+`, `-`, `*`, `/`, `mod`, set membership (`in`), boolean operators (`and`, `or`, `not`), comparisons (`=`, `<>`, `<`, `<=`, `>`, `>=`)
+- Operators: `+`, `-`, `*`, `/`, `mod`, set membership (`in`), boolean operators (`and`, `or`, `not`), comparisons (`=`, `<>`, `<`, `<=`, `>`, `>=`) including set subset/superset via `<=`/`>=`
 - Control flow: `if`/`else`, `while`, `for ... to/downto ... do`, `case ... of ... else ... end`
 - Compiles to x86-64 assembly via GCC
 - Uses Prolog DCGs for parsing
@@ -25,8 +25,8 @@ This is a **Pascal compiler written in SWI-Prolog** that compiles a subset of Pa
 - Top-level global `var` sections may appear before functions or after functions
 - Prime number algorithms are the primary test cases
 
-**Version**: 1.14.0 (2026-05-07) - Added Pascal sets (bounded integer `set of Low..High`, literals, `in`, set algebra), `examples/sets/`, and refreshed docs for minor release consistency
-**Previous**: 1.13.2 (2026-05-07) - Added linked-list examples under `examples/lists/`, GHCR Docker publish workflow on version tags, and refreshed docs for release consistency
+**Version**: 1.15.0 (2026-05-07) - Added set subset/superset relations (`<=`, `>=`), `examples/sets/set_subset_relations.pas`, Docker smoke validation, and refreshed docs for minor release consistency
+**Previous**: 1.14.0 (2026-05-07) - Added Pascal sets (bounded integer `set of Low..High`, literals, `in`, set algebra), `examples/sets/`, and refreshed docs for minor release consistency
 
 ## Quick Start
 
@@ -227,6 +227,7 @@ Test completed successfully!
 
 ## Version History
 
+- **v1.15.0** (2026-05-07): Added set subset/superset relations (`<=`, `>=`), added `examples/sets/set_subset_relations.pas`, and validated Docker helper workflow for release packaging
 - **v1.14.0** (2026-05-07): Added Pascal sets (`set of Low..High` in `0..63`), set literals/ranges, membership (`in`), set algebra (`+`, `-`, `*`), `examples/sets/`, and sets rollout docs
 - **v1.13.2** (2026-05-07): Added linked-list examples (`count_list`, `for_count_list`, `primes_under_1000_list`, `case_bucket_lists`), added GHCR Docker publishing workflow on `v*` tags, and refreshed docs
 - **v1.13.1** (2026-05-06): Cross-platform Docker workflow improvements and release packaging updates

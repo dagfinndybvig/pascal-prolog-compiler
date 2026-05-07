@@ -1,4 +1,4 @@
-# Pascal-Prolog Assembly Backend - Release Version 1.14.0
+# Pascal-Prolog Assembly Backend - Release Version 1.15.0
 
 > [!WARNING]
 > This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`), static arrays, records, named type aliases, typed pointers (`^TypeName`), bounded integer sets (`set of Low..High`, v1 range `0..63`), `new`/`dispose`, procedures, `var` parameters (including arrays passed by reference), `for` loops, multi-argument `write`/`writeln`, and `case` statements, while still intentionally omitting full ISO Pascal features.
@@ -9,7 +9,7 @@
 
 ## 📦 Pascal-Prolog Assembly Backend Release
 
-**Version**: 1.14.0
+**Version**: 1.15.0
 **Release Date**: 2026-05-07
 **License**: Unlicense (Public Domain)
 
@@ -18,7 +18,7 @@
 From the repository root:
 
 ```bash
-docker build -t pascal-prolog-compiler:1.14.0 .
+docker build -t pascal-prolog-compiler:1.15.0 .
 ./scripts/pascalc-docker.sh build-asm examples/comprehensive_test.pas comprehensive_test
 ./scripts/pascalc-docker.sh check examples/comprehensive_test.pas
 ```
@@ -54,7 +54,7 @@ Use Docker Desktop to run the compiler consistently across platforms.
 ### 1. Build the image
 
 ```bash
-docker build -t pascal-prolog-compiler:1.14.0 .
+docker build -t pascal-prolog-compiler:1.15.0 .
 ```
 
 ### 2. Use one-command helper scripts
@@ -80,16 +80,16 @@ scripts\pascalc-docker.cmd build-asm examples\comprehensive_test.pas comprehensi
 Optional custom image tag:
 
 ```bash
-PASCALC_DOCKER_IMAGE=pascal-prolog-compiler:1.14.0 ./scripts/pascalc-docker.sh check examples/comprehensive_test.pas
+PASCALC_DOCKER_IMAGE=pascal-prolog-compiler:1.15.0 ./scripts/pascalc-docker.sh check examples/comprehensive_test.pas
 ```
 
 ```powershell
-$env:PASCALC_DOCKER_IMAGE = "pascal-prolog-compiler:1.14.0"
+$env:PASCALC_DOCKER_IMAGE = "pascal-prolog-compiler:1.15.0"
 ./scripts/pascalc-docker.ps1 check examples/comprehensive_test.pas
 ```
 
 ```bat
-set PASCALC_DOCKER_IMAGE=pascal-prolog-compiler:1.14.0
+set PASCALC_DOCKER_IMAGE=pascal-prolog-compiler:1.15.0
 scripts\pascalc-docker.cmd check examples\comprehensive_test.pas
 ```
 
@@ -98,20 +98,20 @@ scripts\pascalc-docker.cmd check examples\comprehensive_test.pas
 Mac/Linux:
 
 ```bash
-docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.14.0 build-asm examples/comprehensive_test.pas comprehensive_test
+docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.15.0 build-asm examples/comprehensive_test.pas comprehensive_test
 ```
 
 Windows PowerShell:
 
 ```powershell
-docker run --rm -v "${PWD}:/workspace" -w /workspace pascal-prolog-compiler:1.14.0 build-asm examples/comprehensive_test.pas comprehensive_test
+docker run --rm -v "${PWD}:/workspace" -w /workspace pascal-prolog-compiler:1.15.0 build-asm examples/comprehensive_test.pas comprehensive_test
 ```
 
 ### 4. Run semantic checks / parse only
 
 ```bash
-docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.14.0 check examples/comprehensive_test.pas
-docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.14.0 parse examples/comprehensive_test.pas
+docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.15.0 check examples/comprehensive_test.pas
+docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.15.0 parse examples/comprehensive_test.pas
 ```
 
 ### Notes
@@ -121,7 +121,21 @@ docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.14.0
 - The binary architecture matches the container architecture. On Apple Silicon, use `--platform linux/amd64` with `docker build` and `docker run` if you need x86-64 Linux output.
 - If PowerShell blocks script execution, use `scripts\pascalc-docker.cmd` from cmd.exe, or run PowerShell with an execution policy that allows local scripts.
 
-## 🆕 What's New In v1.14.0
+## 🆕 What's New In v1.15.0
+
+### Sets v2 relations and Docker smoke path
+
+This minor release extends set support and re-validates container packaging:
+
+- ✅ Added set relation operators:
+  - subset: `A <= B`
+  - superset: `A >= B`
+- ✅ Added focused example:
+  - `examples/sets/set_subset_relations.pas`
+- ✅ Kept full regression suite green (`examples/comprehensive_test.pas`, `scripts/verify_math.py`)
+- ✅ Verified Docker build/check workflow with `pascal-prolog-compiler:1.15.0`
+
+## 🆕 Previous: v1.14.0
 
 ### Pascal sets (v1)
 
@@ -673,7 +687,7 @@ This release supports a **practical subset** of Pascal focused on core programmi
 - **String Literals**: Output-only string literals (no string variables)
 - **Nested Blocks**: Local variable scoping with proper shadowing
 - **Relational Operators**: `=`, `<>`, `<`, `<=`, `>`, `>=` (typed comparisons)
-- **Set Operators**: `+` (union), `-` (difference), `*` (intersection), and membership `in`
+- **Set Operators**: `+` (union), `-` (difference), `*` (intersection), membership `in`, subset `<=`, and superset `>=`
 - **Unary Operators**: `+` (implicit), `-` (integer negation), `not` (boolean negation)
 - **Functions and procedures**: scalar functions and `void` procedures with up to 6 parameters
   - **Parameter modes**: by-value (default) and by-reference (`var`); `var` parameters may be scalar or static-array typed
