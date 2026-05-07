@@ -47,7 +47,7 @@ jobs:
             echo "MISTRAL_API_KEY is not set; skipping Vibe report generation."
             exit 0
           fi
-          vibe --model mistral-pro --repo . "Analyze all Pascal programs in examples/lists. Enumerate the Pascal subset used (data types, control structures, procedures, I/O, advanced features). Output a markdown report." 2>&1 | tee examples/lists/pascal-subset-report.md
+          vibe --workdir . --trust --max-turns 1 --max-price 1.00 -p "Analyze all Pascal programs in examples/lists. Enumerate the Pascal subset used (data types, control structures, procedures, I/O, advanced features). Output a markdown report." 2>&1 | tee examples/lists/pascal-subset-report.md
           # Add metadata
           echo "" >> examples/lists/pascal-subset-report.md
           echo "---" >> examples/lists/pascal-subset-report.md
