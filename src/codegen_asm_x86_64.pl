@@ -731,6 +731,24 @@ asm_expr(ir_unary('-', Expr), Assembly) :-
 asm_expr(ir_unary(not, Expr), Assembly) :-
     asm_expr(Expr, ExprCode),
     format(atom(Assembly), "~w\tcmpq $0, %rax\n\tsete %al\n\tmovzbq %al, %rax\n", [ExprCode]).
+asm_expr(ir_set_const(Mask), Assembly) :-
+    format(atom(Assembly), "\tmovq $~d, %rax\n", [Mask]).
+asm_expr(ir_set_bin('+', Left, Right), Assembly) :-
+    asm_set_bin_expr(Left, Right, union, Assembly).
+asm_expr(ir_set_bin('-', Left, Right), Assembly) :-
+    asm_set_bin_expr(Left, Right, difference, Assembly).
+asm_expr(ir_set_bin('*', Left, Right), Assembly) :-
+    asm_set_bin_expr(Left, Right, intersection, Assembly).
+asm_expr(ir_set_in(ElemExpr, SetExpr, Low, High), Assembly) :-
+    next_label(set_in_out, OutLabel),
+    next_label(set_in_end, EndLabel),
+    asm_expr(SetExpr, SetCode),
+    asm_expr(ElemExpr, ElemCode),
+    format(
+        atom(Assembly),
+        "~w\tpushq %rax\n~w\tmovq %rax, %rcx\n\tpopq %r11\n\tcmpq $~d, %rcx\n\tjl ~w\n\tcmpq $~d, %rcx\n\tjg ~w\n\tbtsq %rcx, %r11\n\tsetc %al\n\tmovzbq %al, %rax\n\tjmp ~w\n~w:\n\tmovq $0, %rax\n~w:\n",
+        [SetCode, ElemCode, Low, OutLabel, High, OutLabel, EndLabel, OutLabel, EndLabel]
+    ).
 asm_expr(ir_bin('+', Left, Right), Assembly) :-
     asm_expr(Left, LeftCode),
     (   get_preferred_temp_register(TempReg)
@@ -877,6 +895,26 @@ asm_bool_bin_expr(Left, Right, BoolInstr, Assembly) :-
             atom(Assembly),
             "~w\tpushq %rax\n~w\tpopq %r10\n\tcmpq $0, %r10\n\tsetne %r10b\n\tcmpq $0, %rax\n\tsetne %al\n\t~w %r10b, %al\n\tmovzbq %al, %rax\n",
             [LeftCode, RightCode, BoolInstr]
+        )
+    ).
+
+asm_set_bin_expr(Left, Right, Kind, Assembly) :-
+    asm_expr(Left, LeftCode),
+    (   get_preferred_temp_register(TempReg)
+    ->  asm_expr(Right, RightCode),
+        (   Kind == union
+        ->  format(atom(Assembly), "~w\tmovq %rax, %~w\n~w\torq %~w, %rax\n", [LeftCode, TempReg, RightCode, TempReg])
+        ;   Kind == intersection
+        ->  format(atom(Assembly), "~w\tmovq %rax, %~w\n~w\tandq %~w, %rax\n", [LeftCode, TempReg, RightCode, TempReg])
+        ;   format(atom(Assembly), "~w\tmovq %rax, %~w\n~w\tnotq %rax\n\tandq %~w, %rax\n", [LeftCode, TempReg, RightCode, TempReg])
+        ),
+        free_register(TempReg)
+    ;   asm_expr(Right, RightCode),
+        (   Kind == union
+        ->  format(atom(Assembly), "~w\tpushq %rax\n~w\tpopq %r10\n\torq %r10, %rax\n", [LeftCode, RightCode])
+        ;   Kind == intersection
+        ->  format(atom(Assembly), "~w\tpushq %rax\n~w\tpopq %r10\n\tandq %r10, %rax\n", [LeftCode, RightCode])
+        ;   format(atom(Assembly), "~w\tpushq %rax\n~w\tpopq %r10\n\tnotq %rax\n\tandq %r10, %rax\n", [LeftCode, RightCode])
         )
     ).
 

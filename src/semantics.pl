@@ -259,6 +259,8 @@ check_expr(int(_), _, _, integer).
 check_expr(bool(_), _, _, boolean).
 check_expr(char(_), _, _, char).
 check_expr(nil, _, _, nil_type).
+check_expr(set_lit(Elements), Vars, FuncSigs, set_literal(Bounds)) :-
+    check_set_literal_elements(Elements, Vars, FuncSigs, Bounds).
 check_expr(var(Name), Vars, _, Type) :-
     ensure_declared(Name, Vars, Type).
 check_expr(addr_of(Name), Vars, _, ptr(Type)) :-
@@ -305,6 +307,10 @@ check_expr(bin(Op, Left, Right), Vars, FuncSigs, Type) :-
 
 bin_expr_type(Op, integer, integer, integer) :-
     memberchk(Op, ['+', '-', '*', '/', mod]).
+bin_expr_type(Op, LeftType0, RightType0, SetType) :-
+    memberchk(Op, ['+', '-', '*']),
+    set_binary_result_type(LeftType0, RightType0, SetType),
+    !.
 bin_expr_type(Op, integer, integer, boolean) :-
     memberchk(Op, ['=', '<>', '<', '<=', '>', '>=']).
 bin_expr_type(Op, char, char, boolean) :-
@@ -322,6 +328,14 @@ bin_expr_type(Op, LeftType, nil_type, boolean) :-
 bin_expr_type(Op, nil_type, RightType, boolean) :-
     is_pointer_type(RightType),
     memberchk(Op, ['=', '<>']).
+bin_expr_type(Op, LeftType0, RightType0, boolean) :-
+    memberchk(Op, ['=', '<>']),
+    set_comparable_types(LeftType0, RightType0),
+    !.
+bin_expr_type(in, integer, SetType0, boolean) :-
+    resolve_type(SetType0, SetType),
+    is_set_value_type(SetType).
+bin_expr_type(in, integer, set_literal(_), boolean).
 
 is_pointer_type(ptr(_)).
 
@@ -416,10 +430,26 @@ ensure_assignable(Expected0, nil_type) :-
 ensure_assignable(Expected0, Actual0) :-
     resolve_type(Expected0, Expected),
     resolve_type(Actual0, Actual),
+    set_assignable(Expected, Actual),
+    !.
+ensure_assignable(Expected0, Actual0) :-
+    resolve_type(Expected0, Expected),
+    resolve_type(Actual0, Actual),
     types_compatible(Expected, Actual),
     !.
 ensure_assignable(Expected, Actual) :-
     throw(error(type_mismatch(Expected, Actual), context(semantics/ensure_assignable, 'Expression type is not assignable to target'))).
+
+set_assignable(set(subrange(Low, High)), set_literal(empty_bounds)) :-
+    integer(Low),
+    integer(High),
+    !.
+set_assignable(set(subrange(Low, High)), set_literal(bounds(Min, Max))) :-
+    integer(Low),
+    integer(High),
+    Low =< Min,
+    Max =< High,
+    !.
 
 types_compatible(Expected, Actual) :-
     Expected == Actual,
@@ -433,6 +463,74 @@ pointer_types_compatible(ptr(ExpectedTarget0), ptr(ActualTarget0)) :-
     resolve_type(ExpectedTarget0, ExpectedTarget),
     resolve_type(ActualTarget0, ActualTarget),
     ExpectedTarget == ActualTarget.
+
+set_comparable_types(LeftType0, RightType0) :-
+    resolve_type(LeftType0, LeftType),
+    resolve_type(RightType0, RightType),
+    (   set_binary_result_type(LeftType, RightType, _)
+    ->  true
+    ;   LeftType = set_literal(empty_bounds), is_set_value_type(RightType)
+    ;   RightType = set_literal(empty_bounds), is_set_value_type(LeftType)
+    ).
+
+set_binary_result_type(LeftType0, RightType0, SetType) :-
+    resolve_type(LeftType0, LeftType),
+    resolve_type(RightType0, RightType),
+    set_binary_result_type_resolved(LeftType, RightType, SetType).
+
+set_binary_result_type_resolved(set(subrange(Low, High)), set(subrange(Low, High)), set(subrange(Low, High))).
+set_binary_result_type_resolved(set(subrange(Low, High)), set_literal(empty_bounds), set(subrange(Low, High))).
+set_binary_result_type_resolved(set_literal(empty_bounds), set(subrange(Low, High)), set(subrange(Low, High))).
+set_binary_result_type_resolved(set(subrange(Low, High)), set_literal(bounds(Min, Max)), set(subrange(Low, High))) :-
+    Low =< Min,
+    Max =< High.
+set_binary_result_type_resolved(set_literal(bounds(Min, Max)), set(subrange(Low, High)), set(subrange(Low, High))) :-
+    Low =< Min,
+    Max =< High.
+
+is_set_value_type(set(subrange(_, _))).
+
+check_set_literal_elements([], _Vars, _FuncSigs, empty_bounds).
+check_set_literal_elements([Elem|Rest], Vars, FuncSigs, bounds(Min, Max)) :-
+    set_elem_bounds(Elem, Vars, FuncSigs, ElemMin, ElemMax),
+    check_set_literal_rest(Rest, Vars, FuncSigs, ElemMin, ElemMax, Min, Max).
+
+check_set_literal_rest([], _Vars, _FuncSigs, Min, Max, Min, Max).
+check_set_literal_rest([Elem|Rest], Vars, FuncSigs, AccMin, AccMax, Min, Max) :-
+    set_elem_bounds(Elem, Vars, FuncSigs, ElemMin, ElemMax),
+    NextMin is min(AccMin, ElemMin),
+    NextMax is max(AccMax, ElemMax),
+    check_set_literal_rest(Rest, Vars, FuncSigs, NextMin, NextMax, Min, Max).
+
+set_elem_bounds(set_elem_value(Expr), Vars, FuncSigs, Value, Value) :-
+    check_expr(Expr, Vars, FuncSigs, integer),
+    eval_const_int_expr(Expr, Value),
+    ensure_set_member_range(Value).
+set_elem_bounds(set_elem_range(LowExpr, HighExpr), Vars, FuncSigs, Low, High) :-
+    check_expr(LowExpr, Vars, FuncSigs, integer),
+    check_expr(HighExpr, Vars, FuncSigs, integer),
+    eval_const_int_expr(LowExpr, Low),
+    eval_const_int_expr(HighExpr, High),
+    (   Low =< High
+    ->  true
+    ;   throw(error(invalid_set_literal_range(Low, High), context(semantics/set_elem_bounds, 'Set literal range lower bound must not exceed upper bound')))
+    ),
+    ensure_set_member_range(Low),
+    ensure_set_member_range(High).
+
+eval_const_int_expr(int(N), N).
+eval_const_int_expr(unary('-', Expr), Value) :-
+    eval_const_int_expr(Expr, Inner),
+    Value is -Inner.
+eval_const_int_expr(Expr, _) :-
+    throw(error(non_constant_set_literal_expr(Expr), context(semantics/eval_const_int_expr, 'Set literal elements must be constant integer expressions'))).
+
+ensure_set_member_range(Value) :-
+    (   Value >= 0,
+        Value =< 63
+    ->  true
+    ;   throw(error(set_value_out_of_range(Value, 0, 63), context(semantics/ensure_set_member_range, 'v1 set values must be in 0..63')))
+    ).
 
 ensure_writable_type(integer).
 ensure_writable_type(boolean).
@@ -487,6 +585,18 @@ ensure_valid_type(array(Low, High, ElementType)) :-
     ;   throw(error(invalid_array_bounds(Low, High), context(semantics/ensure_valid_type, 'Array lower bound must not exceed upper bound')))
     ),
     ensure_scalar_type(ElementType).
+ensure_valid_type(set(subrange(Low, High))) :-
+    integer(Low),
+    integer(High),
+    (   Low =< High
+    ->  true
+    ;   throw(error(invalid_set_bounds(Low, High), context(semantics/ensure_valid_type, 'Set lower bound must not exceed upper bound')))
+    ),
+    (   Low >= 0,
+        High =< 63
+    ->  true
+    ;   throw(error(set_bounds_out_of_range(Low, High, 0, 63), context(semantics/ensure_valid_type, 'v1 set bounds must fit in 0..63')))
+    ).
 ensure_valid_type(record(Fields)) :-
     ensure_record_fields_valid(Fields).
 
@@ -499,6 +609,7 @@ ensure_scalar_type(integer).
 ensure_scalar_type(boolean).
 ensure_scalar_type(char).
 ensure_scalar_type(ptr(_)).
+ensure_scalar_type(set(subrange(_, _))).
 ensure_scalar_type(type_ref(Name)) :-
     !,
     resolve_type(type_ref(Name), Resolved),

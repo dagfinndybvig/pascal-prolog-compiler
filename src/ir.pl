@@ -251,6 +251,8 @@ lower_expr(Expr, Env, IRExpr) :-
 lower_expr(int(N), _Env, ir_int(N), integer).
 lower_expr(bool(Value), _Env, ir_bool(Value), boolean).
 lower_expr(char(Code), _Env, ir_char(Code), char).
+lower_expr(set_lit(Elements), Env, ir_set_const(Mask), set_literal(Bounds)) :-
+    lower_set_literal(Elements, Env, Mask, Bounds).
    lower_expr(nil, _Env, ir_int(0), nil_type).
 lower_expr(var(Name), Env, ir_var(MappedName), Type) :-
     map_name(Name, Env, MappedName),
@@ -282,6 +284,16 @@ lower_expr(unary('-', Expr), Env, ir_unary('-', IRExpr), integer) :-
     lower_expr(Expr, Env, IRExpr, integer).
 lower_expr(unary(not, Expr), Env, ir_unary(not, IRExpr), boolean) :-
     lower_expr(Expr, Env, IRExpr, boolean).
+lower_expr(bin(in, ElemExpr, SetExpr), Env, ir_set_in(IRElem, IRSet, Low, High), boolean) :-
+    lower_expr(ElemExpr, Env, IRElem, integer),
+    lower_expr(SetExpr, Env, IRSet, SetType),
+    set_type_bounds(SetType, Low, High).
+lower_expr(bin(Op, Left, Right), Env, ir_set_bin(Op, IRLeft, IRRight), Type) :-
+    memberchk(Op, ['+', '-', '*']),
+    lower_expr(Left, Env, IRLeft, LeftType),
+    lower_expr(Right, Env, IRRight, RightType),
+    lowered_set_bin_type(Op, LeftType, RightType, Type),
+    !.
 lower_expr(bin(Op, Left, Right), Env, ir_bin(Op, IRLeft, IRRight), Type) :-
     lower_expr(Left, Env, IRLeft, LeftType),
     lower_expr(Right, Env, IRRight, RightType),
@@ -291,6 +303,77 @@ lowered_bin_type(Op, integer, integer, integer) :-
     memberchk(Op, ['+', '-', '*', '/', mod]),
     !.
 lowered_bin_type(_, _, _, boolean).
+
+lowered_set_bin_type(_Op, LeftType0, RightType0, SetType) :-
+    resolve_ir_type(LeftType0, LeftType),
+    resolve_ir_type(RightType0, RightType),
+    lowered_set_bin_type_resolved(LeftType, RightType, SetType).
+
+lowered_set_bin_type_resolved(set(subrange(Low, High)), set(subrange(Low, High)), set(subrange(Low, High))).
+lowered_set_bin_type_resolved(set(subrange(Low, High)), set_literal(empty_bounds), set(subrange(Low, High))).
+lowered_set_bin_type_resolved(set_literal(empty_bounds), set(subrange(Low, High)), set(subrange(Low, High))).
+lowered_set_bin_type_resolved(set(subrange(Low, High)), set_literal(bounds(Min, Max)), set(subrange(Low, High))) :-
+    Low =< Min,
+    Max =< High.
+lowered_set_bin_type_resolved(set_literal(bounds(Min, Max)), set(subrange(Low, High)), set(subrange(Low, High))) :-
+    Low =< Min,
+    Max =< High.
+
+set_type_bounds(set(subrange(Low, High)), Low, High).
+set_type_bounds(set_literal(empty_bounds), 1, 0).
+set_type_bounds(set_literal(bounds(Low, High)), Low, High).
+
+lower_set_literal(Elements, Env, Mask, Bounds) :-
+    lower_set_literal(Elements, Env, 0, 64, -1, Mask, Bounds).
+
+lower_set_literal([], _Env, Mask, Min, Max, Mask, empty_bounds) :-
+    Min =:= 64,
+    Max =:= -1,
+    !.
+lower_set_literal([], _Env, Mask, Min, Max, Mask, bounds(Min, Max)).
+lower_set_literal([Elem|Rest], Env, MaskIn, MinIn, MaxIn, MaskOut, Bounds) :-
+    lower_set_elem(Elem, Env, ElemMask, ElemMin, ElemMax),
+    MaskNext is MaskIn \/ ElemMask,
+    MinNext is min(MinIn, ElemMin),
+    MaxNext is max(MaxIn, ElemMax),
+    lower_set_literal(Rest, Env, MaskNext, MinNext, MaxNext, MaskOut, Bounds).
+
+lower_set_elem(set_elem_value(Expr), Env, Mask, Value, Value) :-
+    lower_expr(Expr, Env, _IRExpr, integer),
+    eval_const_int_expr(Expr, Value),
+    ensure_set_bit_value(Value),
+    Mask is 1 << Value.
+lower_set_elem(set_elem_range(LowExpr, HighExpr), Env, Mask, Low, High) :-
+    lower_expr(LowExpr, Env, _IRLowExpr, integer),
+    lower_expr(HighExpr, Env, _IRHighExpr, integer),
+    eval_const_int_expr(LowExpr, Low),
+    eval_const_int_expr(HighExpr, High),
+    (   Low =< High
+    ->  true
+    ;   throw(error(invalid_set_literal_range(Low, High), context(ir/lower_set_elem, 'Set literal range lower bound must not exceed upper bound')))
+    ),
+    ensure_set_bit_value(Low),
+    ensure_set_bit_value(High),
+    set_range_mask(Low, High, Mask).
+
+set_range_mask(Low, High, Mask) :-
+    Width is High - Low + 1,
+    Base is (1 << Width) - 1,
+    Mask is Base << Low.
+
+eval_const_int_expr(int(N), N).
+eval_const_int_expr(unary('-', Expr), Value) :-
+    eval_const_int_expr(Expr, Inner),
+    Value is -Inner.
+eval_const_int_expr(Expr, _) :-
+    throw(error(non_constant_set_literal_expr(Expr), context(ir/eval_const_int_expr, 'Set literal elements must be constant integer expressions'))).
+
+ensure_set_bit_value(Value) :-
+    (   Value >= 0,
+        Value =< 63
+    ->  true
+    ;   throw(error(set_value_out_of_range(Value, 0, 63), context(ir/ensure_set_bit_value, 'v1 set values must be in 0..63')))
+    ).
 
 for_ops(to, '<=', '+').
 for_ops(downto, '>=', '-').
@@ -455,7 +538,23 @@ record_field_slot_offset([], FieldName, _, _, _) :-
     ensure_ir_assignable(TargetType0, ExprType0) :-
         resolve_ir_type(TargetType0, TargetType),
         resolve_ir_type(ExprType0, ExprType),
+        ir_set_assignable(TargetType, ExprType),
+        !.
+    ensure_ir_assignable(TargetType0, ExprType0) :-
+        resolve_ir_type(TargetType0, TargetType),
+        resolve_ir_type(ExprType0, ExprType),
         TargetType == ExprType,
         !.
     ensure_ir_assignable(TargetType, ExprType) :-
         throw(error(type_mismatch(TargetType, ExprType), context(ir/ensure_ir_assignable, 'IR assignment type mismatch'))).
+
+    ir_set_assignable(set(subrange(Low, High)), set_literal(empty_bounds)) :-
+        integer(Low),
+        integer(High),
+        !.
+    ir_set_assignable(set(subrange(Low, High)), set_literal(bounds(Min, Max))) :-
+        integer(Low),
+        integer(High),
+        Low =< Min,
+        Max =< High,
+        !.
