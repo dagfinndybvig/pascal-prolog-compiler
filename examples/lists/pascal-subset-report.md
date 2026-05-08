@@ -1,183 +1,290 @@
 # Pascal Subset Analysis: `examples/lists/` Programs
 
 ## Overview
-8 Pascal programs demonstrate linked-list, tree, and recursive data structure patterns. All compile with the Pascal-to-x86-64 compiler.
+
+The `examples/lists/` directory contains **9 Pascal programs** totaling **~1,262 lines** demonstrating linked lists, trees, and various data structure manipulations. All programs compile to native x86-64 via the Pascal-to-Prolog compiler.
 
 ---
 
-## Programs Analyzed
+## Program-by-Program Feature Breakdown
 
 | Program | Lines | Description |
 |---------|-------|-------------|
 | `case_bucket_lists.pas` | 133 | Distributes numbers 1-40 into 4 linked lists based on `mod 4` using `case` |
-| `count_list.pas` | 101 | Builds, counts, and frees a linked list using `while` loops |
-| `for_count_list.pas` | 106 | Same as count_list but uses `for` loops |
-| `nested_s_expression_list.pas` | 152 | Parses nested S-expressions into tree-structured linked lists with recursive descent |
-| `primes_under_1000_list.pas` | 129 | Generates primes < 1000, stores in linked list |
-| `set_to_list.pas` | 120 | Converts a Pascal `set` to a linked list using membership test |
-| `string_to_linked_list.pas` | 75 | Reads characters into a linked list |
-| `tree_sort_wirth.pas` | 83 | Binary search tree insertion and in-order traversal (Wirth's tree sort) |
+| `const_list.pas` | 105 | Builds linked list using **typed constants** (`const` declarations) |
+| `count_list.pas` | 101 | Creates list, counts nodes, frees memory with `while` loops |
+| `for_count_list.pas` | 106 | Uses `for ... to ... do` loops for list creation, counting, and freeing |
+| `nested_s_expression_list.pas` | 152 | Parses nested S-expressions into tree-structured linked lists with **recursion** |
+| `primes_under_1000_list.pas` | 129 | Builds list of primes < 1000 using `mod`, `for`, and `is_prime` function |
+| `set_to_list.pas` | 120 | Converts **Pascal set** `[1,3,4,7,10..12,20,31]` to linked list |
+| `string_to_linked_list.pas` | 75 | Reads string input and builds character-linked list |
+| `tree_sort_wirth.pas` | 83 | Binary search tree implementation with in-order traversal |
 
 ---
 
-## Data Types Used
+## Pascal Subset Enumeration
 
-| Category | Types | Examples |
-|----------|-------|----------|
-| **Scalar** | `integer`, `boolean`, `char` | `value: integer`, `ch: char`, `done: boolean` |
-| **Composite** | `record` | `node = record value: integer; next: ^node; end` |
-| **Pointer** | `^TypeName` | `node_ptr = ^node`, `tree_ptr = ^tree_node` |
-| **Set** | `set of Low..High` | `int_set = set of 0..31` |
-| **Array** | `array[Low..High] of Type` | `input: array[1..64] of char`, `input: array[1..32] of char` |
-| **Type Aliases** | `type Name = Type` | `node_ptr = ^node`, `tree_ptr = ^tree_node` |
+### 📦 Data Types
 
----
+| Type | Category | Used In | Count |
+|------|----------|---------|-------|
+| `integer` | Scalar | All 9 | 9 |
+| `char` | Scalar | 6 | 6 |
+| `boolean` | Scalar | 3 | 3 |
+| `record` | Structured | 8 | 8 |
+| `^Type` (pointer) | Reference | 8 | 8 |
+| `array[Low..High] of T` | Static array | 2 | 2 |
+| `set of Low..High` | Set | 1 | 1 |
 
-## Control Structures
+**Record details:**
+- `node = record value: integer; next: ^node; end` (7 programs)
+- `node = record kind: char; value: char; child: ^node; next: ^node; end` (nested_s_expression_list)
+- `tree_node = record key: integer; left: ^tree_node; right: ^tree_node; end` (tree_sort_wirth)
 
-| Structure | Usage | Programs |
-|-----------|-------|----------|
-| **`if`/`then`/`else`** | Conditional branching | All 8 |
-| **`while`/`do`** | Pre-test loop | 7/8 (all except possibly tree_sort_wirth uses only recursion) |
-| **`for` ... `to` ... `do`** | Counted loop | case_bucket_lists, for_count_list, primes_under_1000_list, set_to_list |
-| **`case` ... `of` ... `else` ... `end`** | Multi-way branch | case_bucket_lists |
-| **Recursion** | Procedures calling themselves | nested_s_expression_list (parse_list, dispose_nodes), primes_under_1000_list (is_prime called iteratively), tree_sort_wirth (insert_tree, print_in_order, dispose_tree) |
+**Pointer types:**
+- `node_ptr = ^node` (7 programs)
+- `tree_ptr = ^tree_node` (tree_sort_wirth)
 
----
+**Array types:**
+- `array[1..64] of char` (nested_s_expression_list)
+- `array[1..32] of char` (string_to_linked_list)
 
-## Procedures and Functions
-
-| Feature | Usage | Examples |
-|---------|-------|----------|
-| **Functions** (return integer/boolean) | 27 function definitions | `is_prime: boolean`, `make_list: integer`, `count_nodes: integer`, `append_node: integer` |
-| **Procedures** (void) | 9 procedure definitions | `append_node`, `parse_list`, `print_nodes`, `dispose_nodes`, `insert_tree`, `print_in_order`, `dispose_tree` |
-| **`var` Parameters** (by-reference) | 27 occurrences | `var head: node_ptr`, `var tail: node_ptr`, `var t: tree_ptr`, `var first: boolean` |
-| **Value Parameters** | Used for scalars | `size: integer`, `value: integer`, `n: integer` |
-| **Parameter Count** | 0-3 parameters | Most have 1-3; `append_node` has 3 (`var head`, `var tail`, `value`) |
-| **Return by Assignment** | Function result via `:=` | `count_nodes := total`, `make_list := size` |
+**Set type:**
+- `int_set = set of 0..31` (set_to_list)
 
 ---
 
-## I/O Operations
+### 🎯 Constants
 
-| Operation | Usage | Programs |
-|-----------|-------|----------|
-| **`readln`** | Read a single character | nested_s_expression_list, string_to_linked_list |
-| **`write`** | Output without newline | All programs |
-| **`writeln`** | Output with newline | All programs |
-| **Multi-argument I/O** | `writeln('text: ', value)` | All programs with output |
+| Feature | Used In | Examples |
+|---------|---------|----------|
+| Typed global `const` | `const_list.pas` | `ListSize: integer = 5;`, `StartValue: integer = 10;`, `StepValue: integer = 3;`, `Prefix: char = '#';` |
 
 ---
 
-## Pointer and Memory Operations
+### 🔄 Control Structures
 
-| Operation | Usage | Programs |
-|-----------|-------|----------|
-| **`new(p)`** | Heap allocation | All programs |
-| **`dispose(p)`** | Heap deallocation | All programs except string_to_linked_list (manual) |
-| **`nil`** | Null pointer constant | All programs |
-| **`p^`** | Dereference pointer | All programs |
-| **`p^.field`** | Field access through pointer | All programs |
-| **`@`** | Address-of operator | Not used in these examples |
+| Structure | Used In | Count |
+|-----------|---------|-------|
+| `if ... then` | All 9 | 9 |
+| `if ... then ... else` | 8 | 8 |
+| `while ... do` | 7 | 7 |
+| `for ... to ... do` | 5 | 5 |
+| `case ... of ... else ... end` | 1 | 1 |
+| **Recursion** | 4 | 4 |
+
+**Recursion usage:**
+- `parse_list` (nested_s_expression_list)
+- `print_nodes` (nested_s_expression_list)
+- `dispose_nodes` (nested_s_expression_list)
+- `insert_tree`, `print_in_order`, `dispose_tree` (tree_sort_wirth)
+
+**`for` loop bounds:**
+- `for n := 1 to 40 do` (case_bucket_lists)
+- `for n := 1 to size do` (count_list)
+- `for i := 1 to size do` (for_count_list)
+- `for n := 2 to limit - 1 do` (primes_under_1000_list)
+- `for n := 0 to 31 do` (set_to_list)
+
+**`case` statement:**
+- `case n mod 4 of 0: ...; 1: ...; 2: ...; 3: ... else ... end` (case_bucket_lists)
+
+---
+
+### ⚙️ Procedures and Functions
+
+| Feature | Used In | Count |
+|---------|---------|-------|
+| **Functions (returning integer)** | 8 | 8 |
+| **Functions (returning boolean)** | 1 | 1 |
+| **Procedures (void)** | 4 | 4 |
+| **Parameters by value** | 8 | 8 |
+| **Parameters by reference (`var`)** | 8 | 8 |
+| **Multiple parameters** (up to 3) | 8 | 8 |
+| **Function recursion** | 1 | 1 |
+
+**Function examples:**
+- `is_prime(n: integer): boolean` (primes_under_1000_list)
+- `append_node(var head: node_ptr; var tail: node_ptr; value: integer): integer`
+- `print_list(var head: node_ptr): integer`
+- `free_list(var head: node_ptr): integer`
+- `build_list(var head: node_ptr): integer` (const_list)
+- `make_list(var head: node_ptr; size: integer): integer`
+- `count_nodes(var head: node_ptr): integer`
+
+**Procedure examples:**
+- `append_node(var head: node_ptr; var tail: node_ptr; item: node_ptr)` (nested_s_expression_list)
+- `parse_list(var result: node_ptr)`
+- `print_nodes(nodes: node_ptr)`
+- `dispose_nodes(var nodes: node_ptr)`
+- `insert_tree(var t: tree_ptr; value: integer)` (tree_sort_wirth)
+- `print_in_order(t: tree_ptr; var first: boolean)`
+- `dispose_tree(var t: tree_ptr)`
 
 ---
 
-## Operators
+### 🖨️ I/O Operations
 
-| Category | Operators | Examples |
-|----------|-----------|----------|
-| **Arithmetic** | `+`, `-`, `*`, `/` | `total + 1`, `d * d`, `n mod d` |
-| **Modulo** | `mod` | `n mod 4`, `n mod d` |
-| **Comparison** | `=`, `<>`, `<`, `<=`, `>`, `>=` | `curr <> nil`, `n < 2`, `i <= size`, `depth = 0`, `value < t^.key` |
-| **Set Operations** | `in` | `n in selected` |
-| **Boolean** | `and`, `or`, `not` | `while (d * d <= n) and is_prime do`, `not done` |
-| **Assignment** | `:=` | `head := item`, `total := total + 1` |
+| Operation | Used In | Count |
+|-----------|---------|-------|
+| `readln` | 2 | 2 |
+| `write` | 8 | 8 |
+| `writeln` | 8 | 8 |
+| **Multi-argument write/writeln** | 8 | 8 |
+
+**I/O examples:**
+- `readln(ch)` (nested_s_expression_list, string_to_linked_list)
+- `write(curr^.value)` (case_bucket_lists)
+- `write(Prefix, curr^.value, ' ')` (const_list - multi-arg)
+- `writeln('built: ', built, ', printed0: ', printed0)` (case_bucket_lists - multi-arg)
+- `writeln('Tree sort:')` (tree_sort_wirth)
+
+---
+
+### 💾 Memory Management
+
+| Feature | Used In | Count |
+|---------|---------|-------|
+| `new(pointer)` | 8 | 8 |
+| `dispose(pointer)` | 8 | 8 |
+| `nil` | 8 | 8 |
+| `pointer^` (dereference) | 8 | 8 |
+| `pointer^.field` (field through pointer) | 8 | 8 |
+| `head := nil` (null assignment) | 8 | 8 |
+
+**Heap allocation patterns:**
+```pascal
+new(item);
+item^.value := value;
+item^.next := nil;
+```
+
+**Recursive disposal:**
+```pascal
+dispose_tree(t^.left);
+dispose_tree(t^.right);
+dispose(t);
+t := nil;
+```
 
 ---
 
-## Advanced Features
+### 🔢 Operators
 
-| Feature | Usage | Programs |
-|---------|-------|----------|
-| **Record Field Access** | `p^.field` | All programs |
-| **Recursive Procedures** | Self-calling procedures | nested_s_expression_list, tree_sort_wirth |
-| **Recursive Functions** | Self-calling functions | primes_under_1000_list (`is_prime` calls itself indirectly via loop) |
-| **Set Literals** | `[elements]` with ranges | set_to_list: `[1, 3, 4, 7, 10..12, 20, 31]` |
-| **Set Membership** | `x in Set` | set_to_list: `if n in selected then` |
-| **Type Declarations** | `type` section | All programs |
-| **Global Variables** | Top-level `var` | All programs |
-| **Local Variables** | Inside procedures/functions | All programs |
-| **Shadowing** | Parameters shadow globals | `var head: node_ptr` parameters vs global `head` |
-| **Expression Statements** | Complex expressions | `total := total + append_node(...)` |
+| Category | Operators | Used In |
+|----------|-----------|---------|
+| **Arithmetic** | `+`, `-`, `*`, `/` | 6 |
+| **Modulo** | `mod` | 4 |
+| **Comparison** | `=`, `<>`, `<`, `<=`, `>`, `>=` | 8 |
+| **Boolean** | `and`, `or`, `not` | 3 |
+| **Set** | `in`, `[...]` (set literal), `..` (range) | 1 |
+| **Assignment** | `:=` | All 9 |
+| **Member access** | `.` | 8 |
+| **Pointer dereference** | `^` | 8 |
 
----
----
-## Feature Usage Summary Table
-
-| Feature | case_bucket | count_list | for_count | nested_s | primes_1000 | set_to_list | string_to | tree_sort |
-|---------|-------------|------------|-----------|----------|-------------|-------------|-----------|-----------|
-| `integer` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | | ✓ |
-| `char` | | | | ✓ | | ✓ | ✓ | |
-| `boolean` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `record` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `^pointer` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `set of` | | | | | | ✓ | | |
-| `array` | | | | ✓ | | | ✓ | |
-| `type` alias | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `if/else` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `while` | ✓ | ✓ | | ✓ | ✓ | ✓ | ✓ | |
-| `for..to` | ✓ | | ✓ | | ✓ | ✓ | | |
-| `case` | ✓ | | | | | | | |
-| `recursion` | | | | ✓ | | | | ✓ |
-| `var` params | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | | ✓ |
-| `new/dispose` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `readln` | | | | ✓ | | | ✓ | |
-| `write/writeln` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `mod` | ✓ | | | | ✓ | | | |
-| `in` (set) | | | | | | ✓ | | |
+**Operator examples:**
+- `n mod d = 0` (primes_under_1000_list)
+- `d * d <= n` (primes_under_1000_list)
+- `n in selected` (set_to_list)
+- `[1, 3, 4, 7, 10..12, 20, 31]` (set_to_list)
+- `(d * d <= n) and is_prime` (primes_under_1000_list)
+- `if head = nil then` (count_list)
 
 ---
----
-## Notable Patterns
 
-1. **Linked List Construction**: All programs use the pattern of `new(item); item^.next := nil; if head = nil then head := item else tail^.next := item; tail := item`
+### 🏷️ Type Declarations
 
-2. **Memory Management**: Most programs pair `new` with `dispose` and explicitly set pointers to `nil` after freeing
+| Feature | Used In | Count |
+|---------|---------|-------|
+| `type` aliases | 8 | 8 |
+| Named record types | 8 | 8 |
+| Named pointer types | 8 | 8 |
 
-3. **Iteration Patterns**: Both `while` and `for` loops are used for list traversal; `for` is preferred for counted operations
-
-4. **Recursive Data Structures**: `nested_s_expression_list` demonstrates nested tree-like structures; `tree_sort_wirth` shows binary trees
-
-5. **Set Integration**: `set_to_list` demonstrates interoperability between Pascal sets and linked lists
-
-6. **Prime Algorithm**: `primes_under_1000_list` uses the trial division method with optimization `d * d <= n`
-
-7. **Case Statement**: `case_bucket_lists` uses `case n mod 4 of` with labeled branches and an `else` clause
-
----
----
-## Pascal Subset Coverage Summary
-
-This collection of programs exercises **~85-90%** of the compiler's supported Pascal subset:
-
-| Category | Coverage |
-|----------|----------|
-| **Data Types** | 100% (integer, boolean, char, record, pointer, set, array, type aliases) |
-| **Control Flow** | 100% (if/else, while, for, case, recursion) |
-| **Subprograms** | 100% (functions, procedures, var parameters, scalar parameters, recursion) |
-| **I/O** | 80% (readln, write, writeln; multi-arg supported) |
-| **Pointers** | 100% (new, dispose, nil, ^, field access) |
-| **Operators** | 90% (+, -, *, /, mod, =, <>, <, <=, >, >=, and, or, not, in) |
-| **Advanced** | ~80% (sets, records, type aliases, recursion, global/local shadowing) |
-
-**Not used in these examples but supported by compiler:**
-- Division operator `/`
-- `downto` in for loops
-- Pointer address-of (`@`) operator
-- Function return values used in expressions
-- Boolean/char write expressions
-- procedures with 4-6 parameters
+**Type declaration examples:**
+```pascal
+type
+  node = record
+    value: integer;
+    next: ^node;
+  end;
+  node_ptr = ^node;
+```
 
 ---
-Report generated at: Thu May  7 12:52:55 UTC 2026
-Commit SHA: c3b857bad10cbc4d78dff3b174347cad55902add
+
+### 📊 Feature Usage Summary Table
+
+| Feature | case_bucket | const_list | count_list | for_count | nested_s_expr | primes_1000 | set_to_list | string_to_ll | tree_sort | **Total** |
+|---------|-------------|------------|------------|-----------|--------------|-------------|-------------|-------------|-----------|----------|
+| `integer` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **9** |
+| `char` | ✅ | ✅ | | | ✅ | | ✅ | ✅ | | **5** |
+| `boolean` | | ✅ | ✅ | | ✅ | ✅ | | | | **4** |
+| `record` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **8** |
+| Pointers (`^`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **8** |
+| `array` | | | | | ✅ | | | ✅ | | **2** |
+| `set` | | | | | | | ✅ | | | **1** |
+| `const` | | ✅ | | | | | | | | **1** |
+| `if/else` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **9** |
+| `while` | ✅ | ✅ | ✅ | | ✅ | ✅ | ✅ | ✅ | | **7** |
+| `for..to` | ✅ | | | ✅ | | ✅ | ✅ | | | **4** |
+| `case` | ✅ | | | | | | | | | **1** |
+| Recursion | | | | | ✅ | | | | ✅ | **2** |
+| Functions | ✅ | ✅ | ✅ | ✅ | | ✅ | ✅ | | | **6** |
+| Procedures | | | | | ✅ | | | | ✅ | **2** |
+| `var` params | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | ✅ | **8** |
+| `new/dispose` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **9** |
+| `readln` | | | | | ✅ | | | ✅ | | **2** |
+| `write/writeln` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **9** |
+| Multi-arg I/O | ✅ | ✅ | ✅ | ✅ | | ✅ | ✅ | | ✅ | **7** |
+
+---
+
+## Key Observations
+
+### Most Used Features (Across All Programs)
+1. **Records + Pointers** - 8/9 programs use linked data structures
+2. **`new`/`dispose`** - All programs perform heap allocation/deallocation
+3. **`if/else`** - All 9 programs use conditional logic
+4. **`write`/`writeln`** - All 9 programs produce output
+5. **`while` loops** - 7 programs use while for iteration
+6. **`var` parameters** - 8 programs pass by reference
+7. **Functions returning integer** - 6 programs use integer-returning functions
+
+### Unique/Notable Features per Program
+| Program | Unique Feature |
+|---------|----------------|
+| `case_bucket_lists.pas` | `case ... of ... else ... end` statement |
+| `const_list.pas` | Typed `const` declarations with compile-time evaluation |
+| `for_count_list.pas` | `for ... to ... do` loops for all operations |
+| `nested_s_expression_list.pas` | Recursive parsing, nested records, `char` handling, `array` input buffer |
+| `primes_under_1000_list.pas` | Prime checking with `mod`, boolean function |
+| `set_to_list.pas` | **Pascal sets** with `set of 0..31`, membership (`in`), range literals (`10..12`) |
+| `string_to_linked_list.pas` | Character-linked list from user input |
+| `tree_sort_wirth.pas` | Binary search tree with recursive insert/traversal |
+
+### Advanced Pascal Features Demonstrated
+- ✅ **Typed pointers** with `^`, `nil`, `new`, `dispose`
+- ✅ **Recursion** in both procedures and functions
+- ✅ **By-reference parameters** (`var`) for modifying pointers
+- ✅ **Record field access through pointers** (`item^.value`, `t^.left`)
+- ✅ **Multi-argument `write`/`writeln`**
+- ✅ **Set types** with membership testing
+- ✅ **Typed constants** (global `const` declarations)
+- ✅ **`case` statements** with integer selectors
+- ✅ **`for` loops** with `to`
+- ✅ **Static arrays** for input buffering
+- ✅ **Type aliases** via `type` declarations
+
+### Not Used in `examples/lists/`
+- Division operator `/` (only `mod`, `*`, `+`, `-` used)
+- `downto` in `for` loops
+- `@` (address-of operator)
+- Division-by-zero handling
+- Global variables accessed within functions/procedures (all globals are passed or are standalone)
+- Forward declarations
+- Array bounds checking errors (arrays used are for input only)
+- Set algebra operators (`+`, `-`, `*`) - only membership (`in`) used
+
+---
+Report generated at: Fri May  8 07:41:19 UTC 2026
+Commit SHA: c50838fb7dae28f8a4c0457361f10bdfc23bedab
