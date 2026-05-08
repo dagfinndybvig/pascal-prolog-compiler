@@ -16,7 +16,7 @@ This is a **Pascal compiler written in SWI-Prolog** that compiles a subset of Pa
 - Heap allocation/deallocation via `new`/`dispose` with runtime null-pointer guards
 - Operators: `+`, `-`, `*`, `/`, `mod`, set membership (`in`), boolean operators (`and`, `or`, `not`), comparisons (`=`, `<>`, `<`, `<=`, `>`, `>=`) including set subset/superset via `<=`/`>=`
 - Control flow: `if`/`else`, `while`, `for ... to/downto ... do`, `case ... of ... else ... end`
-- **Constants**: Global and local `const` declarations with compile-time evaluation
+- **Constants**: Typed global and block-local `const` declarations (`Name: Type = Expr`) with compile-time evaluation and read-only semantics
 - Compiles to x86-64 assembly via GCC
 - Uses Prolog DCGs for parsing
 - **Subprograms**: scalar-returning functions and `void` procedures; up to 6 parameters; recursion supported
@@ -26,7 +26,7 @@ This is a **Pascal compiler written in SWI-Prolog** that compiles a subset of Pa
 - Top-level global `var` sections may appear before functions or after functions
 - Prime number algorithms are the primary test cases
 
-**Version**: 1.16.0 (2026-05-07) - Added `const` declarations for global and local constants, with support for integer, boolean, char, and pointer types. Added `examples/datatypes/const_demo.pas`.
+**Version**: 1.16.0 (2026-05-07) - Added typed `const` declarations for global and block-local constants, compile-time expression evaluation, and immutable constant semantics. Added `examples/datatypes/const_demo.pas`.
 **Previous**: 1.15.0 (2026-05-07) - Added set subset/superset relations (`<=`, `>=`), `examples/sets/set_subset_relations.pas`, Docker smoke validation, and refreshed docs for minor release consistency
 **Previous**: 1.14.0 (2026-05-07) - Added Pascal sets (bounded integer `set of Low..High`, literals, `in`, set algebra), `examples/sets/`, and refreshed docs for minor release consistency
 
@@ -229,7 +229,7 @@ Test completed successfully!
 
 ## Version History
 
-- **v1.16.0** (2026-05-07): Added `const` declarations for global and local constants, with support for integer, boolean, char, and pointer types. Added `examples/datatypes/const_demo.pas`.
+- **v1.16.0** (2026-05-07): Added typed `const` declarations for global and block-local constants, compile-time expression evaluation, and immutable constant semantics. Added `examples/datatypes/const_demo.pas`.
 - **v1.15.0** (2026-05-07): Added set subset/superset relations (`<=`, `>=`), added `examples/sets/set_subset_relations.pas`, and validated Docker helper workflow for release packaging
 - **v1.14.0** (2026-05-07): Added Pascal sets (`set of Low..High` in `0..63`), set literals/ranges, membership (`in`), set algebra (`+`, `-`, `*`), `examples/sets/`, and sets rollout docs
 - **v1.13.2** (2026-05-07): Added linked-list examples (`count_list`, `for_count_list`, `primes_under_1000_list`, `case_bucket_lists`), added GHCR Docker publishing workflow on `v*` tags, and refreshed docs

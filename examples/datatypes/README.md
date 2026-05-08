@@ -1,6 +1,6 @@
 # Datatype Examples
 
-These programs showcase the datatype features added in v1.5.0:
+These programs showcase datatype-focused features, primarily from v1.5.0 and later incremental releases.
 
 - `scalars_showcase.pas`: `boolean` and `char` variables, scalar functions, and boolean conditions.
 - `boolean_edge_cases.pas`: boolean `and`, `or`, and `not` operators in expressions and functions.
@@ -10,6 +10,7 @@ These programs showcase the datatype features added in v1.5.0:
 - `array_math_showcase.pas`: static integer arrays, indexed access, loops, and boolean function results.
 - `char_buffer_showcase.pas`: fixed-size `array of char` text output and function writes to a global char buffer.
 - `global_array_function_showcase.pas`: function writes to a global integer array and the main program reads it back.
+- `const_demo.pas`: typed `const` declarations with compile-time evaluation and immutable usage.
 
 Build any example with:
 
