@@ -6,6 +6,7 @@
 ]).
 
 :- use_module(library(process)).
+:- use_module(library(lists)).
 :- use_module(library(filesex)).
 :- use_module(src/parser).
 :- use_module(src/semantics).
