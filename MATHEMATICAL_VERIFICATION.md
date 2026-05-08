@@ -7,8 +7,8 @@
 
 ## Status
 **Result:** PASS
-**Date:** 2026-05-07
-**Version:** v1.15.0
+**Date:** 2026-05-08
+**Version:** v1.16.0
 
 This verification is reproducible from files in this release package. The current audit run used SWI-Prolog 9.0.4, GCC 13.3.0, and Python 3.12.1 in the development container.
 
@@ -28,6 +28,7 @@ The script:
 5. Runs backend hardening regression programs generated at verification time.
 6. Runs semantic hardening, function/global-access, declaration-order, datatype, and array regressions generated at verification time.
 7. Builds all set examples, including the v1.15.0 subset/superset relation examples.
+8. Builds and runs v1.16.0 typed-constant examples and rejects invalid constant mutations/usages.
 
 ## Verified Results
 
@@ -97,6 +98,10 @@ Verified additional regression checks in `scripts/verify_math.py`:
   - Confirms static integer arrays and fixed-size `array of char` output.
 - `array_bounds_check`
   - Confirms out-of-range array access exits through runtime bounds handling.
+- `const_list_example`
+  - Confirms the linked-list example using typed constants builds and produces the expected node values and counts.
+- `const_assign_rejected`, `const_readln_rejected`, `const_var_param_rejected`, `const_var_duplicate_rejected`, and `const_div_zero_rejected`
+  - Confirm typed constants remain immutable, cannot be used as input/`var` targets, cannot collide with variables in one scope, and reject invalid constant expressions.
 
 All listed checks currently pass.
 
@@ -108,4 +113,4 @@ All listed checks currently pass.
 
 ## Conclusion
 
-The prime-number examples are mathematically correct for their documented ranges, and the verification process is reproducible directly from this release. The verification suite now also includes backend safety, stress, declaration-order, datatype, and array regressions that pass in the current workspace state.
+The prime-number examples are mathematically correct for their documented ranges, and the verification process is reproducible directly from this release. The verification suite now also includes backend safety, stress, declaration-order, datatype, array, set, and typed-constant regressions that pass in the current workspace state.

@@ -142,6 +142,8 @@ This release adds typed `const` declarations and immutable constant usage across
   - constants cannot be passed to `var` parameters
 - ✅ New demonstration program:
   - `examples/datatypes/const_demo.pas`
+- ✅ New combined const + linked-list example:
+  - `examples/lists/const_list.pas`
 
 Current `const` syntax in this release requires explicit types (`Name: Type = Expr`).
 

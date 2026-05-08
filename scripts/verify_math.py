@@ -192,6 +192,25 @@ def main():
         "tail": comp_proc.stdout.splitlines()[-4:],
     }
 
+    const_list_proc = run([str(BIN_DIR / "const_list")])
+    checks["const_list_example"] = {
+        "returncode": const_list_proc.returncode,
+        "stdout_lines": [
+            line.strip() for line in const_list_proc.stdout.splitlines() if line.strip()
+        ],
+        "expected_stdout_lines": [
+            "#10 #13 #16 #19 #22",
+            "built: 5",
+            "counted: 5",
+            "freed: 5",
+        ],
+    }
+    checks["const_list_example"]["pass"] = (
+        checks["const_list_example"]["returncode"] == 0
+        and checks["const_list_example"]["stdout_lines"]
+        == checks["const_list_example"]["expected_stdout_lines"]
+    )
+
     pascal_triangle_proc = run([str(BIN_DIR / "full_binomial")])
     checks["pascal_triangle_demo"] = {
         "returncode": pascal_triangle_proc.returncode,
@@ -407,6 +426,62 @@ begin
 end.
 """,
             "type mismatch",
+        ),
+        "const_assign_rejected": (
+            """program const_assign_check;
+const
+  A: integer = 1;
+begin
+  A := 2
+end.
+""",
+            "cannot assign to constant",
+        ),
+        "const_readln_rejected": (
+            """program const_readln_check;
+const
+  A: integer = 1;
+begin
+  readln(A)
+end.
+""",
+            "cannot assign to constant",
+        ),
+        "const_var_param_rejected": (
+            """program const_var_param_check;
+const
+  A: integer = 1;
+procedure inc(var v: integer);
+begin
+  v := v + 1
+end;
+begin
+  inc(A)
+end.
+""",
+            "cannot assign to constant",
+        ),
+        "const_var_duplicate_rejected": (
+            """program const_var_duplicate_check;
+const
+  A: integer = 1;
+var
+  A: integer;
+begin
+  writeln(A)
+end.
+""",
+            "duplicate declaration",
+        ),
+        "const_div_zero_rejected": (
+            """program const_div_zero_check;
+const
+  A: integer = 1 / 0;
+begin
+  writeln(A)
+end.
+""",
+            "non_constant_expression",
         ),
     }
 
