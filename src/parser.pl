@@ -1,4 +1,4 @@
-- module(parser, [parse_file/2, parse_tokens/2]).
+:- module(parser, [parse_file/2, parse_tokens/2]).
 
 :- use_module(lexer).
 
@@ -7,7 +7,7 @@ parse_file(Path, Program) :-
     parse_tokens(Tokens, Program).
 
 parse_tokens(Tokens, Program) :-
-    (   phrase(program(Program), Tokens)
+    (   once(phrase(program(Program), Tokens))
     ->  true
     ;   throw(error(syntax_error(invalid_pascal_program), _))
     ).
@@ -66,19 +66,11 @@ const_decl(const_decl(Name, Type, Value)) -->
     expression(Value).
 
 top_level_declarations(Funcs, Vars) -->
-    const_declarations(ConstDecls),
     declarations(Vars),
     func_declarations(Funcs).
 top_level_declarations(Funcs, Vars) -->
-    const_declarations(ConstDecls),
     func_declarations(Funcs),
     declarations(Vars).
-top_level_declarations(Funcs, Vars) -->
-    func_declarations(Funcs),
-    declarations(Vars).
-top_level_declarations(Funcs, Vars) -->
-    declarations(Vars),
-    func_declarations(Funcs).
 
 func_declarations([First|Rest]) -->
     subprogram_decl(First),
@@ -277,8 +269,6 @@ block(block(LocalConsts, LocalVars, Stmts)) -->
 block_declarations(LocalConsts, LocalVars) -->
     const_declarations_block(LocalConsts),
     declarations(LocalVars).
-block_declarations([], LocalVars) -->
-    declarations(LocalVars).
 
 stmt_list([]) -->
     peek_keyword(end),
@@ -468,7 +458,7 @@ optional_else(Else) -->
     keyword(else),
     !,
     statement(Else).
-optional_else(block([], [])) -->
+optional_else(block([], [], [])) -->
     [].
 
 for_direction(to) --> keyword(to), !.
@@ -519,7 +509,7 @@ case_else(Body) -->
     keyword(else),
     !,
     statement(Body).
-case_else(block([], [])) --> [].
+case_else(block([], [], [])) --> [].
 
 peek_not_case_end(Stream, Stream) :-
     \+ next_is_case_end(Stream).

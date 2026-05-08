@@ -1,4 +1,4 @@
-- module(ir, [lower_program/2]).
+:- module(ir, [lower_program/2]).
 
 :- discontiguous lower_stmt/6.
 :- dynamic func_return_type/2.
@@ -58,25 +58,31 @@ vars_env([Decl|Vars], [Name-MappedName-Type|EnvTail]) :-
     vars_env(Vars, EnvTail).
 
 lower_consts([], _Env, []).
-lower_consts([const_decl(Name, Type, Value)|Rest], Env, [Name-Name-Type-ConstValue|ConstEnvTail]) :-
+lower_consts([const_decl(Name, Type, Value)|Rest], Env, [Name-const(Type, ConstValue)|ConstEnvTail]) :-
     eval_const_ir_expr(Value, Env, ConstValue),
-    lower_consts(Rest, Env, ConstEnvTail).
+    lower_consts(Rest, [Name-const(Type, ConstValue)|Env], ConstEnvTail).
 
 % Evaluate constant expressions to IR values
 eval_const_ir_expr(int(N), _Env, ir_int(N)).
 eval_const_ir_expr(bool(Value), _Env, ir_bool(Value)).
 eval_const_ir_expr(char(Code), _Env, ir_char(Code)).
 eval_const_ir_expr(nil, _Env, ir_int(0)).
+eval_const_ir_expr(var(Name), Env, IRValue) :-
+    lookup_const(Name, Env, IRValue, _Type),
+    !.
 eval_const_ir_expr(unary('-', Expr), Env, ir_unary('-', IRExpr)) :-
+    eval_const_ir_expr(Expr, Env, IRExpr).
+eval_const_ir_expr(unary(not, Expr), Env, ir_unary(not, IRExpr)) :-
     eval_const_ir_expr(Expr, Env, IRExpr).
 eval_const_ir_expr(bin(Op, Left, Right), Env, ir_bin(Op, IRLeft, IRRight)) :-
     eval_const_ir_expr(Left, Env, IRLeft),
     eval_const_ir_expr(Right, Env, IRRight).
 
 lower_funcs([], _, []).
-lower_funcs([func(Name, Params0, ReturnType0, FuncLocalVars0, block(BlockLocalVars0, Stmts))|Rest], GlobalEnv, [ir_func(Name, Params, ReturnType, FuncLocals, IRBody)|IRFuncsRest]) :-
+lower_funcs([func(Name, Params0, ReturnType0, FuncLocalVars0, block(BlockLocalConsts0, BlockLocalVars0, Stmts))|Rest], GlobalEnv, [ir_func(Name, Params, ReturnType, FuncLocals, IRBody)|IRFuncsRest]) :-
     resolve_decl_list(Params0, Params),
     resolve_decl_list(FuncLocalVars0, FuncLocalVars),
+    resolve_decl_list(BlockLocalConsts0, BlockLocalConsts),
     resolve_decl_list(BlockLocalVars0, BlockLocalVars),
     resolve_ir_type(ReturnType0, ReturnType),
     vars_env(Params, ParamEnv),
@@ -88,7 +94,7 @@ lower_funcs([func(Name, Params0, ReturnType0, FuncLocalVars0, block(BlockLocalVa
     append(FuncEnv0, LocalEnv, FuncEnv1),
     append(FuncEnv1, GlobalEnv, FuncEnv),
     append(FuncLocalVars, BlockLocalVars, AllLocalVars),
-    lower_block(block(AllLocalVars, Stmts), FuncEnv, 0, _CounterOut, IRBody, FuncLocals),
+    lower_block(block(BlockLocalConsts, AllLocalVars, Stmts), FuncEnv, 0, _CounterOut, IRBody, FuncLocals),
     lower_funcs(Rest, GlobalEnv, IRFuncsRest).
 
 lower_block(block(LocalConsts, LocalVars, Stmts), ParentEnv, CounterIn, CounterOut, IRStmts, AddedVars) :-
@@ -260,17 +266,21 @@ input_field_stmt(Type, _MappedName, _SlotOffset, _) :-
 
 map_name(Name, [Name-Mapped-_|_], Mapped) :-
     !.
-map_name(Name, [Name-_-Type-ConstValue|_], ConstValue) :-
-    !.
+map_name(Name, [Name-const(_, _)|_], _) :-
+    !,
+    fail.
 map_name(Name, [_|Rest], Mapped) :-
     map_name(Name, Rest, Mapped).
 
+lookup_const(Name, [Name-const(Type, ConstValue)|_], ConstValue, Type) :-
+    !.
+lookup_const(Name, [_|Rest], ConstValue, Type) :-
+    lookup_const(Name, Rest, ConstValue, Type).
+
 lookup_type(Name, [Name-_-Type|_], Type) :-
     !.
-lookup_type(Name, [Name-_-_-ConstValue|_], Type) :-
-    !,
-    functor(ConstValue, Functor, _),
-    arg(1, ConstValue, Type).
+lookup_type(Name, [Name-const(Type, _)|_], Type) :-
+    !.
 lookup_type(Name, [_|Rest], Type) :-
     lookup_type(Name, Rest, Type).
 
@@ -284,9 +294,9 @@ lower_expr(set_lit(Elements), Env, ir_set_const(Mask), set_literal(Bounds)) :-
     lower_set_literal(Elements, Env, Mask, Bounds).
 lower_expr(nil, _Env, ir_int(0), nil_type).
 lower_expr(var(Name), Env, IRExpr, Type) :-
-    (   map_name(Name, Env, ConstValue)
+    (   lookup_const(Name, Env, ConstValue, Type)
     ->  IRExpr = ConstValue,
-        functor(ConstValue, _, Type)
+        true
     ;   map_name(Name, Env, MappedName),
         lookup_type(Name, Env, Type),
         IRExpr = ir_var(MappedName)

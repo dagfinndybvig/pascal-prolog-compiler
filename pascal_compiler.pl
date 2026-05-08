@@ -13,11 +13,11 @@
 :- use_module(src/codegen_asm_x86_64).
 
 parse_pascal(SourcePath, AST) :-
-    parse_file(SourcePath, AST).
+    once(parse_file(SourcePath, AST)).
 
 check_pascal(SourcePath) :-
     parse_pascal(SourcePath, AST),
-    check_program(AST).
+    once(check_program(AST)).
 
 compile_to_c(SourcePath, COutPath) :-
     parse_pascal(SourcePath, AST),
@@ -30,15 +30,15 @@ compile_to_c(SourcePath, COutPath) :-
 % Compile to assembly
 compile_to_asm(SourcePath, AsmOutPath) :-
     parse_pascal(SourcePath, AST),
-    check_program(AST),
-    lower_program(AST, IRProgram),
+    once(check_program(AST)),
+    once(lower_program(AST, IRProgram)),
     write_asm_file(AsmOutPath, IRProgram).
 
 % Build executable via assembly
 build_asm(SourcePath, OutputPath) :-
     parse_pascal(SourcePath, AST),
-    check_program(AST),
-    lower_program(AST, IRProgram),
+    once(check_program(AST)),
+    once(lower_program(AST, IRProgram)),
     setup_call_cleanup(
         tmp_file_stream(text, TempAsmPath, AsmStream),
         (
@@ -174,6 +174,8 @@ prolog:message(error(unsupported_write_format, context(_, Detail))) -->
     [ 'unsupported write format (~w)'-[Detail] ].
 prolog:message(error(type_mismatch(Expected, Actual), context(_, Detail))) -->
     [ 'type mismatch: expected ~w, got ~w (~w)'-[Expected, Actual, Detail] ].
+prolog:message(error(assign_to_const(Name), context(_, Detail))) -->
+    [ 'cannot assign to constant: ~w (~w)'-[Name, Detail] ].
 prolog:message(error(undeclared_type(Name), context(_, Detail))) -->
     [ 'undeclared type: ~w (~w)'-[Name, Detail] ].
 prolog:message(error(recursive_type_alias(Name), context(_, Detail))) -->

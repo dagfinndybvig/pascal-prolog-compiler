@@ -1,4 +1,4 @@
-- module(lexer, [lex_file/2, lex_string/2]).
+:- module(lexer, [lex_file/2, lex_string/2]).
 
 :- use_module(library(readutil)).
 
@@ -74,7 +74,7 @@ consume_string_literal([], _, _, _) :-
     throw(error(syntax_error(unclosed_string_literal), _)).
 consume_string_literal([0'\n|_], _, _, _) :-
     throw(error(syntax_error(newline_in_string_literal), _)).
-consume_string_literal([0'', 0'''|Cs], Rest, [0'''|More], Used) :-
+consume_string_literal([0''', 0'''|Cs], Rest, [0'''|More], Used) :-
     !,
     consume_string_literal(Cs, Rest, More, Used0),
     Used is Used0 + 2.
@@ -158,14 +158,14 @@ consume_symbol(0'(, Rest, Rest, '(', 1) :- !.
 consume_symbol(0'), Rest, Rest, ')', 1) :- !.
 consume_symbol(0'[, Rest, Rest, '[', 1) :- !.
 consume_symbol(0'], Rest, Rest, ']', 1) :- !.
-consume_symbol(0'^', Rest, Rest, '^', 1) :- !.
+consume_symbol(0'^, Rest, Rest, '^', 1) :- !.
 consume_symbol(0'@, Rest, Rest, '@', 1) :- !.
 consume_symbol(0'+, Rest, Rest, '+', 1) :- !.
 consume_symbol(0'-, Rest, Rest, '-', 1) :- !.
-consume_symbol(0'*', Rest, Rest, '*', 1) :- !.
-consume_symbol(0'/', Rest, Rest, '/', 1) :- !.
-consume_symbol(0'=', Rest, Rest, '=', 1) :- !.
-consume_symbol(0'<', Rest, Rest, '<', 1) :- !.
-consume_symbol(0'>', Rest, Rest, '>', 1) :- !.
+consume_symbol(0'*, Rest, Rest, '*', 1) :- !.
+consume_symbol(0'/, Rest, Rest, '/', 1) :- !.
+consume_symbol(0'=, Rest, Rest, '=', 1) :- !.
+consume_symbol(0'<, Rest, Rest, '<', 1) :- !.
+consume_symbol(0'>, Rest, Rest, '>', 1) :- !.
 consume_symbol(Char, _, _, _, _) :-
     throw(error(syntax_error(unexpected_character(Char)), _)).
