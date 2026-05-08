@@ -1,0 +1,73 @@
+name: Verify Examples (verify_math.py)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (SWI-Prolog, GCC, Python)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            swi-prolog gcc python3
+          swipl --version
+          gcc --version | head -n1
+          python3 --version
+
+      - name: Run verification suite
+        run: |
+          python3 scripts/verify_math.py > verify_results.json
+
+      - name: Summarize results
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          with open('verify_results.json') as f:
+              data = json.load(f)
+          def walk(node):
+              out = []
+              if isinstance(node, dict):
+                  if 'pass' in node:
+                      out.append(node.get('pass'))
+                  else:
+                      for v in node.values():
+                          out.extend(walk(v))
+              return out
+          results = walk(data)
+          total = len(results)
+          passed = sum(1 for p in results if p)
+          failed = total - passed
+          print(f"Total checks: {total}  Passed: {passed}  Failed: {failed}")
+          if failed:
+              def collect(node, prefix=''):
+                  out = []
+                  if isinstance(node, dict):
+                      if 'pass' in node:
+                          if not node.get('pass'):
+                              out.append(prefix.rstrip('.'))
+                      else:
+                          for k, v in node.items():
+                              out.extend(collect(v, prefix + k + '.'))
+                  return out
+              for name in collect(data):
+                  print(f"FAIL: {name}")
+              sys.exit(1)
+          PY
+
+      - name: Upload results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-results
+          path: verify_results.json
