@@ -3,8 +3,9 @@ param(
     [string[]]$PascalArgs
 )
 
-$Image = if ($env:PASCALC_DOCKER_IMAGE) { $env:PASCALC_DOCKER_IMAGE } else { "pascal-prolog-compiler:1.16.1" }
 $RepoRoot = (Resolve-Path "$PSScriptRoot/..").Path
+$Version = (Get-Content -Path (Join-Path $RepoRoot 'VERSION') -Raw).Trim()
+$Image = if ($env:PASCALC_DOCKER_IMAGE) { $env:PASCALC_DOCKER_IMAGE } else { "pascal-prolog-compiler:$Version" }
 
 if (-not $PascalArgs -or $PascalArgs.Count -eq 0) {
     Write-Host "Usage: ./scripts/pascalc-docker.ps1 <compiler-command> [args...]"

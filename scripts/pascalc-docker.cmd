@@ -1,8 +1,11 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 
 set "IMAGE=%PASCALC_DOCKER_IMAGE%"
-if "%IMAGE%"=="" set "IMAGE=pascal-prolog-compiler:1.16.1"
+if "%IMAGE%"=="" (
+  set /p VERSION=<"%~dp0..\VERSION"
+  set "IMAGE=pascal-prolog-compiler:!VERSION!"
+)
 
 if "%~1"=="" (
   echo Usage: scripts\pascalc-docker.cmd ^<compiler-command^> [args...]
