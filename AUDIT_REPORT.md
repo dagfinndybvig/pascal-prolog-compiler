@@ -1,7 +1,7 @@
 # Pascal-Prolog Compiler Audit Report
 
 **Date:** 2026-05-08
-**Version:** 1.16.0
+**Version:** 1.16.1
 **Auditor:** Code Review
 
 ---
@@ -12,12 +12,12 @@ This educational Pascal-to-x86-64 compiler is well-structured with a clean pipel
 
 **Overall Status:** ✅ **Current audit findings addressed**
 
-**Current v1.16.0 Audit Snapshot (2026-05-08):**
+**Current v1.16.1 Audit Snapshot (2026-05-08):**
 - ✅ Git working tree was clean before audit fixes.
 - ✅ `scripts/verify_math.py` completed successfully and built all shipped Pascal examples recursively.
 - ✅ `examples/comprehensive_test.pas` built and ran with input `5`, producing the documented smoke-test output.
 - ✅ Set examples in `examples/sets/` build successfully, including `set_feature_showcase.pas`, `set_boundary_showcase.pas`, and `set_subset_relations.pas`.
-- ✅ Release hygiene issue fixed: Docker helper scripts and linked-list CI workflow now default to `pascal-prolog-compiler:1.16.0`.
+- ✅ Release hygiene issue fixed: Docker helper scripts and linked-list CI workflow now default to `pascal-prolog-compiler:1.16.1`.
 - ✅ Typed `const` examples build successfully, including `examples/datatypes/const_demo.pas` and `examples/lists/const_list.pas`.
 - ✅ Const semantic regressions reject assignment, `readln`, `var` parameter passing, duplicate const/var names, and invalid constant division.
 

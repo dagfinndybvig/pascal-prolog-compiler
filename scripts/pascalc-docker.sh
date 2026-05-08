@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-IMAGE="${PASCALC_DOCKER_IMAGE:-pascal-prolog-compiler:1.16.0}"
+IMAGE="${PASCALC_DOCKER_IMAGE:-pascal-prolog-compiler:1.16.1}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 

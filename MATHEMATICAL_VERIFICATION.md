@@ -8,7 +8,7 @@
 ## Status
 **Result:** PASS
 **Date:** 2026-05-08
-**Version:** v1.16.0
+**Version:** v1.16.1
 
 This verification is reproducible from files in this release package. The current audit run used SWI-Prolog 9.0.4, GCC 13.3.0, and Python 3.12.1 in the development container.
 
@@ -28,7 +28,7 @@ The script:
 5. Runs backend hardening regression programs generated at verification time.
 6. Runs semantic hardening, function/global-access, declaration-order, datatype, and array regressions generated at verification time.
 7. Builds all set examples, including the v1.15.0 subset/superset relation examples.
-8. Builds and runs v1.16.0 typed-constant examples and rejects invalid constant mutations/usages.
+8. Builds and runs typed-constant examples and rejects invalid constant mutations/usages.
 
 ## Verified Results
 
