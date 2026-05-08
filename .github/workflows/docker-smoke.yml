@@ -1,0 +1,57 @@
+name: Docker Smoke Test
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'scripts/pascalc-docker.*'
+      - 'runtime/**'
+      - 'src/**'
+      - 'pascal_compiler.pl'
+      - '.github/workflows/docker-smoke.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'scripts/pascalc-docker.*'
+      - 'runtime/**'
+      - 'src/**'
+      - 'pascal_compiler.pl'
+      - '.github/workflows/docker-smoke.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: docker-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PASCALC_DOCKER_IMAGE: pascal-prolog-compiler:ci
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: ${{ env.PASCALC_DOCKER_IMAGE }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke-test pascalc-docker.sh
+        run: |
+          ./scripts/pascalc-docker.sh build-asm \
+            examples/lists/string_to_linked_list.pas string_to_linked_list
+          output="$(printf '(a b c)\n' | ./string_to_linked_list)"
+          test "$output" = "list: [a] -> [b] -> [c] -> nil"
