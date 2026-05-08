@@ -1,5 +1,7 @@
 :- module(semantics, [check_program/1]).
 
+:- use_module(library(lists)).
+
 :- dynamic type_alias/2.
 
 check_program(program(_, ConstDecls, TypeDecls, Funcs, Vars, Block)) :-

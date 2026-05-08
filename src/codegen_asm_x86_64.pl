@@ -29,6 +29,8 @@
     asm_null_pointer_message/1 % asm_null_pointer_message(-Message)
 ]).
 
+:- use_module(library(lists)).
+
 % Counter for generating unique labels
 :- dynamic label_counter/1.
 label_counter(0).

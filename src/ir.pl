@@ -1,5 +1,7 @@
 :- module(ir, [lower_program/2]).
 
+:- use_module(library(lists)).
+
 :- discontiguous lower_stmt/6.
 :- dynamic func_return_type/2.
 :- dynamic func_param_modes/2.

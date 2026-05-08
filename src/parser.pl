@@ -1,5 +1,6 @@
 :- module(parser, [parse_file/2, parse_tokens/2]).
 
+:- use_module(library(lists)).
 :- use_module(lexer).
 
 parse_file(Path, Program) :-

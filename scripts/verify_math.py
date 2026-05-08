@@ -97,7 +97,8 @@ def build_example(pas_path):
             str(out_bin),
         ]
     )
-    return proc.returncode == 0, out_bin, proc.stderr.strip()
+    combined = (proc.stderr or "") + (proc.stdout or "")
+    return proc.returncode == 0, out_bin, combined.strip()
 
 
 def build_and_run_source(source_text, name, *, input_text=None, timeout=120):
