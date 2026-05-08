@@ -16,6 +16,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: vibe-lists-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   review:
     runs-on: ubuntu-latest
@@ -34,7 +38,7 @@ jobs:
       - name: Install Mistral Vibe
         run: |
           python -m pip install --upgrade pip
-          python -m pip install mistral-vibe
+          python -m pip install 'mistral-vibe==2.9.5'
 
       - name: Debug - List files in examples/lists
         run: ls -la examples/lists/ || echo "Directory does not exist or is empty"
@@ -81,7 +85,7 @@ jobs:
               sys.exit(1)
           print("Mistral API key validation passed.")
           PY
-          vibe --workdir . --trust --max-price 1.00 -p "Analyze all Pascal programs in examples/lists. Enumerate the Pascal subset used (data types, control structures, procedures, I/O, advanced features). Output a markdown report." 2>&1 | tee examples/lists/pascal-subset-report.md
+          vibe --workdir . --trust --max-price 1.00 -p "Analyze all Pascal programs in examples/lists. Enumerate the Pascal subset used (data types, control structures, procedures, I/O, advanced features). Output a markdown report." > examples/lists/pascal-subset-report.md
           # Add metadata
           echo "" >> examples/lists/pascal-subset-report.md
           echo "---" >> examples/lists/pascal-subset-report.md
