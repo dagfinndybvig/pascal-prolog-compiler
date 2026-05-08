@@ -1,7 +1,7 @@
-# Pascal-Prolog Assembly Backend - Release Version 1.15.0
+# Pascal-Prolog Assembly Backend - Release Version 1.16.0
 
 > [!WARNING]
-> This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`), static arrays, records, named type aliases, typed pointers (`^TypeName`), bounded integer sets (`set of Low..High`, v1 range `0..63`), `new`/`dispose`, procedures, `var` parameters (including arrays passed by reference), `for` loops, multi-argument `write`/`writeln`, and `case` statements, while still intentionally omitting full ISO Pascal features.
+> This project implements only a **fragment of Pascal**. It now supports typed scalar values (`integer`, `boolean`, `char`), typed `const` declarations, static arrays, records, named type aliases, typed pointers (`^TypeName`), bounded integer sets (`set of Low..High`, v1 range `0..63`), `new`/`dispose`, procedures, `var` parameters (including arrays passed by reference), `for` loops, multi-argument `write`/`writeln`, and `case` statements, while still intentionally omitting full ISO Pascal features.
 >
 > It is primarily a **Computer Science experiment** in language design, compiler construction, and algorithm exploration, not a full Pascal implementation.
 >
@@ -9,7 +9,7 @@
 
 ## 📦 Pascal-Prolog Assembly Backend Release
 
-**Version**: 1.15.0
+**Version**: 1.16.0
 **Release Date**: 2026-05-07
 **License**: Unlicense (Public Domain)
 
@@ -18,7 +18,7 @@
 From the repository root:
 
 ```bash
-docker build -t pascal-prolog-compiler:1.15.0 .
+docker build -t pascal-prolog-compiler:1.16.0 .
 ./scripts/pascalc-docker.sh build-asm examples/comprehensive_test.pas comprehensive_test
 ./scripts/pascalc-docker.sh check examples/comprehensive_test.pas
 ```
@@ -54,7 +54,7 @@ Use Docker Desktop to run the compiler consistently across platforms.
 ### 1. Build the image
 
 ```bash
-docker build -t pascal-prolog-compiler:1.15.0 .
+docker build -t pascal-prolog-compiler:1.16.0 .
 ```
 
 ### 2. Use one-command helper scripts
@@ -80,16 +80,16 @@ scripts\pascalc-docker.cmd build-asm examples\comprehensive_test.pas comprehensi
 Optional custom image tag:
 
 ```bash
-PASCALC_DOCKER_IMAGE=pascal-prolog-compiler:1.15.0 ./scripts/pascalc-docker.sh check examples/comprehensive_test.pas
+PASCALC_DOCKER_IMAGE=pascal-prolog-compiler:1.16.0 ./scripts/pascalc-docker.sh check examples/comprehensive_test.pas
 ```
 
 ```powershell
-$env:PASCALC_DOCKER_IMAGE = "pascal-prolog-compiler:1.15.0"
+$env:PASCALC_DOCKER_IMAGE = "pascal-prolog-compiler:1.16.0"
 ./scripts/pascalc-docker.ps1 check examples/comprehensive_test.pas
 ```
 
 ```bat
-set PASCALC_DOCKER_IMAGE=pascal-prolog-compiler:1.15.0
+set PASCALC_DOCKER_IMAGE=pascal-prolog-compiler:1.16.0
 scripts\pascalc-docker.cmd check examples\comprehensive_test.pas
 ```
 
@@ -98,20 +98,20 @@ scripts\pascalc-docker.cmd check examples\comprehensive_test.pas
 Mac/Linux:
 
 ```bash
-docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.15.0 build-asm examples/comprehensive_test.pas comprehensive_test
+docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.16.0 build-asm examples/comprehensive_test.pas comprehensive_test
 ```
 
 Windows PowerShell:
 
 ```powershell
-docker run --rm -v "${PWD}:/workspace" -w /workspace pascal-prolog-compiler:1.15.0 build-asm examples/comprehensive_test.pas comprehensive_test
+docker run --rm -v "${PWD}:/workspace" -w /workspace pascal-prolog-compiler:1.16.0 build-asm examples/comprehensive_test.pas comprehensive_test
 ```
 
 ### 4. Run semantic checks / parse only
 
 ```bash
-docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.15.0 check examples/comprehensive_test.pas
-docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.15.0 parse examples/comprehensive_test.pas
+docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.16.0 check examples/comprehensive_test.pas
+docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.16.0 parse examples/comprehensive_test.pas
 ```
 
 ### Notes
@@ -121,7 +121,31 @@ docker run --rm -v "$PWD:/workspace" -w /workspace pascal-prolog-compiler:1.15.0
 - The binary architecture matches the container architecture. On Apple Silicon, use `--platform linux/amd64` with `docker build` and `docker run` if you need x86-64 Linux output.
 - If PowerShell blocks script execution, use `scripts\pascalc-docker.cmd` from cmd.exe, or run PowerShell with an execution policy that allows local scripts.
 
-## 🆕 What's New In v1.15.0
+## 🆕 What's New In v1.16.0
+
+### Typed constants (`const`) with compile-time evaluation
+
+This release adds typed `const` declarations and immutable constant usage across the full compiler pipeline:
+
+- ✅ Global constants at program scope:
+  - `const MaxSize: integer = 100;`
+- ✅ Block-local constants inside `begin ... end` blocks:
+  - `const Step: integer = 2;`
+- ✅ Compile-time constant expressions:
+  - literals (`integer`, `boolean`, `char`, `nil`)
+  - arithmetic (`+`, `-`, `*`, `/`, `mod`)
+  - unary (`-`, `not`)
+  - reference to previously declared constants in the same scope chain
+- ✅ Immutable semantics:
+  - constants cannot be assigned to
+  - constants cannot be used as `readln` targets
+  - constants cannot be passed to `var` parameters
+- ✅ New demonstration program:
+  - `examples/datatypes/const_demo.pas`
+
+Current `const` syntax in this release requires explicit types (`Name: Type = Expr`).
+
+## 🆕 Previous: v1.15.0
 
 ### Sets v2 relations and Docker smoke path
 
@@ -670,6 +694,7 @@ This release supports a **practical subset** of Pascal focused on core programmi
 
 #### ✅ Supported Features
 - **Typed variables**: `integer`, `boolean`, `char`, and static arrays
+- **Typed constants**: global and block-local `const` declarations (`Name: Type = Expr`) with compile-time evaluation and read-only semantics
 - **Typed sets**: bounded integer sets via `set of Low..High` (v1 bounds `0..63`)
 - **Integers**: 32-bit signed integer arithmetic (`+`, `-`, `*`, `/`, `mod`)
   - **Division**: Integer division (truncates toward zero, e.g., `7/2 = 3`)

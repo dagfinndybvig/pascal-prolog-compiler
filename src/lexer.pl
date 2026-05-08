@@ -15,7 +15,7 @@ lex_codes([C|Cs], Line, Col, Tokens) :-
     (   code_type(C, space)
     ->  advance_space(C, Line, Col, NextLine, NextCol),
         lex_codes(Cs, NextLine, NextCol, Tokens)
-    ;   C =:= 0'{
+    ;   C =:= 0'{ 
     ->  skip_brace_comment(Cs, Line, Col, Rest, NextLine, NextCol),
         lex_codes(Rest, NextLine, NextCol, Tokens)
     ;   C =:= 0'/, Cs = [0'/|Tail]
@@ -109,6 +109,7 @@ consume_digits(Rest, Rest, []).
 keyword_or_ident(program, kw(program)) :- !.
 keyword_or_ident(type, kw(type)) :- !.
 keyword_or_ident(var, kw(var)) :- !.
+keyword_or_ident(const, kw(const)) :- !.
 keyword_or_ident(integer, kw(integer)) :- !.
 keyword_or_ident(boolean, kw(boolean)) :- !.
 keyword_or_ident(char, kw(char)) :- !.

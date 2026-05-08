@@ -5,13 +5,16 @@
 :- dynamic func_param_modes/2.
 :- dynamic ir_type_alias/2.
 
-lower_program(program(Name, Types, Funcs, Vars, Block), ir_program(Name, IRFuncs, AllVars, IRStmts)) :-
+lower_program(program(Name, ConstDecls, Types, Funcs, Vars, Block), ir_program(Name, IRFuncs, AllVars, IRStmts)) :-
     init_ir_type_aliases(Types),
+    resolve_decl_list(ConstDecls, ResolvedConsts),
     resolve_decl_list(Vars, ResolvedVars),
     init_func_metadata(Funcs),
     vars_env(ResolvedVars, GlobalEnv),
-    lower_funcs(Funcs, GlobalEnv, IRFuncs),
-    lower_block(Block, GlobalEnv, 0, _CounterOut, IRStmts, LocalVars),
+    lower_consts(ResolvedConsts, GlobalEnv, ConstEnv),
+    append(ConstEnv, GlobalEnv, FullGlobalEnv),
+    lower_funcs(Funcs, FullGlobalEnv, IRFuncs),
+    lower_block(Block, FullGlobalEnv, 0, _CounterOut, IRStmts, LocalVars),
     append(ResolvedVars, LocalVars, AllVars).
 
 init_ir_type_aliases(TypeDecls) :-
@@ -33,10 +36,12 @@ param_modes([param_var(_, _)|Rest], [var_ref|ModeRest]) :- param_modes(Rest, Mod
 decl_name(decl(Name, _), Name).
 decl_name(param(Name, _), Name).
 decl_name(param_var(Name, _), Name).
+decl_name(const_decl(Name, _, _), Name).
 
 decl_type(decl(_, Type0), Type) :- resolve_ir_type(Type0, Type).
 decl_type(param(_, Type0), Type) :- resolve_ir_type(Type0, Type).
 decl_type(param_var(_, Type0), Type) :- resolve_ir_type(Type0, Type).
+decl_type(const_decl(_, Type0, _), Type) :- resolve_ir_type(Type0, Type).
 
 rename_decl(decl(_, Type0), MappedName, decl(MappedName, Type)) :-
     resolve_ir_type(Type0, Type).
@@ -52,10 +57,32 @@ vars_env([Decl|Vars], [Name-MappedName-Type|EnvTail]) :-
     MappedName = Name,
     vars_env(Vars, EnvTail).
 
+lower_consts([], _Env, []).
+lower_consts([const_decl(Name, Type, Value)|Rest], Env, [Name-const(Type, ConstValue)|ConstEnvTail]) :-
+    eval_const_ir_expr(Value, Env, ConstValue),
+    lower_consts(Rest, [Name-const(Type, ConstValue)|Env], ConstEnvTail).
+
+% Evaluate constant expressions to IR values
+eval_const_ir_expr(int(N), _Env, ir_int(N)).
+eval_const_ir_expr(bool(Value), _Env, ir_bool(Value)).
+eval_const_ir_expr(char(Code), _Env, ir_char(Code)).
+eval_const_ir_expr(nil, _Env, ir_int(0)).
+eval_const_ir_expr(var(Name), Env, IRValue) :-
+    lookup_const(Name, Env, IRValue, _Type),
+    !.
+eval_const_ir_expr(unary('-', Expr), Env, ir_unary('-', IRExpr)) :-
+    eval_const_ir_expr(Expr, Env, IRExpr).
+eval_const_ir_expr(unary(not, Expr), Env, ir_unary(not, IRExpr)) :-
+    eval_const_ir_expr(Expr, Env, IRExpr).
+eval_const_ir_expr(bin(Op, Left, Right), Env, ir_bin(Op, IRLeft, IRRight)) :-
+    eval_const_ir_expr(Left, Env, IRLeft),
+    eval_const_ir_expr(Right, Env, IRRight).
+
 lower_funcs([], _, []).
-lower_funcs([func(Name, Params0, ReturnType0, FuncLocalVars0, block(BlockLocalVars0, Stmts))|Rest], GlobalEnv, [ir_func(Name, Params, ReturnType, FuncLocals, IRBody)|IRFuncsRest]) :-
+lower_funcs([func(Name, Params0, ReturnType0, FuncLocalVars0, block(BlockLocalConsts0, BlockLocalVars0, Stmts))|Rest], GlobalEnv, [ir_func(Name, Params, ReturnType, FuncLocals, IRBody)|IRFuncsRest]) :-
     resolve_decl_list(Params0, Params),
     resolve_decl_list(FuncLocalVars0, FuncLocalVars),
+    resolve_decl_list(BlockLocalConsts0, BlockLocalConsts),
     resolve_decl_list(BlockLocalVars0, BlockLocalVars),
     resolve_ir_type(ReturnType0, ReturnType),
     vars_env(Params, ParamEnv),
@@ -67,13 +94,15 @@ lower_funcs([func(Name, Params0, ReturnType0, FuncLocalVars0, block(BlockLocalVa
     append(FuncEnv0, LocalEnv, FuncEnv1),
     append(FuncEnv1, GlobalEnv, FuncEnv),
     append(FuncLocalVars, BlockLocalVars, AllLocalVars),
-    lower_block(block(AllLocalVars, Stmts), FuncEnv, 0, _CounterOut, IRBody, FuncLocals),
+    lower_block(block(BlockLocalConsts, AllLocalVars, Stmts), FuncEnv, 0, _CounterOut, IRBody, FuncLocals),
     lower_funcs(Rest, GlobalEnv, IRFuncsRest).
 
-lower_block(block(LocalVars, Stmts), ParentEnv, CounterIn, CounterOut, IRStmts, AddedVars) :-
+lower_block(block(LocalConsts, LocalVars, Stmts), ParentEnv, CounterIn, CounterOut, IRStmts, AddedVars) :-
+    lower_consts(LocalConsts, ParentEnv, ConstEnv),
+    append(ConstEnv, ParentEnv, ScopeEnv),
     allocate_locals(LocalVars, CounterIn, CounterNext, LocalMappings, LocalAllocations),
-    append(LocalMappings, ParentEnv, ScopeEnv),
-    lower_stmts(Stmts, ScopeEnv, CounterNext, CounterOut, IRStmts, NestedAllocations),
+    append(LocalMappings, ScopeEnv, FullScopeEnv),
+    lower_stmts(Stmts, FullScopeEnv, CounterNext, CounterOut, IRStmts, NestedAllocations),
     append(LocalAllocations, NestedAllocations, AddedVars).
 
 allocate_locals([], Counter, Counter, [], []).
@@ -196,8 +225,8 @@ lower_stmt(new_ptr(LValue), Env, Counter, Counter, ir_new(IRAddrExpr, ByteSize),
 lower_stmt(dispose_ptr(LValue), Env, Counter, Counter, ir_dispose(IRPtrExpr), []) :-
     lower_expr(LValue, Env, IRPtrExpr, PtrType),
     ensure_ptr_target_type(PtrType, _).
-lower_stmt(block(LocalVars, Stmts), Env, CounterIn, CounterOut, ir_block(IRStmts), AddedVars) :-
-    lower_block(block(LocalVars, Stmts), Env, CounterIn, CounterOut, IRStmts, AddedVars).
+lower_stmt(block(LocalConsts, LocalVars, Stmts), Env, CounterIn, CounterOut, ir_block(IRStmts), AddedVars) :-
+    lower_block(block(LocalConsts, LocalVars, Stmts), Env, CounterIn, CounterOut, IRStmts, AddedVars).
 lower_stmt(proc_call(Name, Args), Env, Counter, Counter, ir_proc_call(Name, IRArgs), []) :-
     func_param_modes(Name, Modes),
     lower_call_args(Args, Modes, Env, IRArgs).
@@ -237,10 +266,20 @@ input_field_stmt(Type, _MappedName, _SlotOffset, _) :-
 
 map_name(Name, [Name-Mapped-_|_], Mapped) :-
     !.
+map_name(Name, [Name-const(_, _)|_], _) :-
+    !,
+    fail.
 map_name(Name, [_|Rest], Mapped) :-
     map_name(Name, Rest, Mapped).
 
+lookup_const(Name, [Name-const(Type, ConstValue)|_], ConstValue, Type) :-
+    !.
+lookup_const(Name, [_|Rest], ConstValue, Type) :-
+    lookup_const(Name, Rest, ConstValue, Type).
+
 lookup_type(Name, [Name-_-Type|_], Type) :-
+    !.
+lookup_type(Name, [Name-const(Type, _)|_], Type) :-
     !.
 lookup_type(Name, [_|Rest], Type) :-
     lookup_type(Name, Rest, Type).
@@ -253,10 +292,15 @@ lower_expr(bool(Value), _Env, ir_bool(Value), boolean).
 lower_expr(char(Code), _Env, ir_char(Code), char).
 lower_expr(set_lit(Elements), Env, ir_set_const(Mask), set_literal(Bounds)) :-
     lower_set_literal(Elements, Env, Mask, Bounds).
-   lower_expr(nil, _Env, ir_int(0), nil_type).
-lower_expr(var(Name), Env, ir_var(MappedName), Type) :-
-    map_name(Name, Env, MappedName),
-    lookup_type(Name, Env, Type).
+lower_expr(nil, _Env, ir_int(0), nil_type).
+lower_expr(var(Name), Env, IRExpr, Type) :-
+    (   lookup_const(Name, Env, ConstValue, Type)
+    ->  IRExpr = ConstValue,
+        true
+    ;   map_name(Name, Env, MappedName),
+        lookup_type(Name, Env, Type),
+        IRExpr = ir_var(MappedName)
+    ).
 lower_expr(addr_of(Name), Env, ir_addr_of(MappedName), ptr(Type)) :-
     map_name(Name, Env, MappedName),
     lookup_type(Name, Env, Type).
@@ -453,6 +497,8 @@ resolve_decl(decl(Name, Type0), decl(Name, Type)) :-
 resolve_decl(param(Name, Type0), param(Name, Type)) :-
     resolve_ir_type(Type0, Type).
 resolve_decl(param_var(Name, Type0), param_var(Name, Type)) :-
+    resolve_ir_type(Type0, Type).
+resolve_decl(const_decl(Name, Type0, Value), const_decl(Name, Type, Value)) :-
     resolve_ir_type(Type0, Type).
 
 resolve_ir_type(Type, Resolved) :-

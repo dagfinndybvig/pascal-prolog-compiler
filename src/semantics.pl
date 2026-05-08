@@ -2,11 +2,14 @@
 
 :- dynamic type_alias/2.
 
-check_program(program(_, TypeDecls, Funcs, Vars, Block)) :-
+check_program(program(_, ConstDecls, TypeDecls, Funcs, Vars, Block)) :-
     init_type_aliases(TypeDecls),
+    check_const_decls(ConstDecls, [], GlobalConstEnv),
     ensure_no_duplicate_decls(Vars),
+    ensure_const_var_disjoint(ConstDecls, Vars),
     ensure_valid_decls(Vars),
-    decls_env(Vars, GlobalEnv),
+    decls_env(Vars, GlobalVarEnv),
+    append(GlobalConstEnv, GlobalVarEnv, GlobalEnv),
     check_funcs(Funcs, GlobalEnv, FuncSigs),
     check_block(Block, GlobalEnv, FuncSigs).
 
@@ -62,23 +65,27 @@ resolve_record_fields([field(Name, Type)|Rest], Seen, [field(Name, ResolvedType)
 decl_name(decl(Name, _), Name).
 decl_name(param(Name, _), Name).
 decl_name(param_var(Name, _), Name).
+decl_name(const_decl(Name, _, _), Name).
 
 decl_type(decl(_, Type), Type).
 decl_type(param(_, Type), Type).
 decl_type(param_var(_, Type), Type).
+decl_type(const_decl(_, Type, _), Type).
 
 param_spec(param(_, Type), spec(value, Type)).
 param_spec(param_var(_, Type), spec(var_ref, Type)).
 
-decl_env_entry(Decl, Name-Type) :-
-    decl_name(Decl, Name),
-    decl_type(Decl, RawType),
-    resolve_type(RawType, Type).
+const_name_type(const_decl(Name, Type, _), Name-Type).
 
 decls_env([], []).
 decls_env([Decl|Decls], [Entry|Env]) :-
     decl_env_entry(Decl, Entry),
     decls_env(Decls, Env).
+
+decl_env_entry(Decl, Name-Type) :-
+    decl_name(Decl, Name),
+    decl_type(Decl, RawType),
+    resolve_type(RawType, Type).
 
 decl_names(Decls, Names) :-
     findall(Name, (member(Decl, Decls), decl_name(Decl, Name)), Names).
@@ -97,6 +104,59 @@ ensure_no_duplicates(Vars) :-
 has_duplicate([X, X|_], X) :- !.
 has_duplicate([_|Rest], Dup) :-
     has_duplicate(Rest, Dup).
+
+% Check const declarations and build read-only environment entries.
+check_const_decls([], _VarsInScope, []).
+check_const_decls([const_decl(Name, Type, Expr)|Rest], VarsInScope, [Name-const(Type, Value)|ConstEnvRest]) :-
+    ensure_no_duplicate_const(Name, VarsInScope),
+    ensure_valid_type(Type),
+    eval_const_expr(Expr, VarsInScope, Value, EvaluatedType),
+    ensure_assignable(Type, EvaluatedType),
+    check_const_decls(Rest, [Name-const(Type, Value)|VarsInScope], ConstEnvRest).
+
+ensure_const_var_disjoint(ConstDecls, Vars) :-
+    findall(Name, member(decl(Name, _), Vars), VarNames),
+    forall(member(const_decl(ConstName, _, _), ConstDecls),
+           (   memberchk(ConstName, VarNames)
+           ->  throw(error(duplicate_declaration(ConstName), context(semantics/ensure_const_var_disjoint, 'const and var share the same name in one scope')))
+           ;   true
+           )).
+
+ensure_no_duplicate_const(Name, VarsInScope) :-
+    (   memberchk(Name-_, VarsInScope)
+    ->  throw(error(duplicate_declaration(Name), context(semantics/ensure_no_duplicate_const, 'Constant declared multiple times')))
+    ;   true
+    ).
+
+% Evaluate constant expressions (literals, simple arithmetic, etc.)
+eval_const_expr(int(N), _Vars, int(N), integer).
+eval_const_expr(bool(Value), _Vars, bool(Value), boolean).
+eval_const_expr(char(Code), _Vars, char(Code), char).
+eval_const_expr(nil, _Vars, nil, nil_type).
+eval_const_expr(var(Name), Vars, Value, Type) :-
+    memberchk(Name-const(Type, Value), Vars),
+    !.
+eval_const_expr(unary('-', Expr), Vars, int(Value), integer) :-
+    eval_const_expr(Expr, Vars, int(Inner), integer),
+    Value is -Inner.
+eval_const_expr(unary(not, Expr), Vars, bool(Value), boolean) :-
+    eval_const_expr(Expr, Vars, bool(Inner), boolean),
+    (   Inner == true
+    ->  Value = false
+    ;   Value = true
+    ).
+eval_const_expr(bin(Op, Left, Right), Vars, int(Value), integer) :-
+    eval_const_expr(Left, Vars, int(LVal), integer),
+    eval_const_expr(Right, Vars, int(RVal), integer),
+    eval_bin_op(Op, LVal, RVal, Value).
+eval_const_expr(Expr, _Vars, _Value, _Type) :-
+    throw(error(non_constant_expression(Expr), context(semantics/eval_const_expr, 'Const expression must be a constant'))).
+
+eval_bin_op('+', L, R, S) :- S is L + R.
+eval_bin_op('-', L, R, S) :- S is L - R.
+eval_bin_op('*', L, R, S) :- S is L * R.
+eval_bin_op('/', L, R, S) :- R =\= 0, S is L // R.
+eval_bin_op(mod, L, R, S) :- R =\= 0, S is L mod R.
 
 check_funcs(Funcs, GlobalEnv, FuncSigs) :-
     collect_func_sigs(Funcs, FuncSigs),
@@ -150,12 +210,13 @@ check_all_func_bodies([func(Name, Params, ReturnType, LocalVars, Body)|Rest], Gl
     append([Name|ParamNames], LocalNames, FuncScopeNames),
     ensure_no_duplicates(FuncScopeNames),
     decls_env(Params, ParamEnv),
-    decls_env(LocalVars, LocalEnv),
     (   ReturnType == void
-    ->  append(ParamEnv, LocalEnv, FuncScope)
-    ;   append([Name-ReturnType|ParamEnv], LocalEnv, FuncScope)
+    ->  FuncEnv0 = ParamEnv
+    ;   append(ParamEnv, [Name-ReturnType], FuncEnv0)
     ),
-    append(FuncScope, GlobalEnv, VarsInScope),
+    decls_env(LocalVars, LocalEnv),
+    append(FuncEnv0, LocalEnv, FuncEnv),
+    append(FuncEnv, GlobalEnv, VarsInScope),
     check_block(Body, VarsInScope, FuncSigs),
     check_all_func_bodies(Rest, GlobalEnv, FuncSigs).
 
@@ -165,28 +226,33 @@ check_stmts([Stmt|Rest], Vars, FuncSigs) :-
     check_stmts(Rest, Vars, FuncSigs).
 
 check_stmt(assign(Name, Expr), Vars, FuncSigs) :-
+    ensure_writable_name(Name, Vars),
     ensure_declared(Name, Vars, TargetType),
     ensure_not_aggregate(TargetType),
     check_expr(Expr, Vars, FuncSigs, ExprType),
     ensure_assignable(TargetType, ExprType).
 check_stmt(assign_index(Name, IndexExpr, Expr), Vars, FuncSigs) :-
+    ensure_writable_name(Name, Vars),
     ensure_declared(Name, Vars, array(_Low, _High, ElementType)),
     check_expr(IndexExpr, Vars, FuncSigs, integer),
     check_expr(Expr, Vars, FuncSigs, ExprType),
     ensure_assignable(ElementType, ExprType).
 check_stmt(assign_field(Name, Field, Expr), Vars, FuncSigs) :-
+    ensure_writable_name(Name, Vars),
     ensure_declared(Name, Vars, RecordType),
     ensure_record_type(RecordType, Name, Fields),
     ensure_record_field(Fields, Name, Field, FieldType),
     check_expr(Expr, Vars, FuncSigs, ExprType),
     ensure_assignable(FieldType, ExprType).
 check_stmt(assign_ptr_field(Name, Field, Expr), Vars, FuncSigs) :-
+    ensure_writable_name(Name, Vars),
     ensure_declared(Name, Vars, PtrType),
     ensure_pointer_target_record(PtrType, Name, Fields),
     ensure_record_field(Fields, Name, Field, FieldType),
     check_expr(Expr, Vars, FuncSigs, ExprType),
     ensure_assignable(FieldType, ExprType).
 check_stmt(assign_deref(Name, Expr), Vars, FuncSigs) :-
+    ensure_writable_name(Name, Vars),
     ensure_declared(Name, Vars, PtrType),
     ensure_pointer_type(PtrType, Name, TargetType),
     ensure_not_aggregate(TargetType),
@@ -230,21 +296,25 @@ check_stmt(write(_, Expr), Vars, FuncSigs) :-
     check_expr(Expr, Vars, FuncSigs, Type),
     ensure_writable_type(Type).
 check_stmt(readln(Name), Vars, _) :-
+    ensure_writable_name(Name, Vars),
     ensure_declared(Name, Vars, Type),
     ensure_readable_type(Type).
 check_stmt(readln_field(Name, Field), Vars, _) :-
+    ensure_writable_name(Name, Vars),
     ensure_declared(Name, Vars, RecordType),
     ensure_record_type(RecordType, Name, Fields),
     ensure_record_field(Fields, Name, Field, FieldType),
     ensure_readable_type(FieldType).
 check_stmt(new_ptr(LValue), Vars, _) :-
+    ensure_writable_lvalue(LValue, Vars),
     lvalue_type(LValue, Vars, LType),
     ensure_pointer_type(LType, LValue, _TargetType).
 check_stmt(dispose_ptr(LValue), Vars, _) :-
+    ensure_writable_lvalue(LValue, Vars),
     lvalue_type(LValue, Vars, LType),
     ensure_pointer_type(LType, LValue, _TargetType).
-check_stmt(block(LocalVars, Stmts), Vars, FuncSigs) :-
-    check_block(block(LocalVars, Stmts), Vars, FuncSigs).
+check_stmt(block(LocalConsts, LocalVars, Stmts), Vars, FuncSigs) :-
+    check_block(block(LocalConsts, LocalVars, Stmts), Vars, FuncSigs).
 check_stmt(proc_call(Name, Args), Vars, FuncSigs) :-
     ensure_function_declared(Name, FuncSigs, ParamSpecs, _ReturnType),
     length(Args, ActualArity),
@@ -355,6 +425,7 @@ check_call_args([Arg|Rest], [spec(var_ref, Type)|SpecRest], FuncName, Vars, Func
 
 ensure_var_ref_arg(var(Name), Type, _FuncName, Vars) :-
     !,
+    ensure_writable_name(Name, Vars),
     ensure_declared(Name, Vars, ActualType),
     resolve_type(ActualType, ResolvedActual),
     resolve_type(Type, ResolvedType),
@@ -364,6 +435,7 @@ ensure_var_ref_arg(var(Name), Type, _FuncName, Vars) :-
     ).
 ensure_var_ref_arg(field_ref(Name, Field), Type, _FuncName, Vars) :-
     !,
+    ensure_writable_name(Name, Vars),
     ensure_declared(Name, Vars, RecordType),
     ensure_record_type(RecordType, Name, Fields),
     ensure_record_field(Fields, Name, Field, ActualType),
@@ -375,6 +447,7 @@ ensure_var_ref_arg(field_ref(Name, Field), Type, _FuncName, Vars) :-
     ).
 ensure_var_ref_arg(ptr_deref(Name), Type, _FuncName, Vars) :-
     !,
+    ensure_writable_name(Name, Vars),
     ensure_declared(Name, Vars, PtrType),
     ensure_pointer_type(PtrType, Name, ActualType),
     resolve_type(ActualType, ResolvedActual),
@@ -385,6 +458,7 @@ ensure_var_ref_arg(ptr_deref(Name), Type, _FuncName, Vars) :-
     ).
 ensure_var_ref_arg(ptr_field_ref(Name, Field), Type, _FuncName, Vars) :-
     !,
+    ensure_writable_name(Name, Vars),
     ensure_declared(Name, Vars, PtrType),
     ensure_pointer_target_record(PtrType, Name, Fields),
     ensure_record_field(Fields, Name, Field, ActualType),
@@ -397,8 +471,30 @@ ensure_var_ref_arg(ptr_field_ref(Name, Field), Type, _FuncName, Vars) :-
 ensure_var_ref_arg(Arg, _Type, FuncName, _Vars) :-
     throw(error(var_arg_not_lvalue(FuncName, Arg), context(semantics/ensure_var_ref_arg, 'var parameter requires a variable argument'))).
 
+ensure_writable_name(Name, Vars) :-
+    (   memberchk(Name-const(_, _), Vars)
+    ->  throw(error(assign_to_const(Name), context(semantics/ensure_writable_name, 'Constant values are read-only')))
+    ;   true
+    ).
+
+ensure_writable_lvalue(var(Name), Vars) :-
+    !,
+    ensure_writable_name(Name, Vars).
+ensure_writable_lvalue(field_ref(Name, _), Vars) :-
+    !,
+    ensure_writable_name(Name, Vars).
+ensure_writable_lvalue(ptr_deref(Name), Vars) :-
+    !,
+    ensure_writable_name(Name, Vars).
+ensure_writable_lvalue(ptr_field_ref(Name, _), Vars) :-
+    !,
+    ensure_writable_name(Name, Vars).
+ensure_writable_lvalue(_, _).
+
 ensure_declared(Name, Vars, Type) :-
-    (   memberchk(Name-ActualType, Vars)
+    (   memberchk(Name-const(ConstType, _), Vars)
+    ->  ensure_expected_type(Type, ConstType)
+    ;   memberchk(Name-ActualType, Vars)
     ->  ensure_expected_type(Type, ActualType)
     ;   throw(error(undeclared_variable(Name), context(semantics/ensure_declared, 'Variable not declared in current scope')))
     ).
@@ -674,9 +770,12 @@ lvalue_type(ptr_field_ref(Name, Field), Vars, Type) :-
     ensure_pointer_target_record(PtrType, Name, Fields),
     ensure_record_field(Fields, Name, Field, Type).
 
-check_block(block(LocalVars, Stmts), VarsInScope, FuncSigs) :-
+check_block(block(LocalConsts, LocalVars, Stmts), VarsInScope, FuncSigs) :-
+    check_const_decls(LocalConsts, VarsInScope, LocalConstEnv),
     ensure_no_duplicate_decls(LocalVars),
+    ensure_const_var_disjoint(LocalConsts, LocalVars),
     ensure_valid_decls(LocalVars),
     decls_env(LocalVars, LocalEnv),
-    append(LocalEnv, VarsInScope, ScopeVars),
+    append(LocalConstEnv, LocalEnv, ScopeVars0),
+    append(ScopeVars0, VarsInScope, ScopeVars),
     check_stmts(Stmts, ScopeVars, FuncSigs).
