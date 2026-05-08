@@ -9,7 +9,24 @@ ROOT = Path(__file__).resolve().parents[1]
 BIN_DIR = ROOT / ".verify_bin"
 
 
+class _MissingBinary:
+    """Stand-in for subprocess.run() result when the target binary is missing."""
+
+    def __init__(self, cmd):
+        self.args = cmd
+        self.returncode = 127
+        self.stdout = ""
+        self.stderr = f"verify_math: missing binary: {cmd[0] if cmd else ''}\n"
+
+
 def run(cmd, *, input_text=None, timeout=240):
+    # Short-circuit for absolute/relative-path executables that do not exist on
+    # disk (e.g. when an upstream build failed).  This keeps the verification
+    # harness producing a valid JSON report instead of crashing midway.
+    if cmd:
+        first = cmd[0]
+        if ("/" in first or "\\" in first) and not Path(first).exists():
+            return _MissingBinary(cmd)
     return subprocess.run(
         cmd,
         cwd=ROOT,

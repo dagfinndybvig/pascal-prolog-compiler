@@ -35,6 +35,25 @@ jobs:
         run: |
           python3 scripts/verify_math.py > verify_results.json
 
+      - name: Report build failures (if any)
+        if: always()
+        run: |
+          test -s verify_results.json || { echo "verify_results.json is empty"; exit 0; }
+          python3 - <<'PY'
+          import json
+          with open('verify_results.json') as f:
+              data = json.load(f)
+          builds = data.get('build_results', {})
+          failed = [(p, info) for p, info in builds.items() if not info.get('ok')]
+          if not failed:
+              print(f"All {len(builds)} builds OK.")
+          else:
+              print(f"BUILD FAILURES: {len(failed)} of {len(builds)}")
+              for p, info in failed[:20]:
+                  print(f"--- {p} ---")
+                  print(info.get('stderr') or '(no stderr)')
+          PY
+
       - name: Summarize results
         if: always()
         run: |
